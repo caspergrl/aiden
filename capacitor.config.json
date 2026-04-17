@@ -1,0 +1,11 @@
+{
+  "appId": "com.aiden.caregiverapp",
+  "appName": "Aiden",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "never"
+  }
+}
