@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   CheckSquare, Square, Plus, Phone, FileText, Image,
-  ExternalLink, GripVertical, ChevronDown, ChevronRight,
+  GripVertical, ChevronDown, ChevronRight,
   RotateCcw, Trash2, Download, Upload, AlertCircle,
 } from 'lucide-react';
 import {
@@ -13,14 +13,64 @@ import { useAuth } from '../../App';
 import { C, serif } from '../../theme';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
-const COLORS = [C.rose, C.primary, C.sage, C.lavender, C.peach];
-function rColor(recipientId) { return COLORS[(recipientId - 1) % COLORS.length] ?? C.primary; }
+const AVATAR_COLORS = [C.rose, C.primary, C.sage, C.lavender, C.peach];
+function rColor(id) { return AVATAR_COLORS[(id - 1) % AVATAR_COLORS.length] ?? C.primary; }
+
+function RecipAvatar({ r, size = 24 }) {
+  const col = rColor(r.id);
+  const initials = r.name.split(' ').map(n => n[0]).join('').slice(0, 2);
+  return (
+    <div title={r.nickname || r.name} style={{
+      width: size, height: size, borderRadius: '50%',
+      background: col + '22', border: `1.5px solid ${col}55`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: Math.round(size * 0.38), fontWeight: 700, color: col, flexShrink: 0,
+    }}>
+      {initials}
+    </div>
+  );
+}
+
+function FilterBar({ recipients, filterId, setFilterId }) {
+  if (!recipients?.length) return null;
+  const options = [{ id: null, label: 'All', r: null }, ...recipients.map(r => ({ id: r.id, label: r.nickname || r.name.split(' ')[0], r }))];
+  return (
+    <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+      {options.map(opt => {
+        const active = filterId === opt.id;
+        const col = opt.r ? rColor(opt.r.id) : C.roseDark;
+        return (
+          <button key={String(opt.id)} onClick={() => setFilterId(opt.id)} style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
+            borderRadius: 20, border: `1.5px solid ${active ? col : C.border}`,
+            background: active ? col + '15' : 'transparent',
+            color: active ? col : C.muted, fontSize: 12, fontWeight: active ? 700 : 500,
+            cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
+          }}>
+            {opt.r && <RecipAvatar r={opt.r} size={16} />}
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function RecipSelect({ recipients, value, onChange, label = 'For (optional)' }) {
+  return (
+    <select value={value ?? ''} onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}
+      style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 12, color: value ? C.text : C.muted, background: '#fff', cursor: 'pointer', outline: 'none' }}>
+      <option value="">{label}</option>
+      {recipients.map(r => <option key={r.id} value={r.id}>{r.nickname || r.name.split(' ')[0]}</option>)}
+    </select>
+  );
+}
 
 function fileTypeMeta(name = '', contentType = '') {
   const ext = name.split('.').pop().toLowerCase();
   if (ext === 'pdf' || contentType === 'application/pdf')
     return { label: 'PDF', color: '#e05050', icon: 'file' };
-  if (['jpg','jpeg'].includes(ext) || contentType.startsWith('image/jpeg'))
+  if (['jpg', 'jpeg'].includes(ext) || contentType.startsWith('image/jpeg'))
     return { label: 'JPG', color: C.primary, icon: 'image' };
   if (ext === 'png' || contentType === 'image/png')
     return { label: 'PNG', color: C.lavender, icon: 'image' };
@@ -40,29 +90,46 @@ function fmtSize(bytes) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────────
-export default function MyList({ logistics, setLogistics, doctors }) {
+export default function MyList({ logistics, setLogistics, doctors, recipients = [] }) {
   const { user } = useAuth();
   const [sub, setSub]         = useState('logistics');
   const [adding, setAdding]   = useState(false);
   const [newItem, setNewItem] = useState('');
+  const [newItemRecipId, setNewItemRecipId] = useState(null);
   const [doneOpen, setDoneOpen]   = useState(false);
   const [restoreId, setRestoreId] = useState(null);
+
+  // ── Recipient filter ──────────────────────────────────────────────────────────
+  const [filterRecipId, setFilterRecipId] = useState(null);
 
   // ── Drag state ────────────────────────────────────────────────────────────────
   const dragId              = useRef(null);
   const [dragOverId, setDragOverId] = useState(null);
 
   // ── Documents state ───────────────────────────────────────────────────────────
-  const [docs, setDocs]           = useState([]);
+  const [docs, setDocs]                 = useState([]);
   const [docsLoading, setDocsLoading]   = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [deletingDoc, setDeletingDoc]   = useState(null); // fullPath
-  const [docError, setDocError]   = useState('');
+  const [uploading, setUploading]       = useState(false);
+  const [deletingDoc, setDeletingDoc]   = useState(null);
+  const [docError, setDocError]         = useState('');
+  const [uploadRecipId, setUploadRecipId] = useState(null);
   const fileInput = useRef(null);
 
-  const incomplete = logistics.filter(l => !l.completed);
-  const complete   = logistics.filter(l => l.completed);
-  const pct        = logistics.length === 0 ? 0 : Math.round((complete.length / logistics.length) * 100);
+  // Filtered data
+  const filteredLogistics = filterRecipId
+    ? logistics.filter(l => l.recipientId === filterRecipId)
+    : logistics;
+  const filteredDoctors = filterRecipId
+    ? doctors.filter(d => d.recipientId === filterRecipId)
+    : doctors;
+  const filteredDocs = filterRecipId
+    ? docs.filter(d => d.recipientId === filterRecipId)
+    : docs;
+
+  const incomplete = filteredLogistics.filter(l => !l.completed);
+  const complete   = filteredLogistics.filter(l => l.completed);
+  const allComplete = logistics.filter(l => l.completed);
+  const pct = logistics.length === 0 ? 0 : Math.round((allComplete.length / logistics.length) * 100);
 
   // ── Load documents when tab is opened ────────────────────────────────────────
   useEffect(() => {
@@ -78,6 +145,7 @@ export default function MyList({ logistics, setLogistics, doctors }) {
       const items  = await Promise.all(
         result.items.map(async itemRef => {
           const [meta, url] = await Promise.all([getMetadata(itemRef), getDownloadURL(itemRef)]);
+          const recipId = meta.customMetadata?.recipientId ? Number(meta.customMetadata.recipientId) : null;
           return {
             fullPath:    itemRef.fullPath,
             ref:         itemRef,
@@ -85,6 +153,7 @@ export default function MyList({ logistics, setLogistics, doctors }) {
             size:        meta.size,
             uploadedAt:  meta.timeCreated,
             contentType: meta.contentType,
+            recipientId: recipId,
             url,
           };
         })
@@ -106,7 +175,9 @@ export default function MyList({ logistics, setLogistics, doctors }) {
     try {
       const path = `documents/${user.uid}/${Date.now()}_${file.name}`;
       const fileRef = storageRef(storage, path);
-      await uploadBytes(fileRef, file, { customMetadata: { originalName: file.name } });
+      const customMeta = { originalName: file.name };
+      if (uploadRecipId) customMeta.recipientId = String(uploadRecipId);
+      await uploadBytes(fileRef, file, { customMetadata: customMeta });
       await loadDocs();
     } catch {
       setDocError('Upload failed — please try again.');
@@ -148,6 +219,17 @@ export default function MyList({ logistics, setLogistics, doctors }) {
     setLogistics(p => p.map(l => l.id === id ? { ...l, completed: false } : l));
     setRestoreId(null);
   }
+  function addItem() {
+    if (!newItem.trim()) return;
+    setLogistics(p => [
+      ...p.filter(x => !x.completed),
+      { id: Date.now(), title: newItem.trim(), completed: false, note: '', partnerLink: null, recipientId: newItemRecipId ?? null },
+      ...p.filter(x => x.completed),
+    ]);
+    setNewItem('');
+    setNewItemRecipId(null);
+    setAdding(false);
+  }
 
   // ── Drag helpers ──────────────────────────────────────────────────────────────
   function onDragStart(e, id) {
@@ -187,13 +269,13 @@ export default function MyList({ logistics, setLogistics, doctors }) {
     <div style={{ padding: 32, maxWidth: 820 }}>
       <div style={{ marginBottom: 28 }}>
         <p style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Organisation</p>
-        <h1 style={{ fontFamily: serif, fontSize: 30, color: C.text, letterSpacing: -0.5 }}>My List</h1>
+        <h1 style={{ fontFamily: serif, fontSize: 30, color: C.text, letterSpacing: -0.5 }}>To Dos</h1>
       </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, background: C.bgWarm, borderRadius: 12, padding: 4, marginBottom: 24, width: 'fit-content', border: `1px solid ${C.border}` }}>
-        {[['logistics','Checklist'],['doctors','Doctors'],['documents','Documents']].map(([id, label]) => (
-          <button key={id} onClick={() => setSub(id)}
+        {[['logistics', 'Checklist'], ['doctors', 'Doctors'], ['documents', 'Documents']].map(([id, label]) => (
+          <button key={id} onClick={() => { setSub(id); setFilterRecipId(null); }}
             style={{ padding: '8px 20px', borderRadius: 9, border: 'none', fontSize: 13, fontWeight: sub === id ? 700 : 500, color: sub === id ? '#fff' : C.muted, background: sub === id ? C.roseDark : 'transparent', cursor: 'pointer', transition: 'all 0.15s' }}>
             {label}
           </button>
@@ -206,7 +288,7 @@ export default function MyList({ logistics, setLogistics, doctors }) {
           {/* Progress */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '16px 20px', marginBottom: 20, border: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <p style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>{complete.length} of {logistics.length} completed</p>
+              <p style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>{allComplete.length} of {logistics.length} completed</p>
               <div style={{ width: 240, height: 8, background: C.bgWarm, borderRadius: 4, overflow: 'hidden', border: `1px solid ${C.border}` }}>
                 <div style={{ width: `${pct}%`, height: '100%', background: pct >= 75 ? C.sage : pct >= 40 ? C.peach : C.rose, borderRadius: 4, transition: 'width 0.4s' }} />
               </div>
@@ -214,38 +296,52 @@ export default function MyList({ logistics, setLogistics, doctors }) {
             <span style={{ fontSize: 28, fontWeight: 900, color: pct >= 75 ? C.sage : pct >= 40 ? C.peach : C.rose }}>{pct}%</span>
           </div>
 
+          {/* Filter bar */}
+          <FilterBar recipients={recipients} filterId={filterRecipId} setFilterId={setFilterRecipId} />
+
           {/* Incomplete / draggable items */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
             {incomplete.length === 0 && (
-              <p style={{ fontSize: 14, color: C.mutedLight, textAlign: 'center', padding: '20px 0' }}>Everything is done 🎉</p>
+              <p style={{ fontSize: 14, color: C.mutedLight, textAlign: 'center', padding: '20px 0' }}>
+                {filterRecipId ? 'No items for this person.' : 'Everything is done 🎉'}
+              </p>
             )}
-            {incomplete.map(item => (
-              <div key={item.id} data-drag-item draggable
-                onDragStart={e => onDragStart(e, item.id)} onDragOver={e => onDragOver(e, item.id)}
-                onDrop={e => onDrop(e, item.id)} onDragEnd={onDragEnd}
-                style={{ background: '#fff', borderRadius: 14, padding: '14px 18px', border: `1px solid ${C.border}`, borderTop: dragOverId === item.id ? `2px solid ${C.roseDark}` : `1px solid ${C.border}`, display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'default', transition: 'border-color 0.12s' }}>
-                <div style={{ flexShrink: 0, marginTop: 2, cursor: 'grab', color: C.border, padding: '0 2px' }}>
-                  <GripVertical size={16} />
+            {incomplete.map(item => {
+              const recip = item.recipientId ? recipients.find(r => r.id === item.recipientId) : null;
+              return (
+                <div key={item.id} data-drag-item draggable
+                  onDragStart={e => onDragStart(e, item.id)} onDragOver={e => onDragOver(e, item.id)}
+                  onDrop={e => onDrop(e, item.id)} onDragEnd={onDragEnd}
+                  style={{ background: '#fff', borderRadius: 14, padding: '14px 18px', border: `1px solid ${C.border}`, borderTop: dragOverId === item.id ? `2px solid ${C.roseDark}` : `1px solid ${C.border}`, display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'default', transition: 'border-color 0.12s' }}>
+                  <div style={{ flexShrink: 0, marginTop: 2, cursor: 'grab', color: C.border, padding: '0 2px' }}>
+                    <GripVertical size={16} />
+                  </div>
+                  <button onClick={() => handleToggle(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, marginTop: 1 }}>
+                    <Square size={20} color={C.border} />
+                  </button>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{item.title}</p>
+                    {item.note && <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{item.note}</p>}
+                  </div>
+                  {recip && <RecipAvatar r={recip} size={26} />}
                 </div>
-                <button onClick={() => handleToggle(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, marginTop: 1 }}>
-                  <Square size={20} color={C.border} />
-                </button>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{item.title}</p>
-                  {item.note && <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{item.note}</p>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* Add item */}
             {adding ? (
               <div style={{ background: '#fff', borderRadius: 14, padding: '14px 18px', border: `2px solid ${C.roseDark}` }}>
                 <input value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="New checklist item…" autoFocus
-                  onKeyDown={e => { if (e.key === 'Enter' && newItem.trim()) { setLogistics(p => [...p.filter(x => !x.completed), { id: Date.now(), title: newItem.trim(), completed: false, note: '', partnerLink: null }, ...p.filter(x => x.completed)]); setNewItem(''); setAdding(false); } if (e.key === 'Escape') { setAdding(false); setNewItem(''); } }}
-                  style={{ width: '100%', border: 'none', outline: 'none', fontSize: 14, color: C.text, background: 'none' }} />
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button onClick={() => { if (newItem.trim()) { setLogistics(p => [...p.filter(x => !x.completed), { id: Date.now(), title: newItem.trim(), completed: false, note: '', partnerLink: null }, ...p.filter(x => x.completed)]); setNewItem(''); setAdding(false); } }} style={{ flex: 1, background: C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: 10, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Add</button>
-                  <button onClick={() => { setAdding(false); setNewItem(''); }} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: 10, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+                  onKeyDown={e => { if (e.key === 'Enter') addItem(); if (e.key === 'Escape') { setAdding(false); setNewItem(''); setNewItemRecipId(null); } }}
+                  style={{ width: '100%', border: 'none', outline: 'none', fontSize: 14, color: C.text, background: 'none', marginBottom: 10 }} />
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {recipients.length > 0 && (
+                    <RecipSelect recipients={recipients} value={newItemRecipId} onChange={setNewItemRecipId} />
+                  )}
+                  <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                    <button onClick={addItem} style={{ background: C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '8px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Add</button>
+                    <button onClick={() => { setAdding(false); setNewItem(''); setNewItemRecipId(null); }} style={{ background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -268,6 +364,7 @@ export default function MyList({ logistics, setLogistics, doctors }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                   {complete.map(item => {
                     const isRestoring = restoreId === item.id;
+                    const recip = item.recipientId ? recipients.find(r => r.id === item.recipientId) : null;
                     return (
                       <div key={item.id} style={{ background: isRestoring ? '#f9f6f3' : '#fafafa', borderRadius: 14, padding: '12px 18px', border: `1px solid ${C.border}`, opacity: 0.85 }}>
                         {isRestoring ? (
@@ -288,6 +385,7 @@ export default function MyList({ logistics, setLogistics, doctors }) {
                               <p style={{ fontSize: 14, fontWeight: 500, color: C.mutedLight, textDecoration: 'line-through' }}>{item.title}</p>
                               {item.note && <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 2 }}>{item.note}</p>}
                             </div>
+                            {recip && <RecipAvatar r={recip} size={22} />}
                           </div>
                         )}
                       </div>
@@ -302,44 +400,64 @@ export default function MyList({ logistics, setLogistics, doctors }) {
 
       {/* ── Doctors ───────────────────────────────────────────────────────────── */}
       {sub === 'doctors' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {doctors.map(d => {
-            const col = rColor(d.recipientId);
-            return (
-              <div key={d.id} style={{ background: '#fff', borderRadius: 16, padding: '16px 20px', border: `1px solid ${C.border}`, borderLeft: `4px solid ${col}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{d.name}</p>
-                  <p style={{ fontSize: 13, color: col, fontWeight: 700, marginTop: 2 }}>{d.specialty}</p>
-                  <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{d.phone}</p>
-                  <p style={{ fontSize: 12, color: C.mutedLight }}>{d.address}</p>
-                  {d.notes && <p style={{ fontSize: 12, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>{d.notes}</p>}
+        <>
+          <FilterBar recipients={recipients} filterId={filterRecipId} setFilterId={setFilterRecipId} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filteredDoctors.length === 0 && (
+              <p style={{ fontSize: 14, color: C.mutedLight, textAlign: 'center', padding: '20px 0' }}>
+                {filterRecipId ? 'No doctors for this person.' : 'No doctors yet.'}
+              </p>
+            )}
+            {filteredDoctors.map(d => {
+              const col = rColor(d.recipientId);
+              const recip = d.recipientId ? recipients.find(r => r.id === d.recipientId) : null;
+              return (
+                <div key={d.id} style={{ background: '#fff', borderRadius: 16, padding: '16px 20px', border: `1px solid ${C.border}`, borderLeft: `4px solid ${col}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                      <p style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{d.name}</p>
+                      {recip && <RecipAvatar r={recip} size={22} />}
+                    </div>
+                    <p style={{ fontSize: 13, color: col, fontWeight: 700, marginTop: 2 }}>{d.specialty}</p>
+                    <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{d.phone}</p>
+                    <p style={{ fontSize: 12, color: C.mutedLight }}>{d.address}</p>
+                    {d.notes && <p style={{ fontSize: 12, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>{d.notes}</p>}
+                  </div>
+                  <a href={`tel:${d.phone}`} style={{ width: 42, height: 42, background: col + '18', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}>
+                    <Phone size={16} color={col} />
+                  </a>
                 </div>
-                <a href={`tel:${d.phone}`} style={{ width: 42, height: 42, background: col + '18', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}>
-                  <Phone size={16} color={col} />
-                </a>
-              </div>
-            );
-          })}
-          <button style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 16, padding: 16, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Plus size={15} /> Add a doctor
-          </button>
-        </div>
+              );
+            })}
+            <button style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 16, padding: 16, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Plus size={15} /> Add a doctor
+            </button>
+          </div>
+        </>
       )}
 
       {/* ── Documents ─────────────────────────────────────────────────────────── */}
       {sub === 'documents' && (
         <>
-          {/* Hidden file input — PNG, JPG, PDF only */}
+          {/* Hidden file input */}
           <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg,.pdf" style={{ display: 'none' }} onChange={handleUpload} />
 
           {/* Header row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
             <p style={{ fontSize: 14, color: C.muted }}>Store insurance cards, medical records, and legal documents.</p>
-            <button onClick={() => fileInput.current?.click()} disabled={uploading}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, background: uploading ? C.border : C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: uploading ? 'default' : 'pointer', flexShrink: 0, transition: 'background 0.2s' }}>
-              <Upload size={14} /> {uploading ? 'Uploading…' : 'Upload document'}
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+              {recipients.length > 0 && (
+                <RecipSelect recipients={recipients} value={uploadRecipId} onChange={setUploadRecipId} label="Tag recipient" />
+              )}
+              <button onClick={() => fileInput.current?.click()} disabled={uploading}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, background: uploading ? C.border : C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: uploading ? 'default' : 'pointer', transition: 'background 0.2s' }}>
+                <Upload size={14} /> {uploading ? 'Uploading…' : 'Upload'}
+              </button>
+            </div>
           </div>
+
+          {/* Filter bar */}
+          <FilterBar recipients={recipients} filterId={filterRecipId} setFilterId={setFilterRecipId} />
 
           {/* Error */}
           {docError && (
@@ -360,21 +478,25 @@ export default function MyList({ logistics, setLogistics, doctors }) {
           {/* File list */}
           {!docsLoading && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {docs.length === 0 && !docError && (
+              {filteredDocs.length === 0 && !docError && (
                 <div style={{ textAlign: 'center', padding: '56px 0', color: C.mutedLight }}>
                   <FileText size={36} style={{ marginBottom: 14, opacity: 0.3 }} />
-                  <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>No documents yet</p>
-                  <p style={{ fontSize: 13 }}>Upload a PDF, PNG, or JPG using the button above.</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+                    {filterRecipId ? 'No documents for this person' : 'No documents yet'}
+                  </p>
+                  <p style={{ fontSize: 13 }}>
+                    {filterRecipId ? 'Upload a document and tag it to this recipient.' : 'Upload a PDF, PNG, or JPG using the button above.'}
+                  </p>
                 </div>
               )}
 
-              {docs.map(doc => {
+              {filteredDocs.map(doc => {
                 const meta  = fileTypeMeta(doc.name, doc.contentType);
                 const isDel = deletingDoc === doc.fullPath;
+                const recip = doc.recipientId ? recipients.find(r => r.id === doc.recipientId) : null;
                 return (
                   <div key={doc.fullPath} style={{ background: '#fff', borderRadius: 14, padding: '14px 18px', border: `1px solid ${C.border}` }}>
                     {isDel ? (
-                      /* Delete confirmation */
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         <Trash2 size={15} color={C.coral} style={{ flexShrink: 0 }} />
                         <span style={{ fontSize: 13, fontWeight: 600, color: C.text, flex: 1 }}>
@@ -402,6 +524,8 @@ export default function MyList({ logistics, setLogistics, doctors }) {
                             {meta.label}{doc.size ? ` · ${fmtSize(doc.size)}` : ''} · Uploaded {fmtDate(doc.uploadedAt)}
                           </p>
                         </div>
+                        {/* Recipient avatar */}
+                        {recip && <RecipAvatar r={recip} size={28} />}
                         {/* Actions */}
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                           <button onClick={() => handleDownload(doc)} title="Download"
@@ -422,7 +546,7 @@ export default function MyList({ logistics, setLogistics, doctors }) {
               })}
 
               {/* Upload drop zone */}
-              {docs.length > 0 && (
+              {filteredDocs.length > 0 && (
                 <button onClick={() => fileInput.current?.click()} disabled={uploading}
                   style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 14, padding: 14, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   <Plus size={15} /> Upload another document

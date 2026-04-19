@@ -10,7 +10,7 @@ const NAV = [
   { id: 'home',      label: 'Home',       Icon: Home },
   { id: 'care',      label: 'Care',        Icon: Users },
   { id: 'calendar',  label: 'Calendar',    Icon: CalendarDays },
-  { id: 'list',      label: 'My List',     Icon: ClipboardList },
+  { id: 'list',      label: 'To Dos',      Icon: ClipboardList },
   { id: 'insurance', label: 'Insurance',   Icon: Shield },
   { id: 'chat',      label: 'Ask Aiden',   Icon: MessageCircle },
 ];

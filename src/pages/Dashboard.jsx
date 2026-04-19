@@ -32,7 +32,7 @@ export default function Dashboard() {
       case 'home':      return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={setActive} />;
       case 'care':      return <Care recipients={recipients} setRecipients={setRecipients} doctors={doctors} setDoctors={setDoctors} appointments={appointments} setAppointments={setAppointments} />;
       case 'calendar':  return <CalendarView appointments={appointments} recipients={recipients} />;
-      case 'list':      return <MyList logistics={logistics} setLogistics={setLogistics} doctors={doctors} />;
+      case 'list':      return <MyList logistics={logistics} setLogistics={setLogistics} doctors={doctors} recipients={recipients} />;
       case 'insurance': return <Insurance recipients={recipients} />;
       case 'chat':      return <Chat messages={chatMessages} setMessages={setChatMessages} />;
       default:          return null;
