@@ -1067,18 +1067,61 @@ function CalendarTab({ appointments, recipients, onShowAddEvent }) {
 
 // ─── LIST TAB ──────────────────────────────────────────────────────────────────
 
-function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors }) {
+function MiniAvatar({ r, size = 22 }) {
+  const col = rColor(r.id);
+  const ini = r.name.split(" ").map(n => n[0]).join("").slice(0, 2);
+  return (
+    <div title={r.nickname || r.name} style={{ width: size, height: size, borderRadius: "50%", background: col + "22", border: `1.5px solid ${col}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(size * 0.38), fontWeight: 700, color: col, flexShrink: 0, fontFamily: sans }}>
+      {ini}
+    </div>
+  );
+}
+
+function RecipFilterBar({ recipients, filterId, setFilterId }) {
+  if (!recipients?.length) return null;
+  const opts = [{ id: null, label: "All" }, ...recipients.map(r => ({ id: r.id, label: r.nickname || r.name.split(" ")[0], r }))];
+  return (
+    <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+      {opts.map(opt => {
+        const active = filterId === opt.id;
+        const col = opt.r ? rColor(opt.r.id) : C.primary;
+        return (
+          <button key={String(opt.id)} onClick={() => setFilterId(opt.id)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, border: `1.5px solid ${active ? col : C.border}`, background: active ? col + "15" : "transparent", color: active ? col : C.mutedLight, fontSize: 11, fontWeight: active ? 700 : 500, fontFamily: sans, cursor: "pointer", whiteSpace: "nowrap" }}>
+            {opt.r && <MiniAvatar r={opt.r} size={16} />}
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, recipients = [] }) {
   const [sub, setSub] = useState("logistics");
   const [adding, setAdding] = useState(false);
   const [newItem, setNewItem] = useState("");
+  const [newItemRecipId, setNewItemRecipId] = useState(null);
+  const [filterRecipId, setFilterRecipId] = useState(null);
   const done = logistics.filter(l => l.completed).length;
   const pct = Math.round((done / logistics.length) * 100);
+
+  const filteredLogistics = filterRecipId ? logistics.filter(l => l.recipientId === filterRecipId) : logistics;
+  const filteredDoctors   = filterRecipId ? doctors.filter(d => d.recipientId === filterRecipId) : doctors;
+
+  // Mock documents with recipientId
+  const MOCK_DOCS = [
+    { name: "Medicare Card – Margaret.pdf", date: "Mar 10, 2026", recipientId: 1 },
+    { name: "Advanced Directive – Margaret.pdf", date: "Jan 5, 2025", recipientId: 1 },
+    { name: "Will – Notarized 2025.pdf", date: "Mar 15, 2025", recipientId: null },
+    { name: "Medicaid Approval – Thomas.pdf", date: "Nov 20, 2025", recipientId: 2 },
+  ];
+  const filteredDocs = filterRecipId ? MOCK_DOCS.filter(d => d.recipientId === filterRecipId) : MOCK_DOCS;
 
   return (
     <div>
       <div style={{ background: C.card, borderBottom: `1px solid ${C.bg}`, display: "flex" }}>
         {[{ id: "logistics", label: "Checklist" }, { id: "doctors", label: "Doctors" }, { id: "documents", label: "Documents" }].map(t => (
-          <button key={t.id} onClick={() => setSub(t.id)} style={{ flex: 1, padding: "13px 8px", background: "none", border: "none", fontWeight: sub === t.id ? 700 : 400, fontSize: 12, color: sub === t.id ? C.primary : C.mutedLight, fontFamily: sans, borderBottom: sub === t.id ? `2px solid ${C.primary}` : "2px solid transparent", cursor: "pointer" }}>
+          <button key={t.id} onClick={() => { setSub(t.id); setFilterRecipId(null); }} style={{ flex: 1, padding: "13px 8px", background: "none", border: "none", fontWeight: sub === t.id ? 700 : 400, fontSize: 12, color: sub === t.id ? C.primary : C.mutedLight, fontFamily: sans, borderBottom: sub === t.id ? `2px solid ${C.primary}` : "2px solid transparent", cursor: "pointer" }}>
             {t.label}
           </button>
         ))}
@@ -1097,29 +1140,43 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors }) {
               <span style={{ fontSize: 28, fontWeight: 600, fontFamily: serif, color: pct >= 75 ? C.sage : pct >= 40 ? C.peach : C.rose }}>{pct}%</span>
             </Card>
 
-            {logistics.map(item => (
-              <div key={item.id} style={{ background: C.card, borderRadius: 18, padding: "13px 16px", marginBottom: 8, boxShadow: CARD_SHADOW_SM, display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <button onClick={() => onUpdateLogistic(item.id, { completed: !item.completed })} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0, marginTop: 1 }}>
-                  {item.completed ? <CheckSquare size={19} color={C.sage} /> : <Square size={19} color={C.border} />}
-                </button>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: item.completed ? C.mutedLight : C.text, textDecoration: item.completed ? "line-through" : "none", fontFamily: sans }}>{item.title}</p>
-                  {item.note && <p style={{ fontSize: 11, color: C.muted, marginTop: 3, fontFamily: sans }}>{item.note}</p>}
-                  {item.partnerLink === "trust-will" && !item.completed && (
-                    <button style={{ marginTop: 7, display: "flex", alignItems: "center", gap: 5, background: C.primaryLight, border: "none", borderRadius: 8, padding: "4px 10px", color: C.primaryDark, fontSize: 11, fontFamily: sans, fontWeight: 600, cursor: "pointer" }}>
-                      <ExternalLink size={10} /> Complete via Trust & Will
-                    </button>
-                  )}
+            <RecipFilterBar recipients={recipients} filterId={filterRecipId} setFilterId={setFilterRecipId} />
+
+            {filteredLogistics.map(item => {
+              const recip = item.recipientId ? recipients.find(r => r.id === item.recipientId) : null;
+              return (
+                <div key={item.id} style={{ background: C.card, borderRadius: 18, padding: "13px 16px", marginBottom: 8, boxShadow: CARD_SHADOW_SM, display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <button onClick={() => onUpdateLogistic(item.id, { completed: !item.completed })} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0, marginTop: 1 }}>
+                    {item.completed ? <CheckSquare size={19} color={C.sage} /> : <Square size={19} color={C.border} />}
+                  </button>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: item.completed ? C.mutedLight : C.text, textDecoration: item.completed ? "line-through" : "none", fontFamily: sans }}>{item.title}</p>
+                    {item.note && <p style={{ fontSize: 11, color: C.muted, marginTop: 3, fontFamily: sans }}>{item.note}</p>}
+                  </div>
+                  {recip && <MiniAvatar r={recip} size={24} />}
                 </div>
-              </div>
-            ))}
+              );
+            })}
+
+            {filteredLogistics.length === 0 && (
+              <p style={{ textAlign: "center", color: C.mutedLight, fontSize: 13, fontFamily: sans, padding: "16px 0" }}>
+                {filterRecipId ? "No items for this person." : "All done! 🎉"}
+              </p>
+            )}
 
             {adding ? (
               <div style={{ background: C.card, borderRadius: 18, padding: "14px 16px", border: `1.5px solid ${C.primary}40`, boxShadow: CARD_SHADOW }}>
-                <input value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="New item..." autoFocus style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: C.text, background: "none", fontFamily: sans }} />
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button onClick={() => { if (newItem.trim()) { onAddLogistic({ id: Date.now(), title: newItem, completed: false, note: "", partnerLink: null }); setNewItem(""); setAdding(false); } }} style={{ flex: 1, background: `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 10, padding: "9px", fontWeight: 600, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Add</button>
-                  <button onClick={() => { setAdding(false); setNewItem(""); }} style={{ flex: 1, background: C.bg, color: C.muted, border: "none", borderRadius: 10, padding: "9px", fontWeight: 500, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Cancel</button>
+                <input value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="New item..." autoFocus style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: C.text, background: "none", fontFamily: sans, marginBottom: 10 }} />
+                {recipients.length > 0 && (
+                  <select value={newItemRecipId ?? ""} onChange={e => setNewItemRecipId(e.target.value ? Number(e.target.value) : null)}
+                    style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 10px", fontSize: 12, color: newItemRecipId ? C.text : C.mutedLight, background: C.bg, fontFamily: sans, marginBottom: 10, outline: "none" }}>
+                    <option value="">For (optional)</option>
+                    {recipients.map(r => <option key={r.id} value={r.id}>{r.nickname || r.name.split(" ")[0]}</option>)}
+                  </select>
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => { if (newItem.trim()) { onAddLogistic({ id: Date.now(), title: newItem, completed: false, note: "", partnerLink: null, recipientId: newItemRecipId ?? null }); setNewItem(""); setNewItemRecipId(null); setAdding(false); } }} style={{ flex: 1, background: `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 10, padding: "9px", fontWeight: 600, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Add</button>
+                  <button onClick={() => { setAdding(false); setNewItem(""); setNewItemRecipId(null); }} style={{ flex: 1, background: C.bg, color: C.muted, border: "none", borderRadius: 10, padding: "9px", fontWeight: 500, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Cancel</button>
                 </div>
               </div>
             ) : (
@@ -1132,13 +1189,18 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors }) {
 
         {sub === "doctors" && (
           <>
-            {doctors.map(d => {
+            <RecipFilterBar recipients={recipients} filterId={filterRecipId} setFilterId={setFilterRecipId} />
+            {filteredDoctors.map(d => {
               const col = rColor(d.recipientId);
+              const recip = d.recipientId ? recipients.find(r => r.id === d.recipientId) : null;
               return (
                 <div key={d.id} style={{ background: C.card, borderRadius: 18, padding: 16, marginBottom: 10, boxShadow: CARD_SHADOW_SM, borderLeft: `3px solid ${col}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: C.text, fontFamily: serif }}>{d.name}</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
+                        <p style={{ fontSize: 15, fontWeight: 600, color: C.text, fontFamily: serif }}>{d.name}</p>
+                        {recip && <MiniAvatar r={recip} size={20} />}
+                      </div>
                       <p style={{ fontSize: 12, color: col, fontFamily: sans, marginTop: 2 }}>{d.specialty}</p>
                       <p style={{ fontSize: 12, color: C.muted, marginTop: 4, fontFamily: sans }}>{d.phone}</p>
                       <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{d.address}</p>
@@ -1150,6 +1212,11 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors }) {
                 </div>
               );
             })}
+            {filteredDoctors.length === 0 && (
+              <p style={{ textAlign: "center", color: C.mutedLight, fontSize: 13, fontFamily: sans, padding: "16px 0" }}>
+                {filterRecipId ? "No doctors for this person." : "No doctors yet."}
+              </p>
+            )}
             <button style={{ width: "100%", border: `1.5px dashed ${C.border}`, borderRadius: 18, padding: 14, background: "none", color: C.mutedLight, fontSize: 13, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
               <Plus size={15} /> Add a doctor
             </button>
@@ -1158,35 +1225,28 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors }) {
 
         {sub === "documents" && (
           <>
-            <div style={{ background: C.primaryLight, borderRadius: 18, padding: 16, marginBottom: 16, boxShadow: CARD_SHADOW_SM }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <Info size={16} color={C.primaryDark} style={{ flexShrink: 0, marginTop: 1 }} />
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: C.primaryDark, fontFamily: sans }}>Connect Google Drive</p>
-                  <p style={{ fontSize: 12, color: C.primary, marginTop: 3, lineHeight: 1.6, fontFamily: sans }}>Store insurance cards, medical records, and legal documents in one secure place.</p>
-                  <button style={{ marginTop: 10, background: `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-                    <ExternalLink size={12} /> Connect Google Drive
-                  </button>
+            <RecipFilterBar recipients={recipients} filterId={filterRecipId} setFilterId={setFilterRecipId} />
+            {filteredDocs.map((doc, i) => {
+              const recip = doc.recipientId ? recipients.find(r => r.id === doc.recipientId) : null;
+              const col = recip ? rColor(recip.id) : C.primary;
+              return (
+                <div key={i} style={{ background: C.card, borderRadius: 16, padding: 14, marginBottom: 8, boxShadow: CARD_SHADOW_SM, display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 38, height: 38, background: col + "16", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <FileText size={16} color={col} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: C.text, fontFamily: sans, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</p>
+                    <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{doc.date}</p>
+                  </div>
+                  {recip && <MiniAvatar r={recip} size={22} />}
                 </div>
-              </div>
-            </div>
-            {[
-              { name: "Medicare Card – Margaret.pdf", date: "Mar 10, 2026", color: C.blue },
-              { name: "Advanced Directive – Margaret.pdf", date: "Jan 5, 2025", color: C.sage },
-              { name: "Will – Notarized 2025.pdf", date: "Mar 15, 2025", color: C.peach },
-              { name: "Medicaid Approval – Thomas.pdf", date: "Nov 20, 2025", color: C.lavender },
-            ].map((doc, i) => (
-              <div key={i} style={{ background: C.card, borderRadius: 16, padding: 14, marginBottom: 8, boxShadow: CARD_SHADOW_SM, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 38, height: 38, background: doc.color + "16", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <FileText size={16} color={doc.color} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: C.text, fontFamily: sans, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</p>
-                  <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{doc.date}</p>
-                </div>
-                <ExternalLink size={14} color={C.border} />
-              </div>
-            ))}
+              );
+            })}
+            {filteredDocs.length === 0 && (
+              <p style={{ textAlign: "center", color: C.mutedLight, fontSize: 13, fontFamily: sans, padding: "16px 0" }}>
+                {filterRecipId ? "No documents for this person." : "No documents yet."}
+              </p>
+            )}
             <button style={{ width: "100%", border: `1.5px dashed ${C.border}`, borderRadius: 16, padding: 14, background: "none", color: C.mutedLight, fontSize: 13, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
               <Plus size={15} /> Upload document
             </button>
@@ -1681,7 +1741,7 @@ export default function AidenApp() {
       ? <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} doctors={doctors} appointments={appointments} />
       : <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => setSelRecipient(r)} onGoToList={() => setTab("list")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} />;
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={() => setShowAddEvent(true)} />;
-    if (tab === "list")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} />;
+    if (tab === "list")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} recipients={recipients} />;
     if (tab === "info")      return <InfoTab recipients={recipients} />;
     if (tab === "chat")      return <ChatTab messages={chatMessages} setMessages={setChatMessages} />;
   }
