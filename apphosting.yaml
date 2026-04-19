@@ -1,0 +1,4 @@
+runConfig:
+  concurrency: 80
+  minInstances: 0
+  maxInstances: 2

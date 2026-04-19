@@ -5,14 +5,16 @@
   "scripts": {
     "dev": "vite --port 4000",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "serve -s dist -l ${PORT:-8080}"
   },
   "dependencies": {
     "firebase": "^12.11.0",
     "lucide-react": "^0.383.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.23.0"
+    "react-router-dom": "^6.23.0",
+    "serve": "^14.2.6"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",
