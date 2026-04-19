@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from './firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from './firebase';
 
 const C = {
   primary: "#7a9dc2", primaryLight: "#dde8f5", primaryDark: "#4a6d8e",
@@ -11,11 +12,12 @@ const serif = "'Ledger', Georgia, serif";
 const sans = "'Ledger', Georgia, serif";
 
 export default function AuthScreen() {
-  const [mode, setMode] = useState('signup'); // 'signin' | 'signup'
+  const [mode, setMode] = useState('signup'); // 'signin' | 'signup' | 'forgot'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
 
   async function handleSubmit() {
     if (!email.trim() || !password.trim()) return;
@@ -25,7 +27,11 @@ export default function AuthScreen() {
       if (mode === 'signin') {
         await signInWithEmailAndPassword(auth, email.trim(), password);
       } else {
-        await createUserWithEmailAndPassword(auth, email.trim(), password);
+        const { user: u } = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        await setDoc(doc(db, 'users', u.uid), {
+          uid: u.uid, email: u.email, name: '',
+          role: 'user', status: 'active', createdAt: serverTimestamp(),
+        });
       }
     } catch (e) {
       const msgs = {
@@ -39,6 +45,35 @@ export default function AuthScreen() {
       setError(msgs[e.code] || 'Something went wrong. Please try again.');
     }
     setLoading(false);
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setResetSent(true);
+    } catch (e) {
+      const msgs = {
+        'auth/user-not-found': 'No account found with that email.',
+        'auth/invalid-email': 'Please enter a valid email address.',
+      };
+      setError(msgs[e.code] || 'Something went wrong. Please try again.');
+    }
+    setLoading(false);
+  }
+
+  function goToForgot() {
+    setMode('forgot');
+    setError('');
+    setResetSent(false);
+  }
+
+  function goToSignIn() {
+    setMode('signin');
+    setError('');
+    setResetSent(false);
   }
 
   return (
@@ -66,49 +101,117 @@ export default function AuthScreen() {
 
       {/* Form */}
       <div style={{ width: '100%', maxWidth: 360 }}>
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: '#b4aca2', fontFamily: sans, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Email</p>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="your@email.com"
-            autoCapitalize="none"
-            style={{ width: '100%', background: '#f7f5f2', border: '1px solid #ede5d8', borderRadius: 12, padding: '13px 16px', fontSize: 15, fontFamily: sans, color: '#26201a', outline: 'none' }}
-          />
-        </div>
 
-        <div style={{ marginBottom: 8 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: '#b4aca2', fontFamily: sans, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Password</p>
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="••••••••"
-            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-            style={{ width: '100%', background: '#f7f5f2', border: '1px solid #ede5d8', borderRadius: 12, padding: '13px 16px', fontSize: 15, fontFamily: sans, color: '#26201a', outline: 'none' }}
-          />
-        </div>
+        {/* ── Forgot password view ── */}
+        {mode === 'forgot' ? (
+          <>
+            <p style={{ fontSize: 20, fontWeight: 700, color: '#26201a', fontFamily: sans, marginBottom: 6 }}>Reset your password</p>
+            <p style={{ fontSize: 13, color: '#8a8076', fontFamily: sans, marginBottom: 24, lineHeight: 1.6 }}>
+              Enter your email and we'll send you a link to reset your password.
+            </p>
 
-        {error && (
-          <p style={{ fontSize: 12, color: '#904848', fontFamily: sans, marginBottom: 12, padding: '8px 12px', background: '#fdf6f5', borderRadius: 8 }}>{error}</p>
+            {resetSent ? (
+              <div style={{ background: '#f0f7f4', border: '1px solid #8ab5a080', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
+                <p style={{ fontSize: 14, color: '#3a6e58', fontFamily: sans, fontWeight: 600, marginBottom: 4 }}>Check your inbox</p>
+                <p style={{ fontSize: 13, color: '#5a8e78', fontFamily: sans, lineHeight: 1.6 }}>
+                  A password reset link has been sent to <strong>{email}</strong>. Check your spam folder if you don't see it.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#b4aca2', fontFamily: sans, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Email</p>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    autoCapitalize="none"
+                    onKeyDown={e => e.key === 'Enter' && handleForgotPassword()}
+                    style={{ width: '100%', background: '#f7f5f2', border: '1px solid #ede5d8', borderRadius: 12, padding: '13px 16px', fontSize: 15, fontFamily: sans, color: '#26201a', outline: 'none' }}
+                  />
+                </div>
+
+                {error && (
+                  <p style={{ fontSize: 12, color: '#904848', fontFamily: sans, marginBottom: 12, padding: '8px 12px', background: '#fdf6f5', borderRadius: 8 }}>{error}</p>
+                )}
+
+                <button
+                  onClick={handleForgotPassword}
+                  disabled={loading || !email.trim()}
+                  style={{ width: '100%', background: loading || !email.trim() ? '#ede5d8' : '#904848', border: 'none', borderRadius: 14, padding: '15px', color: 'white', fontFamily: sans, fontSize: 15, fontWeight: 700, cursor: loading || !email.trim() ? 'default' : 'pointer', marginTop: 4, transition: 'background 0.2s' }}
+                >
+                  {loading ? 'Sending…' : 'Send Reset Link'}
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={goToSignIn}
+              style={{ width: '100%', background: 'none', border: 'none', marginTop: 20, color: '#8a8076', fontFamily: sans, fontSize: 13, cursor: 'pointer' }}
+            >
+              ← <span style={{ color: '#904848', fontWeight: 700 }}>Back to sign in</span>
+            </button>
+          </>
+        ) : (
+          /* ── Sign in / Sign up view ── */
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#b4aca2', fontFamily: sans, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Email</p>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                autoCapitalize="none"
+                style={{ width: '100%', background: '#f7f5f2', border: '1px solid #ede5d8', borderRadius: 12, padding: '13px 16px', fontSize: 15, fontFamily: sans, color: '#26201a', outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 4 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#b4aca2', fontFamily: sans, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Password</p>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                style={{ width: '100%', background: '#f7f5f2', border: '1px solid #ede5d8', borderRadius: 12, padding: '13px 16px', fontSize: 15, fontFamily: sans, color: '#26201a', outline: 'none' }}
+              />
+            </div>
+
+            {mode === 'signin' && (
+              <div style={{ textAlign: 'right', marginBottom: 4 }}>
+                <button
+                  onClick={goToForgot}
+                  style={{ background: 'none', border: 'none', color: '#904848', fontFamily: sans, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '6px 0' }}
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
+            {error && (
+              <p style={{ fontSize: 12, color: '#904848', fontFamily: sans, marginBottom: 12, padding: '8px 12px', background: '#fdf6f5', borderRadius: 8, marginTop: 8 }}>{error}</p>
+            )}
+
+            <button
+              onClick={handleSubmit}
+              disabled={loading || !email.trim() || !password.trim()}
+              style={{ width: '100%', background: loading || !email.trim() || !password.trim() ? '#ede5d8' : '#904848', border: 'none', borderRadius: 14, padding: '15px', color: 'white', fontFamily: sans, fontSize: 15, fontWeight: 700, cursor: loading || !email.trim() || !password.trim() ? 'default' : 'pointer', marginTop: 16, transition: 'background 0.2s' }}
+            >
+              {loading ? 'Please wait…' : mode === 'signin' ? 'Sign In' : 'Create Account'}
+            </button>
+
+            <button
+              onClick={() => { setMode(m => m === 'signin' ? 'signup' : 'signin'); setError(''); }}
+              style={{ width: '100%', background: 'none', border: 'none', marginTop: 20, color: '#8a8076', fontFamily: sans, fontSize: 13, cursor: 'pointer' }}
+            >
+              {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
+              <span style={{ color: '#904848', fontWeight: 700 }}>{mode === 'signin' ? 'Create one' : 'Sign in'}</span>
+            </button>
+          </>
         )}
-
-        <button
-          onClick={handleSubmit}
-          disabled={loading || !email.trim() || !password.trim()}
-          style={{ width: '100%', background: loading || !email.trim() || !password.trim() ? '#ede5d8' : '#904848', border: 'none', borderRadius: 14, padding: '15px', color: 'white', fontFamily: sans, fontSize: 15, fontWeight: 700, cursor: loading || !email.trim() || !password.trim() ? 'default' : 'pointer', marginTop: 16, transition: 'background 0.2s' }}
-        >
-          {loading ? 'Please wait…' : mode === 'signin' ? 'Sign In' : 'Create Account'}
-        </button>
-
-        <button
-          onClick={() => { setMode(m => m === 'signin' ? 'signup' : 'signin'); setError(''); }}
-          style={{ width: '100%', background: 'none', border: 'none', marginTop: 20, color: '#8a8076', fontFamily: sans, fontSize: 13, cursor: 'pointer' }}
-        >
-          {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
-          <span style={{ color: '#904848', fontWeight: 700 }}>{mode === 'signin' ? 'Create one' : 'Sign in'}</span>
-        </button>
       </div>
     </div>
   );
