@@ -18,29 +18,31 @@ import {
 
 // ─── PALETTE ───────────────────────────────────────────────────────────────────
 const C = {
-  primary:       "#7a9dc2",
+  primary:       "#7a9dc2",   // blue — recipient color coding only
   primaryLight:  "#dde8f5",
   primaryDark:   "#4a6d8e",
-  rose:          "#c4938a",
-  roseLight:     "#f8f0ee",
+  rose:          "#c85c55",   // vivid warm rose — main brand accent
+  roseDark:      "#8b3733",
+  roseLight:     "#faecea",
   blue:          "#8aaabf",
   blueLight:     "#e4eef6",
   bg:            "#ffffff",
+  bgWarm:        "#f5ede8",   // warm cream app background
   card:          "#ffffff",
-  border:        "#ede5d8",
-  text:          "#26201a",
-  muted:         "#8a8076",
-  mutedLight:    "#b4aca2",
-  sage:          "#8ab5a0",
+  border:        "#ebe2d8",
+  text:          "#211810",
+  muted:         "#8a7d76",
+  mutedLight:    "#b8ada6",
+  sage:          "#7daa94",
   peach:         "#d4a87c",
-  coral:         "#c4746e",
-  lavender:      "#a89ac4",
+  coral:         "#c85c55",   // alias for rose
+  lavender:      "#a08ac0",
   lavenderLight: "#f0ecf8",
 };
 
-const GRAD = "linear-gradient(160deg, #fdf6f5 0%, #ffffff 60%)";
-const CARD_SHADOW = "0 4px 24px rgba(80,60,40,0.07), 0 1px 4px rgba(80,60,40,0.04)";
-const CARD_SHADOW_SM = "0 2px 12px rgba(80,60,40,0.06)";
+const GRAD = "linear-gradient(160deg, #f5ede8 0%, #ffffff 55%)";
+const CARD_SHADOW = "0 4px 28px rgba(140,60,40,0.10), 0 1px 6px rgba(140,60,40,0.05)";
+const CARD_SHADOW_SM = "0 2px 14px rgba(140,60,40,0.08)";
 
 // ─── DATA ──────────────────────────────────────────────────────────────────────
 
@@ -290,7 +292,7 @@ function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, sh
       {/* Upcoming appointments */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: serif }}>Upcoming Appointments</p>
-        <button onClick={onShowAddEvent} style={{ display: "flex", alignItems: "center", gap: 4, background: C.primaryLight, border: "none", borderRadius: 16, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: C.primaryDark, fontFamily: sans, cursor: "pointer" }}>
+        <button onClick={onShowAddEvent} style={{ display: "flex", alignItems: "center", gap: 4, background: C.roseLight, border: "none", borderRadius: 16, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: C.roseDark, fontFamily: sans, cursor: "pointer" }}>
           <Plus size={13} /> Add event
         </button>
       </div>
@@ -343,7 +345,7 @@ function RecipientsPage({ recipients, onSelect, onBack, onAdd, onDelete }) {
       <BackBtn onBack={onBack} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 600, color: C.text, fontFamily: serif, letterSpacing: -0.5 }}>People I'm<br /><em>Caring For</em></h1>
-        <button onClick={() => setShowAdd(true)} style={{ background: C.primaryLight, border: "none", color: C.primaryDark, fontSize: 13, fontWeight: 600, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, borderRadius: 20, padding: "7px 14px" }}>
+        <button onClick={() => setShowAdd(true)} style={{ background: C.roseLight, border: "none", color: C.roseDark, fontSize: 13, fontWeight: 600, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, borderRadius: 20, padding: "7px 14px" }}>
           <Plus size={14} /> Add
         </button>
       </div>
@@ -394,7 +396,7 @@ function RecipientsPage({ recipients, onSelect, onBack, onAdd, onDelete }) {
               <EditInput value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} placeholder="Notes (optional)" multiline />
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-              <button onClick={handleAdd} disabled={saving || !form.name.trim()} style={{ flex: 1, background: saving || !form.name.trim() ? C.border : `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 14, padding: "13px 0", fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: saving || !form.name.trim() ? "default" : "pointer" }}>
+              <button onClick={handleAdd} disabled={saving || !form.name.trim()} style={{ flex: 1, background: saving || !form.name.trim() ? C.border : `linear-gradient(135deg, ${C.rose}, ${C.roseDark})`, color: "white", border: "none", borderRadius: 14, padding: "13px 0", fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: saving || !form.name.trim() ? "default" : "pointer" }}>
                 {saving ? "Saving…" : "Add recipient"}
               </button>
               <button onClick={() => setShowAdd(false)} style={{ flex: 1, background: C.bg, color: C.muted, border: "none", borderRadius: 14, padding: "13px 0", fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}>Cancel</button>
@@ -917,7 +919,7 @@ function AddEventScreen({ onBack, onSave, recipients }) {
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Header */}
       <div style={{ background: GRAD, padding: "16px 18px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: C.primary, fontFamily: sans, fontSize: 14, fontWeight: 600, padding: 0 }}>Cancel</button>
+        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: C.rose, fontFamily: sans, fontSize: 14, fontWeight: 600, padding: 0 }}>Cancel</button>
         <span style={{ fontSize: 16, fontWeight: 700, color: C.text, fontFamily: serif }}>New Event</span>
         <button onClick={handleSave} disabled={!canSave} style={{ background: canSave ? "#904848" : C.border, border: "none", borderRadius: 12, padding: "7px 16px", color: "white", fontFamily: sans, fontSize: 13, fontWeight: 700, cursor: canSave ? "pointer" : "default", transition: "background 0.2s" }}>Save</button>
       </div>
@@ -998,7 +1000,7 @@ function AddEventScreen({ onBack, onSave, recipients }) {
           <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Repeat</p>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {RECURRENCE_OPTIONS.map(o => (
-              <button key={o.id} onClick={() => setRecurrence(o.id)} style={{ padding: "7px 14px", borderRadius: 20, border: `1.5px solid ${recurrence === o.id ? C.primary : C.border}`, background: recurrence === o.id ? C.primaryLight : "white", color: recurrence === o.id ? C.primaryDark : C.muted, fontFamily: sans, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              <button key={o.id} onClick={() => setRecurrence(o.id)} style={{ padding: "7px 14px", borderRadius: 20, border: `1.5px solid ${recurrence === o.id ? C.rose : C.border}`, background: recurrence === o.id ? C.roseLight : "white", color: recurrence === o.id ? C.roseDark : C.muted, fontFamily: sans, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                 {o.label}
               </button>
             ))}
@@ -1008,7 +1010,7 @@ function AddEventScreen({ onBack, onSave, recipients }) {
               <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 8 }}>Repeat on</p>
               <div style={{ display: "flex", gap: 6 }}>
                 {CAL_DAYS.map((d, i) => (
-                  <button key={i} onClick={() => toggleCustomDay(i)} style={{ width: 36, height: 36, borderRadius: "50%", border: `1.5px solid ${customDays.includes(i) ? C.primary : C.border}`, background: customDays.includes(i) ? C.primaryLight : "white", color: customDays.includes(i) ? C.primaryDark : C.muted, fontFamily: sans, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  <button key={i} onClick={() => toggleCustomDay(i)} style={{ width: 36, height: 36, borderRadius: "50%", border: `1.5px solid ${customDays.includes(i) ? C.rose : C.border}`, background: customDays.includes(i) ? C.roseLight : "white", color: customDays.includes(i) ? C.roseDark : C.muted, fontFamily: sans, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                     {d}
                   </button>
                 ))}
@@ -1102,7 +1104,7 @@ function CalendarTab({ appointments, recipients, onShowAddEvent }) {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <p style={{ fontSize: 13, fontWeight: 500, color: C.muted, fontFamily: sans }}>{selected || "This month"}</p>
-        <button onClick={onShowAddEvent} style={{ display: "flex", alignItems: "center", gap: 4, background: C.primaryLight, border: "none", borderRadius: 16, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: C.primaryDark, fontFamily: sans, cursor: "pointer" }}>
+        <button onClick={onShowAddEvent} style={{ display: "flex", alignItems: "center", gap: 4, background: C.roseLight, border: "none", borderRadius: 16, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: C.roseDark, fontFamily: sans, cursor: "pointer" }}>
           <Plus size={13} /> Add event
         </button>
       </div>
@@ -1291,7 +1293,7 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, recipien
     <div>
       <div style={{ background: C.card, borderBottom: `1px solid ${C.bg}`, display: "flex" }}>
         {[{ id: "logistics", label: "Checklist" }, { id: "doctors", label: "Doctors" }, { id: "documents", label: "Documents" }].map(t => (
-          <button key={t.id} onClick={() => { setSub(t.id); setFilterRecipId(null); }} style={{ flex: 1, padding: "13px 8px", background: "none", border: "none", fontWeight: sub === t.id ? 700 : 400, fontSize: 12, color: sub === t.id ? C.primary : C.mutedLight, fontFamily: sans, borderBottom: sub === t.id ? `2px solid ${C.primary}` : "2px solid transparent", cursor: "pointer" }}>
+          <button key={t.id} onClick={() => { setSub(t.id); setFilterRecipId(null); }} style={{ flex: 1, padding: "13px 8px", background: "none", border: "none", fontWeight: sub === t.id ? 700 : 400, fontSize: 12, color: sub === t.id ? C.rose : C.mutedLight, fontFamily: sans, borderBottom: sub === t.id ? `2px solid ${C.rose}` : "2px solid transparent", cursor: "pointer" }}>
             {t.label}
           </button>
         ))}
@@ -1338,7 +1340,7 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, recipien
 
             {/* Add item */}
             {adding ? (
-              <div style={{ background: C.card, borderRadius: 18, padding: "14px 16px", border: `1.5px solid ${C.primary}40`, boxShadow: CARD_SHADOW, marginTop: 8 }}>
+              <div style={{ background: C.card, borderRadius: 18, padding: "14px 16px", border: `1.5px solid ${C.rose}40`, boxShadow: CARD_SHADOW, marginTop: 8 }}>
                 <input value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="New item..." autoFocus style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: C.text, background: "none", fontFamily: sans, marginBottom: 10 }} />
                 {recipients.length > 0 && (
                   <select value={newItemRecipId ?? ""} onChange={e => setNewItemRecipId(e.target.value ? e.target.value : null)}
@@ -1348,7 +1350,7 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, recipien
                   </select>
                 )}
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => { if (newItem.trim()) { onAddLogistic({ id: Date.now(), title: newItem, completed: false, note: "", partnerLink: null, recipientId: newItemRecipId ?? null }); setNewItem(""); setNewItemRecipId(null); setAdding(false); } }} style={{ flex: 1, background: `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 10, padding: "9px", fontWeight: 600, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Add</button>
+                  <button onClick={() => { if (newItem.trim()) { onAddLogistic({ id: Date.now(), title: newItem, completed: false, note: "", partnerLink: null, recipientId: newItemRecipId ?? null }); setNewItem(""); setNewItemRecipId(null); setAdding(false); } }} style={{ flex: 1, background: `linear-gradient(135deg, ${C.rose}, ${C.roseDark})`, color: "white", border: "none", borderRadius: 10, padding: "9px", fontWeight: 600, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Add</button>
                   <button onClick={() => { setAdding(false); setNewItem(""); setNewItemRecipId(null); }} style={{ flex: 1, background: C.bg, color: C.muted, border: "none", borderRadius: 10, padding: "9px", fontWeight: 500, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Cancel</button>
                 </div>
               </div>
@@ -1378,7 +1380,7 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, recipien
                               <RotateCcw size={14} color={C.rose} style={{ flexShrink: 0 }} />
                               <span style={{ fontSize: 12, fontWeight: 600, color: C.text, fontFamily: sans, flex: 1 }}>Restore <strong>{item.title}</strong>?</span>
                               <div style={{ display: "flex", gap: 6 }}>
-                                <button onClick={() => confirmRestore(item.id)} style={{ background: C.primary, color: "white", border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>Restore</button>
+                                <button onClick={() => confirmRestore(item.id)} style={{ background: C.rose, color: "white", border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>Restore</button>
                                 <button onClick={() => setRestoreId(null)} style={{ background: C.bg, color: C.muted, border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}>Keep done</button>
                               </div>
                             </div>
@@ -1458,7 +1460,7 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, recipien
                   </select>
                 )}
                 <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                  style={{ display: "flex", alignItems: "center", gap: 5, background: uploading ? C.border : `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 10, padding: "7px 14px", fontSize: 12, fontWeight: 600, fontFamily: sans, cursor: uploading ? "default" : "pointer", flexShrink: 0 }}>
+                  style={{ display: "flex", alignItems: "center", gap: 5, background: uploading ? C.border : `linear-gradient(135deg, ${C.rose}, ${C.roseDark})`, color: "white", border: "none", borderRadius: 10, padding: "7px 14px", fontSize: 12, fontWeight: 600, fontFamily: sans, cursor: uploading ? "default" : "pointer", flexShrink: 0 }}>
                   <Upload size={13} /> {uploading ? "Uploading…" : "Upload"}
                 </button>
               </div>
@@ -1475,7 +1477,7 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, recipien
 
             {docsLoading && (
               <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}>
-                <div style={{ width: 24, height: 24, border: `3px solid ${C.border}`, borderTopColor: C.primary, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                <div style={{ width: 24, height: 24, border: `3px solid ${C.border}`, borderTopColor: C.rose, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
               </div>
             )}
@@ -1517,8 +1519,8 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, recipien
                           </div>
                           {recip && <MiniAvatar r={recip} size={22} />}
                           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                            <button onClick={() => handleDownload(d)} style={{ width: 32, height: 32, background: C.primaryLight, border: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                              <Download size={14} color={C.primaryDark} />
+                            <button onClick={() => handleDownload(d)} style={{ width: 32, height: 32, background: C.roseLight, border: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                              <Download size={14} color={C.roseDark} />
                             </button>
                             <button onClick={() => setDeletingDoc(d.fullPath)} style={{ width: 32, height: 32, background: C.bg, border: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                               <Trash2 size={14} color={C.mutedLight} />
@@ -1650,7 +1652,7 @@ function ChatTab({ messages, setMessages }) {
             {m.role === "assistant" && (
               <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #dde8f6, #f0dde6)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13 }}>🤍</div>
             )}
-            <div style={{ maxWidth: "80%", background: m.role === "user" ? `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})` : C.card, color: m.role === "user" ? "white" : C.text, borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "11px 15px", fontSize: 13, lineHeight: 1.7, fontFamily: sans, boxShadow: CARD_SHADOW_SM }}>
+            <div style={{ maxWidth: "80%", background: m.role === "user" ? `linear-gradient(135deg, ${C.rose}, ${C.roseDark})` : C.card, color: m.role === "user" ? "white" : C.text, borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "11px 15px", fontSize: 13, lineHeight: 1.7, fontFamily: sans, boxShadow: CARD_SHADOW_SM }}>
               {m.text}
             </div>
           </div>
@@ -1678,7 +1680,7 @@ function ChatTab({ messages, setMessages }) {
 
       <div style={{ padding: "10px 18px 16px", background: C.card, borderTop: `1px solid ${C.bg}`, display: "flex", gap: 10, alignItems: "center" }}>
         <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send(input)} placeholder="Ask anything about caregiving..." style={{ flex: 1, background: C.bg, border: "none", borderRadius: 22, padding: "10px 16px", fontSize: 13, outline: "none", color: C.text, fontFamily: sans }} />
-        <button onClick={() => send(input)} style={{ width: 40, height: 40, background: input.trim() ? `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})` : C.bg, border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: input.trim() ? "pointer" : "default", flexShrink: 0, boxShadow: input.trim() ? `0 4px 14px ${C.primary}44` : "none" }}>
+        <button onClick={() => send(input)} style={{ width: 40, height: 40, background: input.trim() ? `linear-gradient(135deg, ${C.rose}, ${C.roseDark})` : C.bg, border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: input.trim() ? "pointer" : "default", flexShrink: 0, boxShadow: input.trim() ? `0 4px 14px ${C.rose}44` : "none" }}>
           <Send size={15} color={input.trim() ? "white" : C.mutedLight} />
         </button>
       </div>
@@ -2088,9 +2090,9 @@ export default function AidenApp() {
             </svg>
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => { setShowRecipients(true); setSelRecipient(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: C.primaryLight, borderRadius: 20, padding: "5px 10px 5px 8px", border: "none", cursor: "pointer" }}>
-              <User size={13} color={C.primaryDark} strokeWidth={2.5} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.primaryDark, fontFamily: sans }}>{recipients.length}</span>
+            <button onClick={() => { setShowRecipients(true); setSelRecipient(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: C.roseLight, borderRadius: 20, padding: "5px 10px 5px 8px", border: "none", cursor: "pointer" }}>
+              <User size={13} color={C.roseDark} strokeWidth={2.5} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, fontFamily: sans }}>{recipients.length}</span>
             </button>
             <Bell size={17} color={C.mutedLight} />
             <button onClick={() => signOut(auth)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }} title="Sign out">
@@ -2105,20 +2107,20 @@ export default function AidenApp() {
       )}
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: "auto", background: C.bg, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflowY: "auto", background: C.bgWarm, display: "flex", flexDirection: "column" }}>
         {renderContent()}
       </div>
 
       {/* Bottom nav */}
-      <div style={{ background: "linear-gradient(180deg, rgba(253,246,245,0.92) 0%, rgba(255,255,255,0.92) 100%)", backdropFilter: "blur(16px)", borderTop: `1px solid ${C.border}`, display: "flex", paddingBottom: 8, paddingTop: 8, paddingLeft: "5%", paddingRight: "5%", flexShrink: 0 }}>
+      <div style={{ background: "linear-gradient(180deg, rgba(245,237,232,0.92) 0%, rgba(255,255,255,0.96) 100%)", backdropFilter: "blur(16px)", borderTop: `1px solid ${C.border}`, display: "flex", paddingBottom: 8, paddingTop: 8, paddingLeft: "5%", paddingRight: "5%", flexShrink: 0 }}>
         {NAV.map(({ id, Icon, label }) => {
           const active = tab === id;
           return (
             <button key={id} onClick={() => { setTab(id); if (id !== "home") setSelRecipient(null); }} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}>
-              <div style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: active ? C.primaryLight : "transparent", borderRadius: 10 }}>
-                <Icon size={20} color={active ? C.primary : C.mutedLight} strokeWidth={active ? 2.5 : 1.8} />
+              <div style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: active ? C.roseLight : "transparent", borderRadius: 10 }}>
+                <Icon size={20} color={active ? C.rose : C.mutedLight} strokeWidth={active ? 2.5 : 1.8} />
               </div>
-              <span style={{ fontSize: 9.5, fontWeight: active ? 700 : 400, color: active ? C.primary : C.mutedLight, fontFamily: sans, letterSpacing: 0.2 }}>{label}</span>
+              <span style={{ fontSize: 9.5, fontWeight: active ? 700 : 400, color: active ? C.rose : C.mutedLight, fontFamily: sans, letterSpacing: 0.2 }}>{label}</span>
             </button>
           );
         })}
