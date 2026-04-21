@@ -1,14 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import AuthScreen from './AuthScreen';
-import { auth, db } from './firebase';
+import { auth, db, storage } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, doc, getDocs, addDoc, updateDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
+import {
+  ref as storageRef, listAll, getMetadata,
+  getDownloadURL, uploadBytes, deleteObject,
+} from 'firebase/storage';
 import {
   Home, CalendarDays, ClipboardList, Shield, MessageCircle,
-  Plus, ChevronRight, ChevronLeft, Phone, Heart,
-  CheckSquare, Square, Send, Clock, FileText,
+  Plus, ChevronRight, ChevronDown, ChevronLeft, Phone, Heart,
+  CheckSquare, Square, Send, Clock, FileText, Image as ImageIcon,
   AlertCircle, Bell, Check, Info, ExternalLink, Eye, EyeOff, User,
-  Scale, ArrowRightLeft, Users,
+  Scale, ArrowRightLeft, Users, RotateCcw, Download, Upload,
   Camera, Pencil, Trash2, X,
 } from "lucide-react";
 
@@ -320,39 +324,84 @@ function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, sh
 
 // ─── RECIPIENTS PAGE ────────────────────────────────────────────────────────────
 
-function RecipientsPage({ recipients, onSelect, onBack }) {
+function RecipientsPage({ recipients, onSelect, onBack, onAdd, onDelete }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: "", nickname: "", age: "", relationship: "", conditions: [], medications: [], insurancePlans: [], notes: "", importantNumbers: [], photo: null });
+  const [saving, setSaving] = useState(false);
+
+  async function handleAdd() {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    await onAdd({ ...form, age: form.age ? Number(form.age) : null });
+    setSaving(false);
+    setShowAdd(false);
+    setForm({ name: "", nickname: "", age: "", relationship: "", conditions: [], medications: [], insurancePlans: [], notes: "", importantNumbers: [], photo: null });
+  }
+
   return (
     <div style={{ padding: "20px 18px 8px" }}>
       <BackBtn onBack={onBack} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 600, color: C.text, fontFamily: serif, letterSpacing: -0.5 }}>People I'm<br /><em>Caring For</em></h1>
-        <button style={{ background: C.primaryLight, border: "none", color: C.primaryDark, fontSize: 13, fontWeight: 600, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, borderRadius: 20, padding: "7px 14px" }}>
+        <button onClick={() => setShowAdd(true)} style={{ background: C.primaryLight, border: "none", color: C.primaryDark, fontSize: 13, fontWeight: 600, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, borderRadius: 20, padding: "7px 14px" }}>
           <Plus size={14} /> Add
         </button>
       </div>
 
       {recipients.map(r => (
-        <button key={r.id} onClick={() => onSelect(r)} style={{ width: "100%", background: C.card, border: "none", borderRadius: 22, padding: "16px 18px", textAlign: "left", cursor: "pointer", marginBottom: 12, boxShadow: CARD_SHADOW, display: "block" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <Avatar r={r} size={54} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                <span style={{ fontSize: 16, fontWeight: 600, color: C.text, fontFamily: serif }}>{r.name}</span>
-                <span style={{ fontSize: 10, color: C.muted, background: C.bg, borderRadius: 10, padding: "2px 8px", fontWeight: 600, fontFamily: sans }}>{r.relationship}</span>
+        <div key={r.id} style={{ position: "relative", marginBottom: 12 }}>
+          <button onClick={() => onSelect(r)} style={{ width: "100%", background: C.card, border: "none", borderRadius: 22, padding: "16px 18px", textAlign: "left", cursor: "pointer", boxShadow: CARD_SHADOW, display: "block" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <Avatar r={r} size={54} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: C.text, fontFamily: serif }}>{r.name}</span>
+                  {r.relationship && <span style={{ fontSize: 10, color: C.muted, background: C.bg, borderRadius: 10, padding: "2px 8px", fontWeight: 600, fontFamily: sans }}>{r.relationship}</span>}
+                </div>
+                <p style={{ fontSize: 12, color: C.muted, marginBottom: 8, fontFamily: sans }}>
+                  {r.age ? `Age ${r.age}` : ""}{r.age && r.conditions?.length ? " · " : ""}{r.conditions?.[0] ?? ""}{r.conditions?.length > 1 ? ` +${r.conditions.length - 1}` : ""}
+                </p>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  {(r.insurancePlans ?? []).map(p => INSURANCE_INFO[p] ? <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color} /> : null)}
+                </div>
               </div>
-              <p style={{ fontSize: 12, color: C.muted, marginBottom: 8, fontFamily: sans }}>Age {r.age} · {r.conditions[0]}{r.conditions.length > 1 ? ` +${r.conditions.length - 1}` : ""}</p>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {r.insurancePlans.map(p => <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color} />)}
-              </div>
+              <ChevronRight size={16} color={C.border} style={{ flexShrink: 0 }} />
             </div>
-            <ChevronRight size={16} color={C.border} style={{ flexShrink: 0 }} />
-          </div>
-        </button>
+          </button>
+        </div>
       ))}
 
-      <button style={{ width: "100%", border: `1.5px dashed ${C.border}`, borderRadius: 22, padding: "14px 18px", background: "none", color: C.mutedLight, fontSize: 13, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+      <button onClick={() => setShowAdd(true)} style={{ width: "100%", border: `1.5px dashed ${C.border}`, borderRadius: 22, padding: "14px 18px", background: "none", color: C.mutedLight, fontSize: 13, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
         <Plus size={16} /> Add a care recipient
       </button>
+
+      {/* Add recipient sheet */}
+      {showAdd && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(38,32,26,0.45)" }} onClick={() => setShowAdd(false)} />
+          <div style={{ position: "relative", background: C.card, borderRadius: "22px 22px 0 0", padding: "24px 20px 36px", zIndex: 1, maxHeight: "85vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 600, fontFamily: serif, color: C.text }}>Add Care Recipient</h3>
+              <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={20} color={C.muted} /></button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <EditInput value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="Full name *" />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <EditInput value={form.nickname} onChange={v => setForm(f => ({ ...f, nickname: v }))} placeholder="Nickname" />
+                <EditInput value={form.age} onChange={v => setForm(f => ({ ...f, age: v }))} placeholder="Age" />
+              </div>
+              <EditInput value={form.relationship} onChange={v => setForm(f => ({ ...f, relationship: v }))} placeholder="Relationship (e.g. Parent)" />
+              <EditInput value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} placeholder="Notes (optional)" multiline />
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button onClick={handleAdd} disabled={saving || !form.name.trim()} style={{ flex: 1, background: saving || !form.name.trim() ? C.border : `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 14, padding: "13px 0", fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: saving || !form.name.trim() ? "default" : "pointer" }}>
+                {saving ? "Saving…" : "Add recipient"}
+              </button>
+              <button onClick={() => setShowAdd(false)} style={{ flex: 1, background: C.bg, color: C.muted, border: "none", borderRadius: 14, padding: "13px 0", fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -383,12 +432,13 @@ function SaveCancelRow({ onSave, onCancel, col }) {
   );
 }
 
-function RecipientProfile({ r, onBack, onUpdate, doctors, appointments }) {
+function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments }) {
   const [tab, setTab] = useState("overview");
   const [data, setData] = useState({ ...r });
   const [editSection, setEditSection] = useState(null);
   const [buf, setBuf] = useState({});
   const [openSections, setOpenSections] = useState(new Set(["numbers"]));
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef();
 
   function toggleSection(key) {
@@ -446,7 +496,22 @@ function RecipientProfile({ r, onBack, onUpdate, doctors, appointments }) {
   return (
     <div>
       <div style={{ background: profileGrad, padding: "16px 18px 0" }}>
-        <BackBtn onBack={onBack} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <BackBtn onBack={onBack} />
+          {onDelete && (
+            confirmDelete ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: C.coral, fontFamily: sans, fontWeight: 600 }}>Remove {data.nickname || data.name.split(" ")[0]}?</span>
+                <button onClick={() => { onDelete(data.id); onBack(); }} style={{ background: C.coral, color: "white", border: "none", borderRadius: 10, padding: "5px 12px", fontSize: 11, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>Remove</button>
+                <button onClick={() => setConfirmDelete(false)} style={{ background: "none", border: "none", color: C.muted, fontSize: 11, fontFamily: sans, cursor: "pointer" }}>Cancel</button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} style={{ background: "rgba(255,255,255,0.5)", border: "none", borderRadius: 10, padding: "5px 10px", display: "flex", alignItems: "center", gap: 4, color: C.coral, fontSize: 11, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}>
+                <Trash2 size={12} /> Remove
+              </button>
+            )
+          )}
+        </div>
 
         {/* Avatar + basic info */}
         <div style={{ display: "flex", gap: 14, alignItems: "center", paddingBottom: 18 }}>
@@ -1067,29 +1132,178 @@ function CalendarTab({ appointments, recipients, onShowAddEvent }) {
 
 // ─── LIST TAB ──────────────────────────────────────────────────────────────────
 
-function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors }) {
+function MiniAvatar({ r, size = 22 }) {
+  const col = rColor(r.id);
+  const ini = r.name.split(" ").map(n => n[0]).join("").slice(0, 2);
+  return (
+    <div title={r.nickname || r.name} style={{ width: size, height: size, borderRadius: "50%", background: col + "22", border: `1.5px solid ${col}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(size * 0.38), fontWeight: 700, color: col, flexShrink: 0, fontFamily: sans }}>
+      {ini}
+    </div>
+  );
+}
+
+function RecipFilterBar({ recipients, filterId, setFilterId }) {
+  if (!recipients?.length) return null;
+  const opts = [{ id: null, label: "All" }, ...recipients.map(r => ({ id: r.id, label: r.nickname || r.name.split(" ")[0], r }))];
+  return (
+    <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+      {opts.map(opt => {
+        const active = filterId === opt.id;
+        const col = opt.r ? rColor(opt.r.id) : C.primary;
+        return (
+          <button key={String(opt.id)} onClick={() => setFilterId(opt.id)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, border: `1.5px solid ${active ? col : C.border}`, background: active ? col + "15" : "transparent", color: active ? col : C.mutedLight, fontSize: 11, fontWeight: active ? 700 : 500, fontFamily: sans, cursor: "pointer", whiteSpace: "nowrap" }}>
+            {opt.r && <MiniAvatar r={opt.r} size={16} />}
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function fileTypeMeta(name = "", contentType = "") {
+  const ext = name.split(".").pop().toLowerCase();
+  if (ext === "pdf" || contentType === "application/pdf") return { label: "PDF", color: "#e05050", isImg: false };
+  if (["jpg","jpeg"].includes(ext) || contentType.startsWith("image/jpeg")) return { label: "JPG", color: C.primary, isImg: true };
+  if (ext === "png" || contentType === "image/png") return { label: "PNG", color: C.lavender, isImg: true };
+  return { label: "File", color: C.mutedLight, isImg: false };
+}
+function fmtDocDate(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+function fmtDocSize(bytes) {
+  if (!bytes) return "";
+  const b = parseInt(bytes);
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b/1024).toFixed(0)} KB`;
+  return `${(b/(1024*1024)).toFixed(1)} MB`;
+}
+
+function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, recipients = [], user }) {
   const [sub, setSub] = useState("logistics");
   const [adding, setAdding] = useState(false);
   const [newItem, setNewItem] = useState("");
-  const done = logistics.filter(l => l.completed).length;
-  const pct = Math.round((done / logistics.length) * 100);
+  const [newItemRecipId, setNewItemRecipId] = useState(null);
+  const [filterRecipId, setFilterRecipId] = useState(null);
+  const [doneOpen, setDoneOpen] = useState(false);
+  const [restoreId, setRestoreId] = useState(null);
+
+  // ── Documents state ─────────────────────────────────────────────────────────
+  const [docs, setDocs] = useState([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deletingDoc, setDeletingDoc] = useState(null);
+  const [docError, setDocError] = useState("");
+  const [uploadRecipId, setUploadRecipId] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const allDone = logistics.filter(l => l.completed).length;
+  const pct = logistics.length ? Math.round((allDone / logistics.length) * 100) : 0;
+
+  const incomplete = (filterRecipId ? logistics.filter(l => l.recipientId === filterRecipId) : logistics).filter(l => !l.completed);
+  const complete   = (filterRecipId ? logistics.filter(l => l.recipientId === filterRecipId) : logistics).filter(l => l.completed);
+  const filteredDoctors = filterRecipId ? doctors.filter(d => d.recipientId === filterRecipId) : doctors;
+  const filteredDocs    = filterRecipId ? docs.filter(d => d.recipientId === filterRecipId) : docs;
+
+  // ── Load docs when tab opened ───────────────────────────────────────────────
+  useEffect(() => {
+    if (sub === "documents" && user) loadDocs();
+  }, [sub, user]);
+
+  async function loadDocs() {
+    setDocsLoading(true);
+    setDocError("");
+    try {
+      const folder = storageRef(storage, `documents/${user.uid}`);
+      const result = await listAll(folder);
+      const items  = await Promise.all(
+        result.items.map(async itemRef => {
+          const [meta, url] = await Promise.all([getMetadata(itemRef), getDownloadURL(itemRef)]);
+          return {
+            fullPath:    itemRef.fullPath,
+            ref:         itemRef,
+            name:        meta.customMetadata?.originalName ?? itemRef.name,
+            size:        meta.size,
+            uploadedAt:  meta.timeCreated,
+            contentType: meta.contentType,
+            recipientId: meta.customMetadata?.recipientId ? meta.customMetadata.recipientId : null,
+            url,
+          };
+        })
+      );
+      items.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+      setDocs(items);
+    } catch {
+      setDocError("Could not load documents. Check Firebase Storage rules.");
+    }
+    setDocsLoading(false);
+  }
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    setUploading(true);
+    setDocError("");
+    try {
+      const path = `documents/${user.uid}/${Date.now()}_${file.name}`;
+      const fRef = storageRef(storage, path);
+      const customMeta = { originalName: file.name };
+      if (uploadRecipId) customMeta.recipientId = String(uploadRecipId);
+      await uploadBytes(fRef, file, { customMetadata: customMeta });
+      await loadDocs();
+    } catch {
+      setDocError("Upload failed — please try again.");
+    }
+    setUploading(false);
+  }
+
+  async function handleDeleteDoc(d) {
+    try {
+      await deleteObject(d.ref);
+      setDocs(prev => prev.filter(x => x.fullPath !== d.fullPath));
+      setDeletingDoc(null);
+    } catch {
+      setDocError("Could not delete document.");
+    }
+  }
+
+  function handleDownload(d) {
+    const a = document.createElement("a");
+    a.href = d.url; a.download = d.name; a.target = "_blank"; a.rel = "noopener noreferrer";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+
+  function handleToggle(item) {
+    if (!item.completed) {
+      onUpdateLogistic(item.id, { completed: true });
+    } else {
+      setRestoreId(item.id);
+    }
+  }
+  function confirmRestore(id) {
+    onUpdateLogistic(id, { completed: false });
+    setRestoreId(null);
+  }
 
   return (
     <div>
       <div style={{ background: C.card, borderBottom: `1px solid ${C.bg}`, display: "flex" }}>
         {[{ id: "logistics", label: "Checklist" }, { id: "doctors", label: "Doctors" }, { id: "documents", label: "Documents" }].map(t => (
-          <button key={t.id} onClick={() => setSub(t.id)} style={{ flex: 1, padding: "13px 8px", background: "none", border: "none", fontWeight: sub === t.id ? 700 : 400, fontSize: 12, color: sub === t.id ? C.primary : C.mutedLight, fontFamily: sans, borderBottom: sub === t.id ? `2px solid ${C.primary}` : "2px solid transparent", cursor: "pointer" }}>
+          <button key={t.id} onClick={() => { setSub(t.id); setFilterRecipId(null); }} style={{ flex: 1, padding: "13px 8px", background: "none", border: "none", fontWeight: sub === t.id ? 700 : 400, fontSize: 12, color: sub === t.id ? C.primary : C.mutedLight, fontFamily: sans, borderBottom: sub === t.id ? `2px solid ${C.primary}` : "2px solid transparent", cursor: "pointer" }}>
             {t.label}
           </button>
         ))}
       </div>
 
       <div style={{ padding: "18px 18px" }}>
+        {/* ── CHECKLIST ───────────────────────────────────────────────────────── */}
         {sub === "logistics" && (
           <>
             <Card style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <p style={{ fontSize: 14, fontWeight: 500, color: C.text, fontFamily: sans }}>{done} of {logistics.length} complete</p>
+                <p style={{ fontSize: 14, fontWeight: 500, color: C.text, fontFamily: sans }}>{allDone} of {logistics.length} complete</p>
                 <div style={{ width: 150, height: 4, background: C.bg, borderRadius: 3, marginTop: 8, overflow: "hidden" }}>
                   <div style={{ width: `${pct}%`, height: "100%", background: pct >= 75 ? `linear-gradient(90deg, ${C.sage}, #6aa88e)` : pct >= 40 ? `linear-gradient(90deg, ${C.peach}, #c4986c)` : `linear-gradient(90deg, ${C.rose}, #b47870)`, borderRadius: 3 }} />
                 </div>
@@ -1097,29 +1311,45 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors }) {
               <span style={{ fontSize: 28, fontWeight: 600, fontFamily: serif, color: pct >= 75 ? C.sage : pct >= 40 ? C.peach : C.rose }}>{pct}%</span>
             </Card>
 
-            {logistics.map(item => (
-              <div key={item.id} style={{ background: C.card, borderRadius: 18, padding: "13px 16px", marginBottom: 8, boxShadow: CARD_SHADOW_SM, display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <button onClick={() => onUpdateLogistic(item.id, { completed: !item.completed })} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0, marginTop: 1 }}>
-                  {item.completed ? <CheckSquare size={19} color={C.sage} /> : <Square size={19} color={C.border} />}
-                </button>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: item.completed ? C.mutedLight : C.text, textDecoration: item.completed ? "line-through" : "none", fontFamily: sans }}>{item.title}</p>
-                  {item.note && <p style={{ fontSize: 11, color: C.muted, marginTop: 3, fontFamily: sans }}>{item.note}</p>}
-                  {item.partnerLink === "trust-will" && !item.completed && (
-                    <button style={{ marginTop: 7, display: "flex", alignItems: "center", gap: 5, background: C.primaryLight, border: "none", borderRadius: 8, padding: "4px 10px", color: C.primaryDark, fontSize: 11, fontFamily: sans, fontWeight: 600, cursor: "pointer" }}>
-                      <ExternalLink size={10} /> Complete via Trust & Will
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+            <RecipFilterBar recipients={recipients} filterId={filterRecipId} setFilterId={setFilterRecipId} />
 
+            {/* Incomplete items */}
+            {incomplete.map(item => {
+              const recip = item.recipientId ? recipients.find(r => r.id === item.recipientId) : null;
+              return (
+                <div key={item.id} style={{ background: C.card, borderRadius: 18, padding: "13px 16px", marginBottom: 8, boxShadow: CARD_SHADOW_SM, display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <button onClick={() => handleToggle(item)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0, marginTop: 1 }}>
+                    <Square size={19} color={C.border} />
+                  </button>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: C.text, fontFamily: sans }}>{item.title}</p>
+                    {item.note && <p style={{ fontSize: 11, color: C.muted, marginTop: 3, fontFamily: sans }}>{item.note}</p>}
+                  </div>
+                  {recip && <MiniAvatar r={recip} size={24} />}
+                </div>
+              );
+            })}
+
+            {incomplete.length === 0 && (
+              <p style={{ textAlign: "center", color: C.mutedLight, fontSize: 13, fontFamily: sans, padding: "12px 0" }}>
+                {filterRecipId ? "No items for this person." : "All done! 🎉"}
+              </p>
+            )}
+
+            {/* Add item */}
             {adding ? (
-              <div style={{ background: C.card, borderRadius: 18, padding: "14px 16px", border: `1.5px solid ${C.primary}40`, boxShadow: CARD_SHADOW }}>
-                <input value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="New item..." autoFocus style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: C.text, background: "none", fontFamily: sans }} />
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button onClick={() => { if (newItem.trim()) { onAddLogistic({ id: Date.now(), title: newItem, completed: false, note: "", partnerLink: null }); setNewItem(""); setAdding(false); } }} style={{ flex: 1, background: `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 10, padding: "9px", fontWeight: 600, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Add</button>
-                  <button onClick={() => { setAdding(false); setNewItem(""); }} style={{ flex: 1, background: C.bg, color: C.muted, border: "none", borderRadius: 10, padding: "9px", fontWeight: 500, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Cancel</button>
+              <div style={{ background: C.card, borderRadius: 18, padding: "14px 16px", border: `1.5px solid ${C.primary}40`, boxShadow: CARD_SHADOW, marginTop: 8 }}>
+                <input value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="New item..." autoFocus style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: C.text, background: "none", fontFamily: sans, marginBottom: 10 }} />
+                {recipients.length > 0 && (
+                  <select value={newItemRecipId ?? ""} onChange={e => setNewItemRecipId(e.target.value ? e.target.value : null)}
+                    style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 10px", fontSize: 12, color: newItemRecipId ? C.text : C.mutedLight, background: C.bg, fontFamily: sans, marginBottom: 10, outline: "none" }}>
+                    <option value="">For (optional)</option>
+                    {recipients.map(r => <option key={r.id} value={r.id}>{r.nickname || r.name.split(" ")[0]}</option>)}
+                  </select>
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => { if (newItem.trim()) { onAddLogistic({ id: Date.now(), title: newItem, completed: false, note: "", partnerLink: null, recipientId: newItemRecipId ?? null }); setNewItem(""); setNewItemRecipId(null); setAdding(false); } }} style={{ flex: 1, background: `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 10, padding: "9px", fontWeight: 600, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Add</button>
+                  <button onClick={() => { setAdding(false); setNewItem(""); setNewItemRecipId(null); }} style={{ flex: 1, background: C.bg, color: C.muted, border: "none", borderRadius: 10, padding: "9px", fontWeight: 500, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Cancel</button>
                 </div>
               </div>
             ) : (
@@ -1127,69 +1357,186 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors }) {
                 <Plus size={15} /> Add item
               </button>
             )}
+
+            {/* Done section */}
+            {complete.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <button onClick={() => setDoneOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", padding: "8px 4px", width: "100%" }}>
+                  {doneOpen ? <ChevronDown size={15} color={C.muted} /> : <ChevronRight size={15} color={C.muted} />}
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.muted, fontFamily: sans }}>Done</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "white", background: C.sage, borderRadius: 20, padding: "1px 8px", fontFamily: sans }}>{complete.length}</span>
+                </button>
+                {doneOpen && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                    {complete.map(item => {
+                      const isRestoring = restoreId === item.id;
+                      const recip = item.recipientId ? recipients.find(r => r.id === item.recipientId) : null;
+                      return (
+                        <div key={item.id} style={{ background: C.card, borderRadius: 16, padding: "12px 14px", boxShadow: CARD_SHADOW_SM, opacity: 0.8 }}>
+                          {isRestoring ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                              <RotateCcw size={14} color={C.rose} style={{ flexShrink: 0 }} />
+                              <span style={{ fontSize: 12, fontWeight: 600, color: C.text, fontFamily: sans, flex: 1 }}>Restore <strong>{item.title}</strong>?</span>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button onClick={() => confirmRestore(item.id)} style={{ background: C.primary, color: "white", border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>Restore</button>
+                                <button onClick={() => setRestoreId(null)} style={{ background: C.bg, color: C.muted, border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}>Keep done</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                              <button onClick={() => handleToggle(item)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0, marginTop: 1 }}>
+                                <CheckSquare size={18} color={C.sage} />
+                              </button>
+                              <div style={{ flex: 1 }}>
+                                <p style={{ fontSize: 13, fontWeight: 400, color: C.mutedLight, textDecoration: "line-through", fontFamily: sans }}>{item.title}</p>
+                                {item.note && <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans, marginTop: 2 }}>{item.note}</p>}
+                              </div>
+                              {recip && <MiniAvatar r={recip} size={20} />}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
+        {/* ── DOCTORS ─────────────────────────────────────────────────────────── */}
         {sub === "doctors" && (
           <>
-            {doctors.map(d => {
+            <RecipFilterBar recipients={recipients} filterId={filterRecipId} setFilterId={setFilterRecipId} />
+            {filteredDoctors.map(d => {
               const col = rColor(d.recipientId);
+              const recip = d.recipientId ? recipients.find(r => r.id === d.recipientId) : null;
               return (
                 <div key={d.id} style={{ background: C.card, borderRadius: 18, padding: 16, marginBottom: 10, boxShadow: CARD_SHADOW_SM, borderLeft: `3px solid ${col}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: C.text, fontFamily: serif }}>{d.name}</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
+                        <p style={{ fontSize: 15, fontWeight: 600, color: C.text, fontFamily: serif }}>{d.name}</p>
+                        {recip && <MiniAvatar r={recip} size={20} />}
+                      </div>
                       <p style={{ fontSize: 12, color: col, fontFamily: sans, marginTop: 2 }}>{d.specialty}</p>
                       <p style={{ fontSize: 12, color: C.muted, marginTop: 4, fontFamily: sans }}>{d.phone}</p>
                       <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{d.address}</p>
                     </div>
-                    <button style={{ width: 36, height: 36, background: col + "14", border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                    <a href={`tel:${d.phone}`} style={{ width: 36, height: 36, background: col + "14", border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, textDecoration: "none" }}>
                       <Phone size={14} color={col} />
-                    </button>
+                    </a>
                   </div>
                 </div>
               );
             })}
+            {filteredDoctors.length === 0 && (
+              <p style={{ textAlign: "center", color: C.mutedLight, fontSize: 13, fontFamily: sans, padding: "16px 0" }}>
+                {filterRecipId ? "No doctors for this person." : "No doctors yet."}
+              </p>
+            )}
             <button style={{ width: "100%", border: `1.5px dashed ${C.border}`, borderRadius: 18, padding: 14, background: "none", color: C.mutedLight, fontSize: 13, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
               <Plus size={15} /> Add a doctor
             </button>
           </>
         )}
 
+        {/* ── DOCUMENTS ───────────────────────────────────────────────────────── */}
         {sub === "documents" && (
           <>
-            <div style={{ background: C.primaryLight, borderRadius: 18, padding: 16, marginBottom: 16, boxShadow: CARD_SHADOW_SM }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <Info size={16} color={C.primaryDark} style={{ flexShrink: 0, marginTop: 1 }} />
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: C.primaryDark, fontFamily: sans }}>Connect Google Drive</p>
-                  <p style={{ fontSize: 12, color: C.primary, marginTop: 3, lineHeight: 1.6, fontFamily: sans }}>Store insurance cards, medical records, and legal documents in one secure place.</p>
-                  <button style={{ marginTop: 10, background: `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-                    <ExternalLink size={12} /> Connect Google Drive
-                  </button>
-                </div>
+            <input ref={fileInputRef} type="file" accept=".png,.jpg,.jpeg,.pdf" style={{ display: "none" }} onChange={handleUpload} />
+
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+              <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, flex: 1 }}>Store insurance cards, records, and legal docs.</p>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {recipients.length > 0 && (
+                  <select value={uploadRecipId ?? ""} onChange={e => setUploadRecipId(e.target.value || null)}
+                    style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 8px", fontSize: 11, color: uploadRecipId ? C.text : C.mutedLight, background: C.bg, fontFamily: sans, outline: "none" }}>
+                    <option value="">Tag recipient</option>
+                    {recipients.map(r => <option key={r.id} value={r.id}>{r.nickname || r.name.split(" ")[0]}</option>)}
+                  </select>
+                )}
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                  style={{ display: "flex", alignItems: "center", gap: 5, background: uploading ? C.border : `linear-gradient(135deg, ${C.primary}, ${C.primaryDark})`, color: "white", border: "none", borderRadius: 10, padding: "7px 14px", fontSize: 12, fontWeight: 600, fontFamily: sans, cursor: uploading ? "default" : "pointer", flexShrink: 0 }}>
+                  <Upload size={13} /> {uploading ? "Uploading…" : "Upload"}
+                </button>
               </div>
             </div>
-            {[
-              { name: "Medicare Card – Margaret.pdf", date: "Mar 10, 2026", color: C.blue },
-              { name: "Advanced Directive – Margaret.pdf", date: "Jan 5, 2025", color: C.sage },
-              { name: "Will – Notarized 2025.pdf", date: "Mar 15, 2025", color: C.peach },
-              { name: "Medicaid Approval – Thomas.pdf", date: "Nov 20, 2025", color: C.lavender },
-            ].map((doc, i) => (
-              <div key={i} style={{ background: C.card, borderRadius: 16, padding: 14, marginBottom: 8, boxShadow: CARD_SHADOW_SM, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 38, height: 38, background: doc.color + "16", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <FileText size={16} color={doc.color} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: C.text, fontFamily: sans, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</p>
-                  <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{doc.date}</p>
-                </div>
-                <ExternalLink size={14} color={C.border} />
+
+            <RecipFilterBar recipients={recipients} filterId={filterRecipId} setFilterId={setFilterRecipId} />
+
+            {docError && (
+              <div style={{ background: "#fdf5f5", borderRadius: 12, padding: "10px 14px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                <AlertCircle size={14} color={C.coral} style={{ flexShrink: 0 }} />
+                <p style={{ fontSize: 12, color: C.coral, fontFamily: sans }}>{docError}</p>
               </div>
-            ))}
-            <button style={{ width: "100%", border: `1.5px dashed ${C.border}`, borderRadius: 16, padding: 14, background: "none", color: C.mutedLight, fontSize: 13, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <Plus size={15} /> Upload document
-            </button>
+            )}
+
+            {docsLoading && (
+              <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}>
+                <div style={{ width: 24, height: 24, border: `3px solid ${C.border}`, borderTopColor: C.primary, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              </div>
+            )}
+
+            {!docsLoading && (
+              <>
+                {filteredDocs.length === 0 && !docError && (
+                  <div style={{ textAlign: "center", padding: "40px 0", color: C.mutedLight }}>
+                    <FileText size={32} style={{ marginBottom: 12, opacity: 0.3 }} />
+                    <p style={{ fontSize: 14, fontWeight: 600, fontFamily: sans, marginBottom: 4 }}>
+                      {filterRecipId ? "No documents for this person" : "No documents yet"}
+                    </p>
+                    <p style={{ fontSize: 12, fontFamily: sans }}>Upload a PDF, PNG, or JPG above.</p>
+                  </div>
+                )}
+                {filteredDocs.map(d => {
+                  const meta  = fileTypeMeta(d.name, d.contentType);
+                  const isDel = deletingDoc === d.fullPath;
+                  const recip = d.recipientId ? recipients.find(r => String(r.id) === String(d.recipientId)) : null;
+                  return (
+                    <div key={d.fullPath} style={{ background: C.card, borderRadius: 16, padding: "12px 14px", marginBottom: 8, boxShadow: CARD_SHADOW_SM }}>
+                      {isDel ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <Trash2 size={13} color={C.coral} style={{ flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, fontWeight: 600, color: C.text, fontFamily: sans, flex: 1 }}>Delete <strong>{d.name}</strong>?</span>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => handleDeleteDoc(d)} style={{ background: C.coral, color: "white", border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>Delete</button>
+                            <button onClick={() => setDeletingDoc(null)} style={{ background: C.bg, color: C.muted, border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontFamily: sans, cursor: "pointer" }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ width: 38, height: 38, background: meta.color + "16", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            {meta.isImg ? <ImageIcon size={16} color={meta.color} /> : <FileText size={16} color={meta.color} />}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 500, color: C.text, fontFamily: sans, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</p>
+                            <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{meta.label}{d.size ? ` · ${fmtDocSize(d.size)}` : ""} · {fmtDocDate(d.uploadedAt)}</p>
+                          </div>
+                          {recip && <MiniAvatar r={recip} size={22} />}
+                          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                            <button onClick={() => handleDownload(d)} style={{ width: 32, height: 32, background: C.primaryLight, border: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                              <Download size={14} color={C.primaryDark} />
+                            </button>
+                            <button onClick={() => setDeletingDoc(d.fullPath)} style={{ width: 32, height: 32, background: C.bg, border: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                              <Trash2 size={14} color={C.mutedLight} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {filteredDocs.length > 0 && (
+                  <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                    style={{ width: "100%", border: `1.5px dashed ${C.border}`, borderRadius: 16, padding: 14, background: "none", color: C.mutedLight, fontSize: 13, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    <Plus size={15} /> Upload another
+                  </button>
+                )}
+              </>
+            )}
           </>
         )}
       </div>
@@ -1475,7 +1822,7 @@ function InfoTab({ recipients }) {
 const NAV = [
   { id: "home",      Icon: Home,          label: "Home"      },
   { id: "calendar",  Icon: CalendarDays,  label: "Calendar"  },
-  { id: "list",      Icon: ClipboardList, label: "To do"    },
+  { id: "list",      Icon: ClipboardList, label: "To Dos"   },
   { id: "info",      Icon: Info,           label: "Get help"  },
   { id: "chat",      Icon: MessageCircle, label: "Ask Aiden" },
 ];
@@ -1581,6 +1928,27 @@ export default function AidenApp() {
     }
   }
 
+  async function addRecipient(recipData) {
+    if (user) {
+      try {
+        const ref = await addDoc(collection(db, 'users', user.uid, 'recipients'), recipData);
+        setRecipients(prev => [...prev, { ...recipData, id: ref.id }]);
+      } catch (e) { console.error('Error adding recipient:', e); }
+    } else {
+      setRecipients(prev => [...prev, { ...recipData, id: String(Date.now()) }]);
+    }
+  }
+
+  async function deleteRecipient(id) {
+    setRecipients(prev => prev.filter(r => r.id !== id));
+    if (selRecipient?.id === id) setSelRecipient(null);
+    if (user) {
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'recipients', String(id)));
+      } catch (e) { console.error('Error deleting recipient:', e); }
+    }
+  }
+
   async function handleAddAppointments(newAppts) {
     if (user) {
       try {
@@ -1674,14 +2042,14 @@ export default function AidenApp() {
   function renderContent() {
     if (showAddEvent) return <AddEventScreen onBack={() => setShowAddEvent(false)} onSave={handleAddAppointments} recipients={recipients} />;
     if (showRecipients) {
-      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} doctors={doctors} appointments={appointments} />;
-      return <RecipientsPage recipients={recipients} onSelect={r => setSelRecipient(r)} onBack={() => setShowRecipients(false)} />;
+      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} />;
+      return <RecipientsPage recipients={recipients} onSelect={r => setSelRecipient(r)} onBack={() => setShowRecipients(false)} onAdd={addRecipient} onDelete={deleteRecipient} />;
     }
     if (tab === "home") return selRecipient
-      ? <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} doctors={doctors} appointments={appointments} />
+      ? <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} />
       : <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => setSelRecipient(r)} onGoToList={() => setTab("list")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} />;
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={() => setShowAddEvent(true)} />;
-    if (tab === "list")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} />;
+    if (tab === "list")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} recipients={recipients} user={user} />;
     if (tab === "info")      return <InfoTab recipients={recipients} />;
     if (tab === "chat")      return <ChatTab messages={chatMessages} setMessages={setChatMessages} />;
   }
