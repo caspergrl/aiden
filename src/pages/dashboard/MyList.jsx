@@ -10,7 +10,7 @@ import {
 } from 'firebase/storage';
 import { storage } from '../../firebase';
 import { useAuth } from '../../App';
-import { C, serif } from '../../theme';
+import { C, serif, shadowSm, shadowXs, radius } from '../../theme';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [C.rose, C.primary, C.sage, C.lavender, C.peach];
@@ -286,7 +286,7 @@ export default function MyList({ logistics, setLogistics, doctors, recipients = 
       {sub === 'logistics' && (
         <>
           {/* Progress */}
-          <div style={{ background: '#fff', borderRadius: 16, padding: '16px 20px', marginBottom: 20, border: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: radius.md, padding: '16px 20px', marginBottom: 20, boxShadow: shadowXs, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <p style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>{allComplete.length} of {logistics.length} completed</p>
               <div style={{ width: 240, height: 8, background: C.bgWarm, borderRadius: 4, overflow: 'hidden', border: `1px solid ${C.border}` }}>

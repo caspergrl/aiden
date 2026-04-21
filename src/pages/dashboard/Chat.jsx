@@ -28,7 +28,7 @@ export default function Chat({ messages, setMessages }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 0px)', maxHeight: '100vh' }}>
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #e8eff8, #f0eaf8)', padding: '20px 32px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+      <div style={{ background: `linear-gradient(135deg, ${C.roseLight}, #f0eaf8)`, padding: '20px 32px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
         <div style={{ width: 48, height: 48, background: 'rgba(255,255,255,0.6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, boxShadow: '0 2px 12px rgba(120,100,80,0.1)' }}>🤍</div>
         <div>
           <h2 style={{ fontFamily: serif, fontSize: 20, color: C.text }}>Ask Aiden</h2>

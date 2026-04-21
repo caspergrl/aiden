@@ -73,14 +73,14 @@ export default function Login() {
   const switchMode = (m) => { setMode(m); setError(''); setResetSent(false); };
 
   const input = (props) => ({
-    width: '100%', background: '#f9f6f3', border: `1px solid ${C.border}`,
-    borderRadius: 10, padding: '12px 16px', fontSize: 15, color: C.text, outline: 'none',
-    transition: 'border-color 0.2s',
+    width: '100%', background: C.bgWarm, border: `1.5px solid ${C.border}`,
+    borderRadius: 13, padding: '13px 16px', fontSize: 15, color: C.text, outline: 'none',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
     ...props,
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #fdf6f5, #f0eaf8)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 20px 40px' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #f5ede8 0%, #ede5f5 60%, #f5ede8 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 20px 40px' }}>
 
       {/* Logo */}
       <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', marginBottom: 36 }}>
@@ -88,7 +88,7 @@ export default function Login() {
         <span style={{ fontFamily: serif, fontSize: 26, color: C.text, letterSpacing: -0.5 }}>aiden</span>
       </Link>
 
-      <div style={{ width: '100%', maxWidth: 420, background: '#fff', borderRadius: 20, padding: '36px 32px', border: `1px solid ${C.border}`, boxShadow: '0 8px 40px rgba(80,60,40,0.09)' }}>
+      <div style={{ width: '100%', maxWidth: 420, background: '#fff', borderRadius: 24, padding: '40px 36px', boxShadow: '0 8px 48px rgba(140,60,40,0.13), 0 1px 8px rgba(140,60,40,0.06)' }}>
 
         {/* ─── Forgot password ─── */}
         {mode === 'forgot' ? (
@@ -106,7 +106,7 @@ export default function Login() {
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Email</label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" style={input({ marginBottom: 16 })} />
                 {error && <p style={{ fontSize: 12, color: C.coral, background: '#fdf5f5', padding: '8px 12px', borderRadius: 8, marginBottom: 14 }}>{error}</p>}
-                <button type="submit" disabled={loading || !email.trim()} style={{ width: '100%', background: loading || !email.trim() ? C.border : C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: 14, fontSize: 15, fontWeight: 700, cursor: loading || !email.trim() ? 'default' : 'pointer' }}>
+                <button type="submit" disabled={loading || !email.trim()} style={{ width: '100%', background: loading || !email.trim() ? C.border : C.roseDark, color: '#fff', border: 'none', borderRadius: 14, padding: '15px 0', fontSize: 15, fontWeight: 700, cursor: loading || !email.trim() ? 'default' : 'pointer', letterSpacing: 0.3 }}>
                   {loading ? 'Sending…' : 'Send reset link'}
                 </button>
               </form>
@@ -159,7 +159,7 @@ export default function Login() {
               {error && <p style={{ fontSize: 12, color: C.coral, background: '#fdf5f5', padding: '8px 12px', borderRadius: 8, margin: '12px 0' }}>{error}</p>}
 
               <button type="submit" disabled={loading || !email.trim() || !password.trim()}
-                style={{ width: '100%', background: loading || !email.trim() || !password.trim() ? C.border : C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: 14, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginTop: 16, transition: 'background 0.2s' }}>
+                style={{ width: '100%', background: loading || !email.trim() || !password.trim() ? C.border : C.roseDark, color: '#fff', border: 'none', borderRadius: 14, padding: '15px 0', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginTop: 16, transition: 'background 0.2s', letterSpacing: 0.3 }}>
                 {loading ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
               </button>
             </form>

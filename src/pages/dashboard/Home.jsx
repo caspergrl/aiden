@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CalendarDays, ClipboardList, ChevronRight, Plus, Eye, EyeOff, AlertCircle, Clock } from 'lucide-react';
-import { C, serif } from '../../theme';
+import { C, serif, shadow, shadowSm, radius } from '../../theme';
 import { getDailyMessage, INSURANCE_INFO } from '../../data';
 
 function rColor(id) { return id === 1 ? C.rose : C.primary; }
@@ -65,7 +65,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate }
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {/* Upcoming appointments */}
-        <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+        <div style={{ background: '#fff', borderRadius: radius.xl, boxShadow: shadowSm, overflow: 'hidden' }}>
           <div style={{ padding: '18px 20px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}` }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: C.text }}>Upcoming Appointments</p>
             <button onClick={() => onNavigate('calendar')} style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.primaryLight, border: 'none', borderRadius: 10, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: C.primaryDark, cursor: 'pointer' }}>
@@ -96,7 +96,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate }
         </div>
 
         {/* Care recipients */}
-        <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+        <div style={{ background: '#fff', borderRadius: radius.xl, boxShadow: shadowSm, overflow: 'hidden' }}>
           <div style={{ padding: '18px 20px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}` }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: C.text }}>People I'm Caring For</p>
             <button onClick={() => onNavigate('care')} style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.roseLight, border: 'none', borderRadius: 10, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: C.roseDark, cursor: 'pointer' }}>
@@ -127,11 +127,11 @@ export default function Home({ recipients, appointments, logistics, onNavigate }
 
 function StatCard({ label, value, color, onClick }) {
   return (
-    <button onClick={onClick} style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: `1px solid ${C.border}`, cursor: 'pointer', textAlign: 'left', transition: 'box-shadow 0.2s' }}
-      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(80,60,40,0.1)'}
-      onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-      <p style={{ fontSize: 32, fontWeight: 900, color, lineHeight: 1, marginBottom: 6 }}>{value}</p>
-      <p style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{label}</p>
+    <button onClick={onClick} style={{ background: '#fff', borderRadius: radius.lg, padding: '20px 22px', border: 'none', boxShadow: shadowSm, cursor: 'pointer', textAlign: 'left', transition: 'box-shadow 0.2s, transform 0.15s' }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = shadow; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = shadowSm; e.currentTarget.style.transform = 'translateY(0)'; }}>
+      <p style={{ fontSize: 34, fontWeight: 900, color, lineHeight: 1, marginBottom: 7, letterSpacing: -1 }}>{value}</p>
+      <p style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>{label}</p>
     </button>
   );
 }

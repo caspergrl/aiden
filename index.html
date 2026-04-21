@@ -10,9 +10,24 @@
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html { scroll-behavior: smooth; }
-      body { font-family: 'Inter', sans-serif; background: #fff; color: #26201a; }
+      body { font-family: 'Inter', sans-serif; background: #f5ede8; color: #211810; }
       button, input, textarea, select { font-family: inherit; }
-      ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #f5f0eb; } ::-webkit-scrollbar-thumb { background: #c4938a; border-radius: 3px; }
+
+      /* Global input focus ring */
+      input:focus, textarea:focus, select:focus {
+        outline: none;
+        border-color: #c85c55 !important;
+        box-shadow: 0 0 0 3px rgba(200, 92, 85, 0.12) !important;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: #f5ede8; }
+      ::-webkit-scrollbar-thumb { background: #c85c55; border-radius: 3px; }
+
+      /* Smooth transitions on interactive elements */
+      button { transition: opacity 0.15s, box-shadow 0.15s; }
+      button:active { opacity: 0.85; }
     </style>
   </head>
   <body>

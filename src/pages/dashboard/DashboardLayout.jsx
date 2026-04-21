@@ -4,7 +4,7 @@ import { signOut } from 'firebase/auth';
 import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Heart, Users, Settings, LogOut, Menu, X } from 'lucide-react';
 import { auth } from '../../firebase';
 import { useAuth } from '../../App';
-import { C, serif } from '../../theme';
+import { C, serif, shadowSm } from '../../theme';
 
 const NAV = [
   { id: 'home',      label: 'Home',       Icon: Home },
@@ -25,10 +25,11 @@ export default function DashboardLayout({ active, setActive, children }) {
     return (
       <button onClick={() => { setActive(id); setMobileOpen(false); }} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-        padding: '10px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-        background: isActive ? C.roseDark : 'transparent',
+        padding: '11px 16px', borderRadius: 14, border: 'none', cursor: 'pointer',
+        background: isActive ? C.rose : 'transparent',
         color: isActive ? '#fff' : C.muted,
         fontSize: 14, fontWeight: isActive ? 700 : 500,
+        boxShadow: isActive ? '0 3px 14px rgba(200,92,85,0.30)' : 'none',
         transition: 'all 0.15s', textAlign: 'left',
       }}>
         <Icon size={18} strokeWidth={isActive ? 2.5 : 1.8} />

@@ -1,25 +1,41 @@
 export const C = {
+  // Primary blue — used for data/recipient color coding only
   primary:       '#7a9dc2',
   primaryLight:  '#dde8f5',
   primaryDark:   '#4a6d8e',
-  rose:          '#c4938a',
-  roseDark:      '#904848',
-  roseLight:     '#f8f0ee',
+
+  // Rose: main brand + UI accent (vivid, warm — like the orange in the reference)
+  rose:          '#c85c55',
+  roseDark:      '#8b3733',
+  roseLight:     '#faecea',
+
+  // Backgrounds
   bg:            '#ffffff',
-  bgWarm:        '#fdf9f8',
+  bgWarm:        '#f5ede8',   // warm cream — main app background
   card:          '#ffffff',
-  border:        '#ede5d8',
-  text:          '#26201a',
-  muted:         '#8a8076',
-  mutedLight:    '#b4aca2',
-  sage:          '#8ab5a0',
-  coral:         '#c4746e',
+
+  // Text
+  text:          '#211810',
+  muted:         '#8a7d76',
+  mutedLight:    '#b8ada6',
+
+  // Border
+  border:        '#ebe2d8',
+
+  // Accent palette
+  sage:          '#7daa94',
   peach:         '#d4a87c',
-  lavender:      '#a89ac4',
+  lavender:      '#a08ac0',
+  coral:         '#c85c55',   // alias for rose
 };
 
 export const serif = "'Ledger', Georgia, serif";
 export const sans  = "'Inter', system-ui, sans-serif";
 
-export const shadow = '0 4px 24px rgba(80,60,40,0.08), 0 1px 4px rgba(80,60,40,0.04)';
-export const shadowSm = '0 2px 10px rgba(80,60,40,0.07)';
+// Shadow system — warm, soft, neumorphic-lite
+export const shadow    = '0 4px 28px rgba(140,60,40,0.10), 0 1px 6px rgba(140,60,40,0.05)';
+export const shadowSm  = '0 2px 14px rgba(140,60,40,0.08)';
+export const shadowXs  = '0 1px 6px rgba(140,60,40,0.06)';
+
+// Border radius scale
+export const radius = { xs: 8, sm: 11, md: 14, lg: 18, xl: 22, pill: 999 };

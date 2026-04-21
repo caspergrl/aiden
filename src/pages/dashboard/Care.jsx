@@ -3,7 +3,7 @@ import {
   ChevronLeft, ChevronRight, Plus, Trash2, Check, Phone, X,
   Search, Pencil, AlertTriangle, CalendarDays, Shield, Users,
 } from 'lucide-react';
-import { C, serif } from '../../theme';
+import { C, serif, shadowSm, radius } from '../../theme';
 import { INSURANCE_INFO, CAREGIVING_RECS } from '../../data';
 
 const COLORS = [C.rose, C.primary, C.sage, C.lavender, C.peach];
@@ -39,7 +39,7 @@ function SectionLabel({ children }) {
   return <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>{children}</p>;
 }
 function Card({ children, style }) {
-  return <div style={{ background: '#fff', borderRadius: 18, border: `1px solid ${C.border}`, padding: 20, marginBottom: 14, ...style }}>{children}</div>;
+  return <div style={{ background: '#fff', borderRadius: radius.lg, boxShadow: shadowSm, padding: 20, marginBottom: 14, ...style }}>{children}</div>;
 }
 function ModalWrap({ onClose, children, maxWidth = 480 }) {
   return (
