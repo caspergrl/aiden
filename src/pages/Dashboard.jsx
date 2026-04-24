@@ -86,52 +86,97 @@ export default function Dashboard() {
     setDataLoading(false);
   }
 
+  // ── Generic Firestore error handler ──────────────────────────────────────────
+  function fsError(op, e) {
+    console.error(`Firestore ${op} failed:`, e?.code, e?.message);
+  }
+
   // ── Recipients ────────────────────────────────────────────────────────────────
   async function addRecipient(data) {
-    const ref = await addDoc(collection(db, 'users', user.uid, 'recipients'), data);
-    setRecipients(prev => [...prev, { ...data, id: ref.id }]);
+    // Optimistic update first so UI is instant
+    const tempId = `temp_${Date.now()}`;
+    setRecipients(prev => [...prev, { ...data, id: tempId }]);
+    try {
+      const ref = await addDoc(collection(db, 'users', user.uid, 'recipients'), data);
+      // Replace temp id with real Firestore id
+      setRecipients(prev => prev.map(r => r.id === tempId ? { ...r, id: ref.id } : r));
+    } catch (e) {
+      fsError('addRecipient', e);
+      setRecipients(prev => prev.filter(r => r.id !== tempId)); // rollback
+    }
   }
   async function updateRecipient(id, data) {
     setRecipients(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
-    await updateDoc(doc(db, 'users', user.uid, 'recipients', id), data);
+    try {
+      await updateDoc(doc(db, 'users', user.uid, 'recipients', id), data);
+    } catch (e) { fsError('updateRecipient', e); }
   }
   async function deleteRecipient(id) {
     setRecipients(prev => prev.filter(r => r.id !== id));
-    await deleteDoc(doc(db, 'users', user.uid, 'recipients', id));
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'recipients', id));
+    } catch (e) { fsError('deleteRecipient', e); }
   }
 
   // ── Doctors ───────────────────────────────────────────────────────────────────
   async function addDoctor(data) {
-    const ref = await addDoc(collection(db, 'users', user.uid, 'doctors'), data);
-    setDoctors(prev => [...prev, { ...data, id: ref.id }]);
+    const tempId = `temp_${Date.now()}`;
+    setDoctors(prev => [...prev, { ...data, id: tempId }]);
+    try {
+      const ref = await addDoc(collection(db, 'users', user.uid, 'doctors'), data);
+      setDoctors(prev => prev.map(d => d.id === tempId ? { ...d, id: ref.id } : d));
+    } catch (e) {
+      fsError('addDoctor', e);
+      setDoctors(prev => prev.filter(d => d.id !== tempId));
+    }
   }
   async function deleteDoctor(id) {
     setDoctors(prev => prev.filter(d => d.id !== id));
-    await deleteDoc(doc(db, 'users', user.uid, 'doctors', id));
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'doctors', id));
+    } catch (e) { fsError('deleteDoctor', e); }
   }
 
   // ── Appointments ──────────────────────────────────────────────────────────────
   async function addAppointment(data) {
-    const ref = await addDoc(collection(db, 'users', user.uid, 'appointments'), data);
-    setAppointments(prev => [...prev, { ...data, id: ref.id }]);
+    const tempId = `temp_${Date.now()}`;
+    setAppointments(prev => [...prev, { ...data, id: tempId }]);
+    try {
+      const ref = await addDoc(collection(db, 'users', user.uid, 'appointments'), data);
+      setAppointments(prev => prev.map(a => a.id === tempId ? { ...a, id: ref.id } : a));
+    } catch (e) {
+      fsError('addAppointment', e);
+      setAppointments(prev => prev.filter(a => a.id !== tempId));
+    }
   }
   async function deleteAppointment(id) {
     setAppointments(prev => prev.filter(a => a.id !== id));
-    await deleteDoc(doc(db, 'users', user.uid, 'appointments', id));
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'appointments', id));
+    } catch (e) { fsError('deleteAppointment', e); }
   }
 
   // ── Logistics ─────────────────────────────────────────────────────────────────
   async function addLogistic(data) {
-    const ref = await addDoc(collection(db, 'users', user.uid, 'logistics'), data);
+    const tempId = `temp_${Date.now()}`;
     setLogistics(prev => {
       const incomplete = prev.filter(l => !l.completed);
       const complete   = prev.filter(l => l.completed);
-      return [...incomplete, { ...data, id: ref.id }, ...complete];
+      return [...incomplete, { ...data, id: tempId }, ...complete];
     });
+    try {
+      const ref = await addDoc(collection(db, 'users', user.uid, 'logistics'), data);
+      setLogistics(prev => prev.map(l => l.id === tempId ? { ...l, id: ref.id } : l));
+    } catch (e) {
+      fsError('addLogistic', e);
+      setLogistics(prev => prev.filter(l => l.id !== tempId));
+    }
   }
   async function updateLogistic(id, changes) {
     setLogistics(prev => prev.map(l => l.id === id ? { ...l, ...changes } : l));
-    await updateDoc(doc(db, 'users', user.uid, 'logistics', id), changes);
+    try {
+      await updateDoc(doc(db, 'users', user.uid, 'logistics', id), changes);
+    } catch (e) { fsError('updateLogistic', e); }
   }
 
   if (dataLoading) {
