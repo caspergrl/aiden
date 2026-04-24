@@ -339,7 +339,7 @@ function DelBtn({ onClick }) {
 }
 
 // ─── Recipient detail view ──────────────────────────────────────────────────────
-function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, setDoctors, appointments, setAppointments, recipients }) {
+function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, onDeleteDoctor, appointments, onAddAppointment, onDeleteAppointment, recipients }) {
   const [tab, setTab]               = useState('overview');
   const [showEdit, setShowEdit]     = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -360,9 +360,9 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, setDoctors, app
     <div style={{ maxWidth: 800 }}>
       {showEdit     && <EditRecipientModal recipient={r} onClose={() => setShowEdit(false)} onSave={u => { onEdit(u); setShowEdit(false); }} />}
       {showDelete   && <DeleteConfirmModal recipient={r} onClose={() => setShowDelete(false)} onDelete={() => { onDelete(r.id); onBack(); }} />}
-      {showDoctor   && <AddDoctorModal recipientId={r.id} onClose={() => setShowDoctor(false)} onAdd={d => setDoctors(prev => [...prev, d])} />}
+      {showDoctor   && <AddDoctorModal recipientId={r.id} onClose={() => setShowDoctor(false)} onAdd={d => { onAddDoctor(d); setShowDoctor(false); }} />}
       {showInsurance && <ManageInsuranceModal recipient={r} onClose={() => setShowInsurance(false)} onSave={onEdit} />}
-      {showAppt     && <AddAppointmentModal recipientId={r.id} doctors={myDoctors} onClose={() => setShowAppt(false)} onAdd={a => setAppointments(prev => [...prev, a])} />}
+      {showAppt     && <AddAppointmentModal recipientId={r.id} doctors={myDoctors} onClose={() => setShowAppt(false)} onAdd={a => { onAddAppointment(a); setShowAppt(false); }} />}
       {showPhone    && <AddPhoneModal onClose={() => setShowPhone(false)} onAdd={n => onEdit({ ...r, importantNumbers: [...(r.importantNumbers || []), n] })} />}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -488,7 +488,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, setDoctors, app
                         <Phone size={14} color={col} />
                       </a>
                     )}
-                    <DelBtn onClick={() => setDoctors(prev => prev.filter(x => x.id !== d.id))} />
+                    <DelBtn onClick={() => onDeleteDoctor(d.id)} />
                   </div>
                 </div>
               ))}
@@ -515,7 +515,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, setDoctors, app
                     {a.doctor && <p style={{ fontSize: 12, color: col, fontWeight: 600, marginTop: 2 }}>{a.doctor}</p>}
                     {a.location && <p style={{ fontSize: 12, color: C.mutedLight }}>{a.location}</p>}
                   </div>
-                  <DelBtn onClick={() => setAppointments(prev => prev.filter(x => x.id !== a.id))} />
+                  <DelBtn onClick={() => onDeleteAppointment(a.id)} />
                 </div>
               ))}
             {myAppts.length > 4 && (
@@ -588,18 +588,23 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, setDoctors, app
 }
 
 // ─── Recipients list view ───────────────────────────────────────────────────────
-export default function Care({ recipients, setRecipients, doctors, setDoctors, appointments, setAppointments }) {
+export default function Care({
+  recipients,
+  onAddRecipient, onUpdateRecipient, onDeleteRecipient,
+  doctors, onAddDoctor, onDeleteDoctor,
+  appointments, onAddAppointment, onDeleteAppointment,
+}) {
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
   const currentSelected = selected ? recipients.find(r => r.id === selected.id) ?? null : null;
 
   function handleEdit(updated) {
-    setRecipients(prev => prev.map(r => r.id === updated.id ? updated : r));
+    onUpdateRecipient(updated.id, updated);
     setSelected(updated);
   }
   function handleDelete(id) {
-    setRecipients(prev => prev.filter(r => r.id !== id));
+    onDeleteRecipient(id);
     setSelected(null);
   }
 
@@ -612,9 +617,11 @@ export default function Care({ recipients, setRecipients, doctors, setDoctors, a
           onEdit={handleEdit}
           onDelete={handleDelete}
           doctors={doctors}
-          setDoctors={setDoctors}
+          onAddDoctor={onAddDoctor}
+          onDeleteDoctor={onDeleteDoctor}
           appointments={appointments}
-          setAppointments={setAppointments}
+          onAddAppointment={onAddAppointment}
+          onDeleteAppointment={onDeleteAppointment}
           recipients={recipients}
         />
       </div>
@@ -623,7 +630,7 @@ export default function Care({ recipients, setRecipients, doctors, setDoctors, a
 
   return (
     <div style={{ padding: 32, maxWidth: 760 }}>
-      {showModal && <AddRecipientModal onClose={() => setShowModal(false)} onAdd={r => setRecipients(prev => [...prev, r])} />}
+      {showModal && <AddRecipientModal onClose={() => setShowModal(false)} onAdd={onAddRecipient} />}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
         <div>

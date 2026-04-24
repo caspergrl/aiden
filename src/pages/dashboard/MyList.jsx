@@ -90,7 +90,7 @@ function fmtSize(bytes) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────────
-export default function MyList({ logistics, setLogistics, doctors, recipients = [] }) {
+export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAddLogistic, doctors, recipients = [] }) {
   const { user } = useAuth();
   const [sub, setSub]         = useState('logistics');
   const [adding, setAdding]   = useState(false);
@@ -210,22 +210,18 @@ export default function MyList({ logistics, setLogistics, doctors, recipients = 
   // ── Checklist helpers ─────────────────────────────────────────────────────────
   function handleToggle(item) {
     if (!item.completed) {
-      setLogistics(p => p.map(l => l.id === item.id ? { ...l, completed: true } : l));
+      onUpdateLogistic(item.id, { completed: true });
     } else {
       setRestoreId(item.id);
     }
   }
   function confirmRestore(id) {
-    setLogistics(p => p.map(l => l.id === id ? { ...l, completed: false } : l));
+    onUpdateLogistic(id, { completed: false });
     setRestoreId(null);
   }
   function addItem() {
     if (!newItem.trim()) return;
-    setLogistics(p => [
-      ...p.filter(x => !x.completed),
-      { id: Date.now(), title: newItem.trim(), completed: false, note: '', partnerLink: null, recipientId: newItemRecipId ?? null },
-      ...p.filter(x => x.completed),
-    ]);
+    onAddLogistic({ title: newItem.trim(), completed: false, note: '', partnerLink: null, recipientId: newItemRecipId ?? null });
     setNewItem('');
     setNewItemRecipId(null);
     setAdding(false);
