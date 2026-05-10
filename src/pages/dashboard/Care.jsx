@@ -643,7 +643,7 @@ export default function Care({
       </div>
 
       {recipients.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 24px 40px', background: '#fff', borderRadius: 24, border: `1px solid ${C.border}` }}>
+        <div style={{ textAlign: 'center', padding: '48px 24px 40px' }}>
           {/* Illustration */}
           <svg width="160" height="120" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: 28 }}>
             {/* Background circle */}
