@@ -6,6 +6,13 @@
     <style>
       html, body, #root { height: 100%; margin: 0; padding: 0; }
       body { background: #ffffff; overflow: hidden; }
+      button, input, textarea, select { font-family: inherit; }
+
+      /* Hide placeholder on focus; restore on blur if empty */
+      input:focus::placeholder,
+      textarea:focus::placeholder {
+        color: transparent;
+      }
     </style>
     <title>Aiden — Caregiver App</title>
   </head>
