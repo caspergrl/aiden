@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [recipients,   setRecipients]   = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [doctors,      setDoctors]      = useState([]);
+  const [saveError,    setSaveError]    = useState(null);
   const [logistics,    setLogistics]    = useState([]);
   const [chatMessages, setChatMessages] = useState([{
     role: 'assistant',
@@ -89,6 +90,8 @@ export default function Dashboard() {
   // ── Generic Firestore error handler ──────────────────────────────────────────
   function fsError(op, e) {
     console.error(`Firestore ${op} failed:`, e?.code, e?.message);
+    setSaveError(`Save failed (${e?.code || 'unknown error'}). Changes were not saved. Please try again.`);
+    setTimeout(() => setSaveError(null), 5000);
   }
 
   // ── Recipients ────────────────────────────────────────────────────────────────
@@ -97,7 +100,9 @@ export default function Dashboard() {
     const tempId = `temp_${Date.now()}`;
     setRecipients(prev => [...prev, { ...data, id: tempId }]);
     try {
-      const ref = await addDoc(collection(db, 'users', user.uid, 'recipients'), data);
+      // Strip local id so Firestore auto-generates the document ID
+      const { id: _localId, ...firestoreData } = data;
+      const ref = await addDoc(collection(db, 'users', user.uid, 'recipients'), firestoreData);
       // Replace temp id with real Firestore id
       setRecipients(prev => prev.map(r => r.id === tempId ? { ...r, id: ref.id } : r));
     } catch (e) {
@@ -123,7 +128,8 @@ export default function Dashboard() {
     const tempId = `temp_${Date.now()}`;
     setDoctors(prev => [...prev, { ...data, id: tempId }]);
     try {
-      const ref = await addDoc(collection(db, 'users', user.uid, 'doctors'), data);
+      const { id: _localId, ...firestoreData } = data;
+      const ref = await addDoc(collection(db, 'users', user.uid, 'doctors'), firestoreData);
       setDoctors(prev => prev.map(d => d.id === tempId ? { ...d, id: ref.id } : d));
     } catch (e) {
       fsError('addDoctor', e);
@@ -142,7 +148,8 @@ export default function Dashboard() {
     const tempId = `temp_${Date.now()}`;
     setAppointments(prev => [...prev, { ...data, id: tempId }]);
     try {
-      const ref = await addDoc(collection(db, 'users', user.uid, 'appointments'), data);
+      const { id: _localId, ...firestoreData } = data;
+      const ref = await addDoc(collection(db, 'users', user.uid, 'appointments'), firestoreData);
       setAppointments(prev => prev.map(a => a.id === tempId ? { ...a, id: ref.id } : a));
     } catch (e) {
       fsError('addAppointment', e);
@@ -165,7 +172,8 @@ export default function Dashboard() {
       return [...incomplete, { ...data, id: tempId }, ...complete];
     });
     try {
-      const ref = await addDoc(collection(db, 'users', user.uid, 'logistics'), data);
+      const { id: _localId, ...firestoreData } = data;
+      const ref = await addDoc(collection(db, 'users', user.uid, 'logistics'), firestoreData);
       setLogistics(prev => prev.map(l => l.id === tempId ? { ...l, id: ref.id } : l));
     } catch (e) {
       fsError('addLogistic', e);
@@ -234,6 +242,16 @@ export default function Dashboard() {
   return (
     <DashboardLayout active={active} setActive={setActive}>
       {renderContent()}
+      {saveError && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: '#c0392b', color: '#fff', padding: '12px 24px', borderRadius: 12,
+          fontSize: 14, fontWeight: 600, zIndex: 9999, boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+          maxWidth: 420, textAlign: 'center',
+        }}>
+          ⚠️ {saveError}
+        </div>
+      )}
     </DashboardLayout>
   );
 }
