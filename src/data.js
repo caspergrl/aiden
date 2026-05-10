@@ -34,52 +34,11 @@ export const DAILY_MESSAGES = [
   "You are doing sacred work. The love you give quietly sustains someone else's whole world.",
 ];
 
-export const INITIAL_RECIPIENTS = [
-  {
-    id: 1, name: "Margaret Chen", nickname: "Mom", age: 78,
-    email: "margaret.chen@email.com", phone: "(555) 123-4567",
-    relationship: "Parent", photo: null,
-    conditions: ["Type 2 Diabetes", "Mild Cognitive Impairment", "Hypertension"],
-    medications: ["Metformin", "Lisinopril", "Donepezil"],
-    insurancePlans: ["medicare", "humana"],
-    notes: "Prefers morning appointments. Gets anxious in new environments. Enjoys crossword puzzles and classical music. Needs transportation assistance.",
-    importantNumbers: [
-      { label: "Dr. Kim's office", number: "(555) 200-1000" },
-      { label: "CVS Pharmacy", number: "(555) 500-3000" },
-      { label: "City Medical Center", number: "(555) 300-0000" },
-      { label: "Medicare helpline", number: "1-800-633-4227" },
-    ],
-  },
-  {
-    id: 2, name: "Thomas Chen", nickname: "Tommy", age: 45,
-    email: "tommy.chen@email.com", phone: "(555) 987-6543",
-    relationship: "Sibling", photo: null,
-    conditions: ["Down Syndrome", "Hypothyroidism"],
-    medications: ["Levothyroxine"],
-    insurancePlans: ["medicaid", "bcbs"],
-    notes: "Follows routines well. Enjoys music therapy. Day program Tuesdays & Thursdays at Sunrise Center. Loves baseball and cooking shows.",
-    importantNumbers: [
-      { label: "Sunrise Day Program", number: "(555) 400-2000" },
-      { label: "Dr. Park's office", number: "(555) 200-4000" },
-      { label: "Medicaid helpline", number: "1-877-267-2323" },
-    ],
-  },
-];
+export const INITIAL_RECIPIENTS = [];
 
-export const INITIAL_APPOINTMENTS = [
-  { id: 1, recipientId: 1, title: "Cardiology Follow-up", date: "2026-04-28", time: "10:00 AM", location: "City Medical Center, Suite 302", doctor: "Dr. Robert Lee" },
-  { id: 2, recipientId: 2, title: "Day Program – Music Therapy", date: "2026-04-22", time: "10:00 AM", location: "Sunrise Day Program", doctor: "" },
-  { id: 3, recipientId: 1, title: "Annual Physical", date: "2026-05-05", time: "9:00 AM", location: "Primary Care Associates", doctor: "Dr. Sarah Kim" },
-  { id: 4, recipientId: 2, title: "Neurologist Check-in", date: "2026-05-02", time: "2:30 PM", location: "Neurology Specialists", doctor: "Dr. James Park" },
-  { id: 5, recipientId: 1, title: "Memory Care Assessment", date: "2026-05-15", time: "11:00 AM", location: "Cognitive Health Institute", doctor: "Dr. Angela Torres" },
-];
+export const INITIAL_APPOINTMENTS = [];
 
-export const INITIAL_DOCTORS = [
-  { id: 1, recipientId: 1, name: "Dr. Sarah Kim", specialty: "Primary Care", phone: "(555) 200-1000", address: "123 Main St, Suite 1", notes: "Primary physician" },
-  { id: 2, recipientId: 1, name: "Dr. Robert Lee", specialty: "Cardiology", phone: "(555) 200-2000", address: "City Medical Center, Suite 302", notes: "" },
-  { id: 3, recipientId: 1, name: "Dr. Angela Torres", specialty: "Neurology / Memory Care", phone: "(555) 200-3000", address: "Cognitive Health Institute", notes: "Specializes in dementia care" },
-  { id: 4, recipientId: 2, name: "Dr. James Park", specialty: "Developmental Medicine", phone: "(555) 200-4000", address: "Neurology Specialists, Bldg B", notes: "Great with Tommy" },
-];
+export const INITIAL_DOCTORS = [];
 
 export const INITIAL_LOGISTICS = [
   { id: 1, title: "Will (ensure it's notarized)", completed: true, note: "Notarized March 2025", partnerLink: null },

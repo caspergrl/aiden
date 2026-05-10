@@ -642,38 +642,93 @@ export default function Care({
         </button>
       </div>
 
-      {recipients.map(r => {
-        const col = rColor(r.id, recipients);
-        return (
-          <button key={r.id} onClick={() => setSelected(r)}
-            style={{ width: '100%', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '20px 24px', textAlign: 'left', cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 18, transition: 'box-shadow 0.2s' }}
-            onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(80,60,40,0.1)'}
-            onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-            <div style={{ width: 60, height: 60, borderRadius: '50%', background: col, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 800, flexShrink: 0 }}>
-              {initials(r.name)}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                <span style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{r.name}</span>
-                <span style={{ fontSize: 11, color: C.muted, background: C.bgWarm, borderRadius: 10, padding: '2px 8px', fontWeight: 600 }}>{r.relationship}</span>
-              </div>
-              <p style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>
-                Age {r.age}{r.conditions.length > 0 ? ` · ${r.conditions[0]}${r.conditions.length > 1 ? ` +${r.conditions.length - 1} more` : ''}` : ''}
-              </p>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {(r.insurancePlans || []).map(p => (
-                  <span key={p} style={{ background: INSURANCE_INFO[p].color + '18', color: INSURANCE_INFO[p].color, borderRadius: 12, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>{INSURANCE_INFO[p].shortName}</span>
-                ))}
-              </div>
-            </div>
-            <ChevronRight size={18} color={C.border} style={{ flexShrink: 0 }} />
-          </button>
-        );
-      })}
+      {recipients.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 24px 40px', background: '#fff', borderRadius: 24, border: `1px solid ${C.border}` }}>
+          {/* Illustration */}
+          <svg width="160" height="120" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: 28 }}>
+            {/* Background circle */}
+            <circle cx="80" cy="60" r="52" fill={C.roseLight} />
+            {/* Left figure */}
+            <circle cx="52" cy="48" r="13" fill={C.peach} />
+            <rect x="40" y="63" width="24" height="22" rx="10" fill={C.peach} opacity="0.85" />
+            {/* Right figure */}
+            <circle cx="108" cy="48" r="13" fill={C.primary} opacity="0.75" />
+            <rect x="96" y="63" width="24" height="22" rx="10" fill={C.primary} opacity="0.55" />
+            {/* Center heart */}
+            <path d="M80 72 C80 72 62 60 62 50 C62 44 67 40 72 42 C76 43 80 48 80 48 C80 48 84 43 88 42 C93 40 98 44 98 50 C98 60 80 72 80 72Z" fill={C.rose} opacity="0.9" />
+            {/* Small sparkle dots */}
+            <circle cx="48" cy="32" r="3" fill={C.rose} opacity="0.4" />
+            <circle cx="112" cy="30" r="2" fill={C.sage} opacity="0.5" />
+            <circle cx="120" cy="50" r="2.5" fill={C.peach} opacity="0.5" />
+            <circle cx="40" cy="55" r="2" fill={C.lavender} opacity="0.5" />
+          </svg>
 
-      <button onClick={() => setShowModal(true)} style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 20, padding: 20, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <Plus size={16} /> Add a care recipient
-      </button>
+          <h2 style={{ fontFamily: serif, fontSize: 24, color: C.text, marginBottom: 10, letterSpacing: -0.3 }}>
+            Who are you caring for?
+          </h2>
+          <p style={{ fontSize: 15, color: C.muted, lineHeight: 1.65, maxWidth: 380, margin: '0 auto 12px' }}>
+            Add the people in your care — a parent, sibling, partner, or anyone you support. Aiden will help you track their appointments, medications, doctors, and more.
+          </p>
+          <p style={{ fontSize: 13, color: C.mutedLight, marginBottom: 32 }}>
+            You can add as many people as you need.
+          </p>
+
+          <button
+            onClick={() => setShowModal(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: C.rose, color: '#fff', border: 'none', borderRadius: 14, padding: '13px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(200,92,85,0.3)' }}
+          >
+            <Plus size={16} /> Add your first care recipient
+          </button>
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 36, flexWrap: 'wrap' }}>
+            {[
+              { icon: '📋', label: 'Track appointments' },
+              { icon: '💊', label: 'Manage medications' },
+              { icon: '🩺', label: 'Organize doctors' },
+              { icon: '📄', label: 'Store insurance info' },
+            ].map(({ icon, label }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: C.muted, fontWeight: 500 }}>
+                <span style={{ fontSize: 16 }}>{icon}</span> {label}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {recipients.map(r => {
+            const col = rColor(r.id, recipients);
+            return (
+              <button key={r.id} onClick={() => setSelected(r)}
+                style={{ width: '100%', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '20px 24px', textAlign: 'left', cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 18, transition: 'box-shadow 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(80,60,40,0.1)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+                <div style={{ width: 60, height: 60, borderRadius: '50%', background: col, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 800, flexShrink: 0 }}>
+                  {initials(r.name)}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                    <span style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{r.name}</span>
+                    <span style={{ fontSize: 11, color: C.muted, background: C.bgWarm, borderRadius: 10, padding: '2px 8px', fontWeight: 600 }}>{r.relationship}</span>
+                  </div>
+                  <p style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>
+                    Age {r.age}{r.conditions.length > 0 ? ` · ${r.conditions[0]}${r.conditions.length > 1 ? ` +${r.conditions.length - 1} more` : ''}` : ''}
+                  </p>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {(r.insurancePlans || []).map(p => (
+                      <span key={p} style={{ background: INSURANCE_INFO[p].color + '18', color: INSURANCE_INFO[p].color, borderRadius: 12, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>{INSURANCE_INFO[p].shortName}</span>
+                    ))}
+                  </div>
+                </div>
+                <ChevronRight size={18} color={C.border} style={{ flexShrink: 0 }} />
+              </button>
+            );
+          })}
+
+          <button onClick={() => setShowModal(true)} style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 20, padding: 20, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <Plus size={16} /> Add a care recipient
+          </button>
+        </>
+      )}
     </div>
   );
 }

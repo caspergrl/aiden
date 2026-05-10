@@ -69,7 +69,7 @@ export default function Dashboard() {
     setDataLoading(true);
     try {
       const checkSnap = await getDocs(collection(db, 'users', uid, 'recipients'));
-      if (checkSnap.empty) await seedUserData(uid);
+      if (checkSnap.empty && INITIAL_RECIPIENTS.length > 0) await seedUserData(uid);
 
       const [recSnap, apptSnap, logSnap, docSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'recipients')),
