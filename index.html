@@ -20,6 +20,12 @@
         box-shadow: 0 0 0 3px rgba(200, 92, 85, 0.12) !important;
       }
 
+      /* Hide placeholder on focus; restore on blur if empty */
+      input:focus::placeholder,
+      textarea:focus::placeholder {
+        color: transparent;
+      }
+
       /* Scrollbar */
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: #f5ede8; }
