@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CalendarDays, ClipboardList, ChevronRight, Plus, Eye, EyeOff, AlertCircle, Clock } from 'lucide-react';
 import { C, serif, shadow, shadowSm, radius } from '../../theme';
 import { getDailyMessage, INSURANCE_INFO } from '../../data';
+import { AddRecipientModal } from './Care';
 
 function rColor(id) { return id === 1 ? C.rose : C.primary; }
 function initials(name) { return name.split(' ').map(n => n[0]).join('').slice(0, 2); }
@@ -13,14 +14,21 @@ function todayStr() {
   return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-export default function Home({ recipients, appointments, logistics, onNavigate }) {
+export default function Home({ recipients, appointments, logistics, onNavigate, onAddRecipient }) {
   const [showMsg, setShowMsg] = useState(true);
+  const [showAddRecipient, setShowAddRecipient] = useState(false);
   const pending = logistics.filter(l => !l.completed).length;
   const pct = Math.round(((logistics.length - pending) / logistics.length) * 100);
   const sorted = [...appointments].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 5);
 
   return (
     <div style={{ padding: 32, maxWidth: 900 }}>
+      {showAddRecipient && (
+        <AddRecipientModal
+          onClose={() => setShowAddRecipient(false)}
+          onAdd={data => { onAddRecipient(data); setShowAddRecipient(false); }}
+        />
+      )}
       {/* Greeting */}
       <p style={{ fontSize: 13, color: C.mutedLight, marginBottom: 4 }}>{todayStr()}</p>
       <h1 style={{ fontFamily: serif, fontSize: 32, color: C.text, marginBottom: 24, letterSpacing: -0.5 }}>
@@ -99,9 +107,14 @@ export default function Home({ recipients, appointments, logistics, onNavigate }
         <div style={{ background: '#fff', borderRadius: radius.xl, boxShadow: shadowSm, overflow: 'hidden' }}>
           <div style={{ padding: '18px 20px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}` }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: C.text }}>People I'm Caring For</p>
-            <button onClick={() => onNavigate('care')} style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.roseLight, border: 'none', borderRadius: 10, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: C.roseDark, cursor: 'pointer' }}>
-              View all
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setShowAddRecipient(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.roseLight, border: 'none', borderRadius: 10, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: C.roseDark, cursor: 'pointer' }}>
+                <Plus size={12} /> Add
+              </button>
+              <button onClick={() => onNavigate('care')} style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.bgWarm, border: 'none', borderRadius: 10, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
+                View all
+              </button>
+            </div>
           </div>
           {recipients.map((r, i) => (
             <div key={r.id} style={{ padding: '14px 20px', borderBottom: i < recipients.length - 1 ? `1px solid ${C.border}` : 'none', display: 'flex', gap: 14, alignItems: 'center' }}>

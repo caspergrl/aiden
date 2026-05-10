@@ -153,7 +153,7 @@ function RecipientForm({ values, onChange }) {
 }
 
 // ─── Add Recipient Modal ────────────────────────────────────────────────────────
-function AddRecipientModal({ onClose, onAdd }) {
+export function AddRecipientModal({ onClose, onAdd }) {
   const [form, setForm] = useState({ name: '', nickname: '', age: '', relationship: '', email: '', phone: '', conditions: [], medications: '', notes: '' });
   const [error, setError] = useState('');
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }

@@ -201,7 +201,7 @@ export default function Dashboard() {
   function renderContent() {
     switch (active) {
       case 'home':
-        return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={setActive} />;
+        return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={setActive} onAddRecipient={addRecipient} />;
       case 'care':
         return (
           <Care
