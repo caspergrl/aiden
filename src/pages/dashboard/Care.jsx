@@ -233,6 +233,7 @@ function MedicationBuilder({ value, onChange }) {
   const { user } = useAuth();
   const [customMeds, setCustomMeds] = useState([]);
   const [adding, setAdding] = useState(false);
+  const [editingIdx, setEditingIdx] = useState(null); // null = new entry, number = editing existing
   const [draft, setDraft] = useState({ name: '', dosage: '', frequency: '', instructions: '' });
 
   // Load saved custom medication names for this user
@@ -252,34 +253,81 @@ function MedicationBuilder({ value, onChange }) {
   }
 
   function setD(f, v) { setDraft(p => ({ ...p, [f]: v })); }
-  function addMed() {
-    if (!draft.name.trim()) return;
-    onChange([...value, { name: draft.name.trim(), dosage: draft.dosage.trim(), frequency: draft.frequency.trim(), instructions: draft.instructions.trim() }]);
+
+  function openAdd() {
     setDraft({ name: '', dosage: '', frequency: '', instructions: '' });
+    setEditingIdx(null);
+    setAdding(true);
+  }
+
+  function openEdit(i) {
+    const m = value[i];
+    setDraft({
+      name:         typeof m === 'string' ? m  : m.name,
+      dosage:       typeof m === 'string' ? '' : m.dosage,
+      frequency:    typeof m === 'string' ? '' : m.frequency,
+      instructions: typeof m === 'string' ? '' : m.instructions,
+    });
+    setEditingIdx(i);
+    setAdding(true);
+  }
+
+  function saveMed() {
+    if (!draft.name.trim()) return;
+    const entry = { name: draft.name.trim(), dosage: draft.dosage.trim(), frequency: draft.frequency.trim(), instructions: draft.instructions.trim() };
+    if (editingIdx !== null) {
+      const updated = [...value];
+      updated[editingIdx] = entry;
+      onChange(updated);
+    } else {
+      onChange([...value, entry]);
+    }
+    setDraft({ name: '', dosage: '', frequency: '', instructions: '' });
+    setEditingIdx(null);
     setAdding(false);
   }
+
+  function cancelForm() {
+    setAdding(false);
+    setEditingIdx(null);
+    setDraft({ name: '', dosage: '', frequency: '', instructions: '' });
+  }
+
   function remove(i) { onChange(value.filter((_, idx) => idx !== i)); }
   const smInp = { ...inp, fontSize: 13, padding: '8px 12px' };
+
   return (
     <div>
       {value.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
           {value.map((m, i) => {
-            const name = typeof m === 'string' ? m : m.name;
-            const dosage = typeof m === 'string' ? '' : m.dosage;
-            const frequency = typeof m === 'string' ? '' : m.frequency;
+            const name         = typeof m === 'string' ? m  : m.name;
+            const dosage       = typeof m === 'string' ? '' : m.dosage;
+            const frequency    = typeof m === 'string' ? '' : m.frequency;
             const instructions = typeof m === 'string' ? '' : m.instructions;
+            const isBeingEdited = adding && editingIdx === i;
             return (
-              <div key={i} style={{ background: C.bgWarm, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <div key={i} style={{ background: isBeingEdited ? C.primaryLight : C.bgWarm, border: `1px solid ${isBeingEdited ? C.primary + '40' : 'transparent'}`, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{name}</p>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {dosage && <span style={{ fontSize: 12, color: C.muted }}>💊 {dosage}</span>}
-                    {frequency && <span style={{ fontSize: 12, color: C.muted }}>🕐 {frequency}</span>}
+                    {dosage       && <span style={{ fontSize: 12, color: C.muted }}>💊 {dosage}</span>}
+                    {frequency    && <span style={{ fontSize: 12, color: C.muted }}>🕐 {frequency}</span>}
                     {instructions && <span style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>{instructions}</span>}
                   </div>
                 </div>
-                <button onClick={() => remove(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: C.mutedLight, flexShrink: 0 }}><X size={14} /></button>
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  <button onClick={() => openEdit(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: C.mutedLight }}
+                    onMouseEnter={e => e.currentTarget.style.color = C.primary}
+                    onMouseLeave={e => e.currentTarget.style.color = C.mutedLight}>
+                    <Pencil size={13} />
+                  </button>
+                  <button onClick={() => remove(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: C.mutedLight }}
+                    onMouseEnter={e => e.currentTarget.style.color = C.coral}
+                    onMouseLeave={e => e.currentTarget.style.color = C.mutedLight}>
+                    <X size={14} />
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -296,12 +344,14 @@ function MedicationBuilder({ value, onChange }) {
           </div>
           <div>{lbl('Instructions')}<input value={draft.instructions} onChange={e => setD('instructions', e.target.value)} placeholder="e.g. Take with food, Avoid grapefruit" style={smInp} /></div>
           <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-            <button onClick={addMed} disabled={!draft.name.trim()} style={{ flex: 1, background: draft.name.trim() ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 700, cursor: draft.name.trim() ? 'pointer' : 'default' }}>Add medication</button>
-            <button onClick={() => { setAdding(false); setDraft({ name: '', dosage: '', frequency: '', instructions: '' }); }} style={{ flex: 1, background: '#fff', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={saveMed} disabled={!draft.name.trim()} style={{ flex: 1, background: draft.name.trim() ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 700, cursor: draft.name.trim() ? 'pointer' : 'default' }}>
+              {editingIdx !== null ? 'Save changes' : 'Add medication'}
+            </button>
+            <button onClick={cancelForm} style={{ flex: 1, background: '#fff', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       ) : (
-        <button onClick={() => setAdding(true)} style={{ width: '100%', border: `1.5px dashed ${C.border}`, borderRadius: 10, padding: '9px 0', background: 'none', color: C.mutedLight, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <button onClick={openAdd} style={{ width: '100%', border: `1.5px dashed ${C.border}`, borderRadius: 10, padding: '9px 0', background: 'none', color: C.mutedLight, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           <Plus size={14} /> Add medication
         </button>
       )}
