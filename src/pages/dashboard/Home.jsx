@@ -53,8 +53,8 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
 
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 28 }}>
-        <StatCard label="Care recipients" value={recipients.length} color={C.rose} onClick={() => onNavigate('care')} />
-        <StatCard label="Upcoming appointments" value={appointments.length} color={C.primary} onClick={() => onNavigate('calendar')} />
+        <StatCard label="Care recipients" value={recipients.length} color={C.rose} onClick={() => onNavigate('care')} onAdd={() => setShowAddRecipient(true)} />
+        <StatCard label="Upcoming appointments" value={appointments.length} color={C.primary} onClick={() => onNavigate('calendar')} onAdd={() => onNavigate('calendar')} />
         <StatCard label="Checklist progress" value={`${pct}%`} color={C.sage} onClick={() => onNavigate('list')} />
         <StatCard label="Items need attention" value={pending} color={pending > 0 ? C.coral : C.sage} onClick={() => onNavigate('list')} />
       </div>
@@ -138,13 +138,20 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
   );
 }
 
-function StatCard({ label, value, color, onClick }) {
+function StatCard({ label, value, color, onClick, onAdd }) {
   return (
-    <button onClick={onClick} style={{ background: '#fff', borderRadius: radius.lg, padding: '20px 22px', border: 'none', boxShadow: shadowSm, cursor: 'pointer', textAlign: 'left', transition: 'box-shadow 0.2s, transform 0.15s' }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = shadow; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = shadowSm; e.currentTarget.style.transform = 'translateY(0)'; }}>
-      <p style={{ fontSize: 34, fontWeight: 900, color, lineHeight: 1, marginBottom: 7, letterSpacing: -1 }}>{value}</p>
-      <p style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>{label}</p>
-    </button>
+    <div style={{ background: '#fff', borderRadius: radius.lg, boxShadow: shadowSm, position: 'relative', overflow: 'hidden' }}>
+      <button onClick={onClick} style={{ width: '100%', padding: '20px 22px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', transition: 'box-shadow 0.2s, transform 0.15s', display: 'block' }}
+        onMouseEnter={e => { e.currentTarget.closest('div').style.boxShadow = shadow; e.currentTarget.closest('div').style.transform = 'translateY(-2px)'; }}
+        onMouseLeave={e => { e.currentTarget.closest('div').style.boxShadow = shadowSm; e.currentTarget.closest('div').style.transform = 'translateY(0)'; }}>
+        <p style={{ fontSize: 34, fontWeight: 900, color, lineHeight: 1, marginBottom: 7, letterSpacing: -1 }}>{value}</p>
+        <p style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>{label}</p>
+      </button>
+      {onAdd && (
+        <button onClick={e => { e.stopPropagation(); onAdd(); }} style={{ position: 'absolute', top: 12, right: 12, display: 'flex', alignItems: 'center', gap: 3, background: color + '18', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, color, cursor: 'pointer' }}>
+          <Plus size={11} /> Add
+        </button>
+      )}
+    </div>
   );
 }
