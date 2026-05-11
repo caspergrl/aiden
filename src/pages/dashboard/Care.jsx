@@ -129,6 +129,99 @@ function ConditionsPicker({ selected, onChange }) {
   );
 }
 
+// ─── Allergies picker ───────────────────────────────────────────────────────────
+function AllergiesPicker({ selected, onChange }) {
+  const [input, setInput] = useState('');
+  function add() {
+    const v = input.trim();
+    if (!v || selected.includes(v)) { setInput(''); return; }
+    onChange([...selected, v]);
+    setInput('');
+  }
+  return (
+    <div>
+      {selected.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          {selected.map(a => (
+            <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#fff3e0', border: '1px solid #f0a04040', borderRadius: 20, padding: '4px 10px 4px 12px', fontSize: 12, fontWeight: 600, color: '#b05a00' }}>
+              {a}
+              <button onClick={() => onChange(selected.filter(x => x !== a))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#b05a00', opacity: 0.6 }}><X size={12} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+          placeholder="e.g. Penicillin, Peanuts, Latex…" style={{ ...inp, flex: 1 }} />
+        <button onClick={add} style={{ background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '0 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          + Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Medication builder ─────────────────────────────────────────────────────────
+function MedicationBuilder({ value, onChange }) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ name: '', dosage: '', frequency: '', instructions: '' });
+  function setD(f, v) { setDraft(p => ({ ...p, [f]: v })); }
+  function addMed() {
+    if (!draft.name.trim()) return;
+    onChange([...value, { name: draft.name.trim(), dosage: draft.dosage.trim(), frequency: draft.frequency.trim(), instructions: draft.instructions.trim() }]);
+    setDraft({ name: '', dosage: '', frequency: '', instructions: '' });
+    setAdding(false);
+  }
+  function remove(i) { onChange(value.filter((_, idx) => idx !== i)); }
+  const smInp = { ...inp, fontSize: 13, padding: '8px 12px' };
+  return (
+    <div>
+      {value.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+          {value.map((m, i) => {
+            const name = typeof m === 'string' ? m : m.name;
+            const dosage = typeof m === 'string' ? '' : m.dosage;
+            const frequency = typeof m === 'string' ? '' : m.frequency;
+            const instructions = typeof m === 'string' ? '' : m.instructions;
+            return (
+              <div key={i} style={{ background: C.bgWarm, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{name}</p>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {dosage && <span style={{ fontSize: 12, color: C.muted }}>💊 {dosage}</span>}
+                    {frequency && <span style={{ fontSize: 12, color: C.muted }}>🕐 {frequency}</span>}
+                    {instructions && <span style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>{instructions}</span>}
+                  </div>
+                </div>
+                <button onClick={() => remove(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: C.mutedLight, flexShrink: 0 }}><X size={14} /></button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {adding ? (
+        <div style={{ background: C.bgWarm, borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>{lbl('Name *')}<input value={draft.name} onChange={e => setD('name', e.target.value)} placeholder="e.g. Metformin" style={smInp} autoFocus /></div>
+            <div>{lbl('Dosage')}<input value={draft.dosage} onChange={e => setD('dosage', e.target.value)} placeholder="e.g. 500mg" style={smInp} /></div>
+          </div>
+          <div>{lbl('Frequency')}<input value={draft.frequency} onChange={e => setD('frequency', e.target.value)} placeholder="e.g. Twice daily, Every morning" style={smInp} /></div>
+          <div>{lbl('Instructions')}<input value={draft.instructions} onChange={e => setD('instructions', e.target.value)} placeholder="e.g. Take with food, Avoid grapefruit" style={smInp} /></div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+            <button onClick={addMed} disabled={!draft.name.trim()} style={{ flex: 1, background: draft.name.trim() ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 700, cursor: draft.name.trim() ? 'pointer' : 'default' }}>Add medication</button>
+            <button onClick={() => { setAdding(false); setDraft({ name: '', dosage: '', frequency: '', instructions: '' }); }} style={{ flex: 1, background: '#fff', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)} style={{ width: '100%', border: `1.5px dashed ${C.border}`, borderRadius: 10, padding: '9px 0', background: 'none', color: C.mutedLight, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <Plus size={14} /> Add medication
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Shared recipient form ──────────────────────────────────────────────────────
 function RecipientForm({ values, onChange }) {
   return (
@@ -146,7 +239,8 @@ function RecipientForm({ values, onChange }) {
         <div>{lbl('Phone')}<input value={values.phone} onChange={e => onChange('phone', e.target.value)} placeholder="(555) 123-4567" style={inp} /></div>
       </div>
       <div>{lbl('Conditions')}<ConditionsPicker selected={values.conditions} onChange={v => onChange('conditions', v)} /></div>
-      <div>{lbl('Medications (comma-separated)')}<input value={values.medications} onChange={e => onChange('medications', e.target.value)} placeholder="Metformin, Lisinopril…" style={inp} /></div>
+      <div>{lbl('Allergies')}<AllergiesPicker selected={values.allergies || []} onChange={v => onChange('allergies', v)} /></div>
+      <div>{lbl('Medications')}<MedicationBuilder value={values.medications || []} onChange={v => onChange('medications', v)} /></div>
       <div>{lbl('Notes')}<textarea value={values.notes} onChange={e => onChange('notes', e.target.value)} placeholder="Anything important to remember…" rows={3} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} /></div>
     </div>
   );
@@ -154,12 +248,12 @@ function RecipientForm({ values, onChange }) {
 
 // ─── Add Recipient Modal ────────────────────────────────────────────────────────
 export function AddRecipientModal({ onClose, onAdd }) {
-  const [form, setForm] = useState({ name: '', nickname: '', age: '', relationship: '', email: '', phone: '', conditions: [], medications: '', notes: '' });
+  const [form, setForm] = useState({ name: '', nickname: '', age: '', relationship: '', email: '', phone: '', conditions: [], allergies: [], medications: [], notes: '' });
   const [error, setError] = useState('');
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
   function handleAdd() {
     if (!form.name.trim()) { setError('Name is required.'); return; }
-    onAdd({ id: Date.now(), name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], age: parseInt(form.age) || 0, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), photo: null, conditions: form.conditions, medications: form.medications.split(',').map(s => s.trim()).filter(Boolean), insurancePlans: [], notes: form.notes.trim(), importantNumbers: [] });
+    onAdd({ id: Date.now(), name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], age: parseInt(form.age) || 0, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), photo: null, conditions: form.conditions, allergies: form.allergies, medications: form.medications, insurancePlans: [], notes: form.notes.trim(), importantNumbers: [] });
     onClose();
   }
   return (
@@ -174,12 +268,22 @@ export function AddRecipientModal({ onClose, onAdd }) {
 
 // ─── Edit Recipient Modal ───────────────────────────────────────────────────────
 function EditRecipientModal({ recipient, onClose, onSave }) {
-  const [form, setForm] = useState({ name: recipient.name, nickname: recipient.nickname, age: String(recipient.age), relationship: recipient.relationship, email: recipient.email, phone: recipient.phone, conditions: [...recipient.conditions], medications: recipient.medications.join(', '), notes: recipient.notes });
+  const [form, setForm] = useState({
+    name: recipient.name, nickname: recipient.nickname, age: String(recipient.age),
+    relationship: recipient.relationship, email: recipient.email, phone: recipient.phone,
+    conditions: [...recipient.conditions],
+    allergies: [...(recipient.allergies || [])],
+    // Migrate legacy string medications to objects for backward compatibility
+    medications: (recipient.medications || []).map(m =>
+      typeof m === 'string' ? { name: m, dosage: '', frequency: '', instructions: '' } : m
+    ),
+    notes: recipient.notes,
+  });
   const [error, setError] = useState('');
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
   function handleSave() {
     if (!form.name.trim()) { setError('Name is required.'); return; }
-    onSave({ ...recipient, name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], age: parseInt(form.age) || 0, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), conditions: form.conditions, medications: form.medications.split(',').map(s => s.trim()).filter(Boolean), notes: form.notes.trim() });
+    onSave({ ...recipient, name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], age: parseInt(form.age) || 0, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), conditions: form.conditions, allergies: form.allergies, medications: form.medications, notes: form.notes.trim() });
     onClose();
   }
   return (
@@ -407,7 +511,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
       {/* ── Overview ─────────────────────────────────────────────────────── */}
       {tab === 'overview' && (
         <>
-          {/* Conditions + Medications */}
+          {/* Conditions + Allergies */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
             <Card style={{ margin: 0 }}>
               <SectionLabel>Conditions</SectionLabel>
@@ -421,17 +525,43 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 ))}
             </Card>
             <Card style={{ margin: 0 }}>
-              <SectionLabel>Medications</SectionLabel>
-              {r.medications.length === 0
+              <SectionLabel>Allergies</SectionLabel>
+              {(r.allergies || []).length === 0
                 ? <p style={{ fontSize: 13, color: C.mutedLight }}>None recorded</p>
-                : r.medications.map((m, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: i < r.medications.length - 1 ? `1px solid ${C.bgWarm}` : 'none' }}>
-                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.peach, flexShrink: 0 }} />
-                    <span style={{ fontSize: 14, color: C.text }}>{m}</span>
+                : (r.allergies || []).map((a, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: i < r.allergies.length - 1 ? `1px solid ${C.bgWarm}` : 'none' }}>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#e0883a', flexShrink: 0 }} />
+                    <span style={{ fontSize: 14, color: C.text }}>{a}</span>
                   </div>
                 ))}
             </Card>
           </div>
+
+          {/* Medications */}
+          <Card style={{ marginBottom: 14 }}>
+            <SectionLabel>Medications</SectionLabel>
+            {(r.medications || []).length === 0
+              ? <p style={{ fontSize: 13, color: C.mutedLight }}>None recorded</p>
+              : (r.medications || []).map((m, i) => {
+                const name = typeof m === 'string' ? m : m.name;
+                const dosage = typeof m === 'string' ? '' : m.dosage;
+                const frequency = typeof m === 'string' ? '' : m.frequency;
+                const instructions = typeof m === 'string' ? '' : m.instructions;
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0', borderBottom: i < r.medications.length - 1 ? `1px solid ${C.bgWarm}` : 'none' }}>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.peach, flexShrink: 0, marginTop: 6 }} />
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{name}</span>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 3 }}>
+                        {dosage && <span style={{ fontSize: 12, color: C.muted }}>💊 {dosage}</span>}
+                        {frequency && <span style={{ fontSize: 12, color: C.muted }}>🕐 {frequency}</span>}
+                        {instructions && <span style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>{instructions}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </Card>
 
           {/* Insurance */}
           <Card>
