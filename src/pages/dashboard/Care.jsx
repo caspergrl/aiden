@@ -4,7 +4,10 @@ import {
   Search, Pencil, AlertTriangle, CalendarDays, Shield, Users,
 } from 'lucide-react';
 import { C, serif, shadowSm, radius } from '../../theme';
-import { INSURANCE_INFO, CAREGIVING_RECS } from '../../data';
+import { INSURANCE_INFO, CAREGIVING_RECS, COMMON_MEDICATIONS } from '../../data';
+import { useAuth } from '../../App';
+import { db } from '../../firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 const COLORS = [C.rose, C.primary, C.sage, C.lavender, C.peach];
 function rColor(id, recipients) {
@@ -162,10 +165,92 @@ function AllergiesPicker({ selected, onChange }) {
   );
 }
 
+// ─── Medication name lookahead input ────────────────────────────────────────────
+function MedNameInput({ value, onChange, customMeds, onAddCustomMed }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const trimmed = value.trim();
+  const allMeds = [...COMMON_MEDICATIONS, ...customMeds.filter(m => !COMMON_MEDICATIONS.includes(m))];
+  const filtered = allMeds.filter(m => m.toLowerCase().includes(trimmed.toLowerCase())).slice(0, 8);
+  const isCustom = trimmed.length > 1
+    && !COMMON_MEDICATIONS.some(m => m.toLowerCase() === trimmed.toLowerCase())
+    && !customMeds.some(m => m.toLowerCase() === trimmed.toLowerCase());
+
+  function pick(name) { onChange(name); setOpen(false); }
+  function addCustom() { onAddCustomMed(trimmed); onChange(trimmed); setOpen(false); }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <Search size={14} color={C.mutedLight} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        <input
+          value={value}
+          onChange={e => { onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); if (filtered[0] && !isCustom) pick(filtered[0]); else if (isCustom) addCustom(); }
+            if (e.key === 'Escape') setOpen(false);
+          }}
+          placeholder="Search or type a medication name…"
+          style={{ ...inp, fontSize: 13, padding: '8px 12px 8px 32px' }}
+          autoFocus
+        />
+      </div>
+      {open && trimmed.length > 0 && (filtered.length > 0 || isCustom) && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(40,30,20,0.12)', zIndex: 500, maxHeight: 220, overflowY: 'auto' }}>
+          {filtered.map(m => (
+            <button key={m} onMouseDown={e => { e.preventDefault(); pick(m); }}
+              style={{ width: '100%', background: 'none', border: 'none', padding: '9px 14px', textAlign: 'left', fontSize: 13, color: C.text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              onMouseEnter={e => e.currentTarget.style.background = C.bgWarm}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              {m}
+              {customMeds.includes(m) && <span style={{ fontSize: 10, color: C.mutedLight, fontWeight: 600 }}>SAVED</span>}
+            </button>
+          ))}
+          {isCustom && (
+            <button onMouseDown={e => { e.preventDefault(); addCustom(); }}
+              style={{ width: '100%', background: 'none', border: 'none', borderTop: filtered.length ? `1px solid ${C.border}` : 'none', padding: '9px 14px', textAlign: 'left', fontSize: 13, color: C.roseDark, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              onMouseEnter={e => e.currentTarget.style.background = C.roseLight}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              <Plus size={13} /> Add "{trimmed}" as custom medication
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Medication builder ─────────────────────────────────────────────────────────
 function MedicationBuilder({ value, onChange }) {
+  const { user } = useAuth();
+  const [customMeds, setCustomMeds] = useState([]);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: '', dosage: '', frequency: '', instructions: '' });
+
+  // Load saved custom medication names for this user
+  useEffect(() => {
+    if (!user) return;
+    getDoc(doc(db, 'users', user.uid)).then(snap => {
+      if (snap.exists()) setCustomMeds(snap.data().customMedications || []);
+    });
+  }, [user]);
+
+  async function handleAddCustomMed(name) {
+    if (!user || customMeds.includes(name)) return;
+    const updated = [...customMeds, name];
+    setCustomMeds(updated);
+    try { await updateDoc(doc(db, 'users', user.uid), { customMedications: updated }); }
+    catch (e) { console.error('Failed to save custom medication:', e); }
+  }
+
   function setD(f, v) { setDraft(p => ({ ...p, [f]: v })); }
   function addMed() {
     if (!draft.name.trim()) return;
@@ -202,11 +287,13 @@ function MedicationBuilder({ value, onChange }) {
       )}
       {adding ? (
         <div style={{ background: C.bgWarm, borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>{lbl('Name *')}<input value={draft.name} onChange={e => setD('name', e.target.value)} placeholder="e.g. Metformin" style={smInp} autoFocus /></div>
-            <div>{lbl('Dosage')}<input value={draft.dosage} onChange={e => setD('dosage', e.target.value)} placeholder="e.g. 500mg" style={smInp} /></div>
+          <div>{lbl('Medication name *')}
+            <MedNameInput value={draft.name} onChange={v => setD('name', v)} customMeds={customMeds} onAddCustomMed={handleAddCustomMed} />
           </div>
-          <div>{lbl('Frequency')}<input value={draft.frequency} onChange={e => setD('frequency', e.target.value)} placeholder="e.g. Twice daily, Every morning" style={smInp} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>{lbl('Dosage')}<input value={draft.dosage} onChange={e => setD('dosage', e.target.value)} placeholder="e.g. 500mg" style={smInp} /></div>
+            <div>{lbl('Frequency')}<input value={draft.frequency} onChange={e => setD('frequency', e.target.value)} placeholder="e.g. Twice daily" style={smInp} /></div>
+          </div>
           <div>{lbl('Instructions')}<input value={draft.instructions} onChange={e => setD('instructions', e.target.value)} placeholder="e.g. Take with food, Avoid grapefruit" style={smInp} /></div>
           <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
             <button onClick={addMed} disabled={!draft.name.trim()} style={{ flex: 1, background: draft.name.trim() ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 700, cursor: draft.name.trim() ? 'pointer' : 'default' }}>Add medication</button>

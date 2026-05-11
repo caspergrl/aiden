@@ -1,5 +1,63 @@
 // ─── Shared app data (mirrors mobile app) ─────────────────────────────────────
 
+export const COMMON_MEDICATIONS = [
+  // Cardiovascular
+  "Amlodipine (Norvasc)", "Aspirin", "Atorvastatin (Lipitor)", "Carvedilol (Coreg)",
+  "Clopidogrel (Plavix)", "Digoxin (Lanoxin)", "Diltiazem (Cardizem)",
+  "Furosemide (Lasix)", "Hydrochlorothiazide (HCTZ)", "Lisinopril (Zestril)",
+  "Losartan (Cozaar)", "Metoprolol (Lopressor)", "Nitroglycerin",
+  "Pravastatin (Pravachol)", "Ramipril (Altace)", "Rosuvastatin (Crestor)",
+  "Spironolactone (Aldactone)", "Valsartan (Diovan)", "Warfarin (Coumadin)",
+  // Blood thinners / anticoagulants
+  "Apixaban (Eliquis)", "Dabigatran (Pradaxa)", "Rivaroxaban (Xarelto)",
+  // Diabetes
+  "Canagliflozin (Invokana)", "Dapagliflozin (Farxiga)", "Dulaglutide (Trulicity)",
+  "Empagliflozin (Jardiance)", "Glimepiride (Amaryl)", "Glipizide (Glucotrol)",
+  "Insulin Glargine (Lantus)", "Insulin Lispro (Humalog)", "Liraglutide (Victoza)",
+  "Metformin (Glucophage)", "Semaglutide (Ozempic)", "Sitagliptin (Januvia)",
+  // Mental health / neurology
+  "Alprazolam (Xanax)", "Bupropion (Wellbutrin)", "Buspirone (Buspar)",
+  "Clonazepam (Klonopin)", "Donepezil (Aricept)", "Duloxetine (Cymbalta)",
+  "Escitalopram (Lexapro)", "Fluoxetine (Prozac)", "Lamotrigine (Lamictal)",
+  "Levodopa / Carbidopa (Sinemet)", "Lithium", "Lorazepam (Ativan)",
+  "Memantine (Namenda)", "Mirtazapine (Remeron)", "Phenytoin (Dilantin)",
+  "Pregabalin (Lyrica)", "Quetiapine (Seroquel)", "Risperidone (Risperdal)",
+  "Sertraline (Zoloft)", "Topiramate (Topamax)", "Valproate (Depakote)",
+  "Venlafaxine (Effexor)", "Zolpidem (Ambien)",
+  // Pain / inflammation
+  "Acetaminophen (Tylenol)", "Celecoxib (Celebrex)", "Colchicine",
+  "Gabapentin (Neurontin)", "Hydrocodone (Vicodin)", "Ibuprofen (Advil)",
+  "Methocarbamol (Robaxin)", "Morphine", "Naproxen (Aleve)",
+  "Oxycodone (OxyContin)", "Tramadol (Ultram)",
+  // Respiratory
+  "Albuterol (ProAir)", "Budesonide (Pulmicort)", "Fluticasone (Flovent)",
+  "Ipratropium (Atrovent)", "Montelukast (Singulair)", "Salmeterol (Serevent)",
+  "Tiotropium (Spiriva)",
+  // Gastrointestinal
+  "Esomeprazole (Nexium)", "Loperamide (Imodium)", "Mesalamine (Asacol)",
+  "Metoclopramide (Reglan)", "Omeprazole (Prilosec)", "Ondansetron (Zofran)",
+  "Pantoprazole (Protonix)",
+  // Thyroid / hormonal
+  "Levothyroxine (Synthroid)",
+  // Bone / joint / immune
+  "Alendronate (Fosamax)", "Hydroxychloroquine (Plaquenil)", "Methotrexate",
+  "Prednisone", "Methylprednisolone (Medrol)",
+  // Urological
+  "Finasteride (Proscar)", "Oxybutynin (Ditropan)", "Solifenacin (VESIcare)",
+  "Tamsulosin (Flomax)",
+  // Allergy / antihistamine
+  "Cetirizine (Zyrtec)", "Diphenhydramine (Benadryl)", "Hydroxyzine (Vistaril)",
+  "Loratadine (Claritin)",
+  // Antibiotics (common courses)
+  "Amoxicillin", "Amoxicillin / Clavulanate (Augmentin)", "Azithromycin (Z-Pack)",
+  "Ciprofloxacin (Cipro)", "Doxycycline", "Trimethoprim / Sulfamethoxazole (Bactrim)",
+  // Vitamins / supplements
+  "Calcium + Vitamin D", "Folic Acid", "Iron (Ferrous Sulfate)",
+  "Vitamin B12", "Vitamin D3",
+  // Eye
+  "Latanoprost (Xalatan)", "Timolol Eye Drops",
+];
+
 export const DAILY_MESSAGES = [
   "Every small act of care you give today matters more than you know. You are someone's whole world.",
   "You don't have to do everything perfectly. Showing up with love is enough.",
