@@ -41,21 +41,21 @@ function SectionLabel({ children }) {
 function Card({ children, style }) {
   return <div style={{ background: '#fff', borderRadius: radius.lg, boxShadow: shadowSm, padding: 20, marginBottom: 14, ...style }}>{children}</div>;
 }
-function ModalWrap({ onClose, children, maxWidth = 480 }) {
+function ModalWrap({ onClose, children, maxWidth = 480, dismissable = true }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
+      onClick={e => dismissable && e.target === e.currentTarget && onClose()}>
       <div style={{ background: '#fff', borderRadius: 20, padding: 32, width: '100%', maxWidth, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(40,30,20,0.2)' }}>
         {children}
       </div>
     </div>
   );
 }
-function ModalHeader({ title, onClose }) {
+function ModalHeader({ title, onClose, dismissable = true }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
       <h2 style={{ fontFamily: serif, fontSize: 22, color: C.text }}>{title}</h2>
-      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={20} /></button>
+      {dismissable && <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={20} /></button>}
     </div>
   );
 }
@@ -257,8 +257,8 @@ export function AddRecipientModal({ onClose, onAdd }) {
     onClose();
   }
   return (
-    <ModalWrap onClose={onClose} maxWidth={520}>
-      <ModalHeader title="Add care recipient" onClose={onClose} />
+    <ModalWrap onClose={onClose} maxWidth={520} dismissable={false}>
+      <ModalHeader title="Add care recipient" onClose={onClose} dismissable={false} />
       <RecipientForm values={form} onChange={set} />
       {error && <p style={{ fontSize: 13, color: C.coral, marginTop: 12 }}>{error}</p>}
       <ModalActions onConfirm={handleAdd} confirmLabel="Add recipient" onClose={onClose} />
@@ -287,8 +287,8 @@ function EditRecipientModal({ recipient, onClose, onSave }) {
     onClose();
   }
   return (
-    <ModalWrap onClose={onClose} maxWidth={520}>
-      <ModalHeader title={`Edit ${recipient.name.split(' ')[0]}`} onClose={onClose} />
+    <ModalWrap onClose={onClose} maxWidth={520} dismissable={false}>
+      <ModalHeader title={`Edit ${recipient.name.split(' ')[0]}`} onClose={onClose} dismissable={false} />
       <RecipientForm values={form} onChange={set} />
       {error && <p style={{ fontSize: 13, color: C.coral, marginTop: 12 }}>{error}</p>}
       <ModalActions onConfirm={handleSave} confirmLabel="Save changes" onClose={onClose} />
