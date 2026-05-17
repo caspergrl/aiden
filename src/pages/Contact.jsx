@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { C, serif } from '../theme';
 
-const FORMSPREE_ID = 'YOUR_FORM_ID'; // ← replace with your Formspree form ID
+const FORMSPREE_ID = 'mojbqabj'; // ← replace with your Formspree form ID
 
 const inp = {
   width: '100%',
