@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Send, CheckCircle } from 'lucide-react';
+import { Send, CheckCircle, Mail } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { C, serif } from '../theme';
@@ -66,9 +66,13 @@ export default function Contact() {
           {/* Header */}
           <p style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>Get in touch</p>
           <h1 style={{ fontFamily: serif, fontSize: 38, color: C.text, letterSpacing: -0.5, marginBottom: 12 }}>Contact us</h1>
-          <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.7, marginBottom: 40 }}>
+          <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.7, marginBottom: 24 }}>
             Have a question, feedback, or just want to say hello? We'd love to hear from you. Fill in the form below and we'll get back to you as soon as we can.
           </p>
+
+          <a href="mailto:info@aidencare.co" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: C.roseDark, textDecoration: 'none', marginBottom: 40 }}>
+            <Mail size={16} /> info@aidencare.co
+          </a>
 
           {status === 'success' ? (
             /* ── Success state ── */
