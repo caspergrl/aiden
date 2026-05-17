@@ -6,6 +6,7 @@ import { auth, db } from './firebase';
 
 import Landing   from './pages/Landing';
 import FAQ       from './pages/FAQ';
+import Contact   from './pages/Contact';
 import Login     from './pages/Login';
 import Account   from './pages/Account';
 import Admin     from './pages/Admin';
@@ -70,6 +71,7 @@ export default function App() {
         <Routes>
           <Route path="/"        element={<Landing />} />
           <Route path="/faq"     element={<FAQ />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="/login"   element={<Login />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/account"   element={<ProtectedRoute><Account /></ProtectedRoute>} />

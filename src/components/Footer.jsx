@@ -19,7 +19,7 @@ export default function Footer() {
           <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
             <div>
               <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#fff', marginBottom: 14 }}>Product</p>
-              {[['/', 'Home'], ['/faq', 'FAQ'], ['/login?mode=signup', 'Get Started']].map(([to, label]) => (
+              {[['/', 'Home'], ['/faq', 'FAQ'], ['/contact', 'Contact'], ['/login?mode=signup', 'Get Started']].map(([to, label]) => (
                 <Link key={to} to={to} style={{ display: 'block', fontSize: 13, color: '#b4aca2', textDecoration: 'none', marginBottom: 10 }}>{label}</Link>
               ))}
             </div>

@@ -51,6 +51,7 @@ export default function Navbar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 32 }} className="desktop-nav">
           <Link to="/" style={linkStyle('/')}>Home</Link>
           <Link to="/faq" style={linkStyle('/faq')}>FAQ</Link>
+          <Link to="/contact" style={linkStyle('/contact')}>Contact</Link>
           {user && profile?.role === 'admin' && (
             <Link to="/admin" style={linkStyle('/admin')}>Admin</Link>
           )}
@@ -82,6 +83,7 @@ export default function Navbar() {
         <div style={{ background: '#fff', borderTop: `1px solid ${C.border}`, padding: '16px 24px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Link to="/" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>Home</Link>
           <Link to="/faq" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>FAQ</Link>
+          <Link to="/contact" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>Contact</Link>
           {user && profile?.role === 'admin' && (
             <Link to="/admin" style={{ fontSize: 15, fontWeight: 600, color: C.roseDark, textDecoration: 'none' }}>Admin</Link>
           )}
