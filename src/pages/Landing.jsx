@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, Shield, MessageCircle, ClipboardList, Heart, ArrowRight, Check, Star, Smartphone } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import Logo from '../components/Logo';
 import { C, serif, shadow } from '../theme';
 
 const FEATURES = [
@@ -209,7 +210,7 @@ export default function Landing() {
       {/* CTA */}
       <section style={{ padding: '80px 24px', background: C.roseDark, textAlign: 'center' }}>
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
-          <Heart size={32} color="rgba(255,255,255,0.6)" fill="rgba(255,255,255,0.6)" style={{ marginBottom: 20 }} />
+          <Logo width={100} style={{ filter: 'brightness(0) invert(1)', opacity: 0.7, marginBottom: 20 }} />
           <h2 style={{ fontFamily: serif, fontSize: 'clamp(26px, 4vw, 40px)', color: '#fff', marginBottom: 16, letterSpacing: -0.5 }}>You don't have to do this alone</h2>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', marginBottom: 32, lineHeight: 1.7 }}>
             Join thousands of caregivers who use Aiden to stay organised, informed, and supported every day.

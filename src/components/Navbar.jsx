@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { Menu, X, Heart } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { auth } from '../firebase';
 import { useAuth } from '../App';
 import { C, serif } from '../theme';
+import Logo from './Logo';
 
 export default function Navbar() {
   const { user, profile } = useAuth();
@@ -42,9 +43,8 @@ export default function Navbar() {
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
         {/* Logo */}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <Heart size={18} color={C.rose} fill={C.rose} />
-          <span style={{ fontFamily: serif, fontSize: 22, color: C.text, letterSpacing: -0.5 }}>aiden</span>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <Logo width={80} />
         </Link>
 
         {/* Desktop links */}

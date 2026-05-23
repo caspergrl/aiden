@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Heart } from 'lucide-react';
 import { C, serif } from '../theme';
+import Logo from './Logo';
 
 export default function Footer() {
   return (
@@ -8,9 +9,8 @@ export default function Footer() {
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 32, marginBottom: 40 }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Heart size={17} color={C.rose} fill={C.rose} />
-              <span style={{ fontFamily: serif, fontSize: 20, color: '#fff', letterSpacing: -0.5 }}>aiden</span>
+            <div style={{ marginBottom: 12 }}>
+              <Logo width={72} style={{ filter: 'brightness(0) invert(1)' }} />
             </div>
             <p style={{ fontSize: 13, lineHeight: 1.7, maxWidth: 260 }}>
               Your caregiving companion. Helping families navigate care with clarity, compassion, and confidence.
