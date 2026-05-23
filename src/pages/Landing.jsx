@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CalendarDays, Shield, MessageCircle, ClipboardList, Heart, ArrowRight, Check, Star } from 'lucide-react';
+import { CalendarDays, Shield, MessageCircle, ClipboardList, Heart, ArrowRight, Check, Star, Smartphone } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { C, serif, shadow } from '../theme';
@@ -96,6 +96,63 @@ export default function Landing() {
                 <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.7 }}>{desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Get the app */}
+      <section style={{ padding: '80px 24px', background: '#fff' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, color: C.roseDark, textTransform: 'uppercase', marginBottom: 12 }}>Take it everywhere</p>
+          <h2 style={{ fontFamily: serif, fontSize: 'clamp(26px, 4vw, 40px)', color: C.text, marginBottom: 16, letterSpacing: -0.5 }}>Available on iOS & coming to Android</h2>
+          <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.7, maxWidth: 520, margin: '0 auto 48px' }}>
+            Install Aiden on your iPhone for a full native-feeling experience — no app store required. Android support is on the way.
+          </p>
+
+          <div style={{ display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap' }}>
+
+            {/* iOS card */}
+            <div style={{ background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 20, padding: '32px 36px', maxWidth: 320, flex: '1 1 280px' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: C.roseLight, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Smartphone size={24} color={C.roseDark} />
+              </div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: C.roseDark, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Available now</p>
+              <h3 style={{ fontFamily: serif, fontSize: 22, color: C.text, marginBottom: 10 }}>iPhone & iPad</h3>
+              <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.7, marginBottom: 24 }}>
+                Open Aiden in Safari, tap the Share button, and choose <strong>"Add to Home Screen"</strong> — it installs like a native app instantly.
+              </p>
+              <a
+                href="https://aidencare.co"
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: C.roseDark, color: '#fff', textDecoration: 'none', borderRadius: 10, padding: '11px 22px', fontSize: 14, fontWeight: 700 }}>
+                <Smartphone size={15} /> Open in Safari
+              </a>
+              <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 12 }}>Tap Share → Add to Home Screen</p>
+            </div>
+
+            {/* Android card */}
+            <div style={{ background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 20, padding: '32px 36px', maxWidth: 320, flex: '1 1 280px', opacity: 0.7 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: '#f0f4f0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M17.523 15.341 20 11H4l2.477 4.341A2 2 0 0 0 8.237 16.5h7.526a2 2 0 0 0 1.76-1.159Z" fill="#5e8a78" opacity="0.7"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#5e8a78" strokeWidth="1.5" strokeLinecap="round" opacity="0.7"/>
+                  <circle cx="9" cy="18.5" r="1.5" fill="#5e8a78" opacity="0.7"/>
+                  <circle cx="15" cy="18.5" r="1.5" fill="#5e8a78" opacity="0.7"/>
+                </svg>
+              </div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: C.sage, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Coming soon</p>
+              <h3 style={{ fontFamily: serif, fontSize: 22, color: C.text, marginBottom: 10 }}>Android</h3>
+              <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.7, marginBottom: 24 }}>
+                We're working on an Android app and it'll be ready soon. Sign up to be notified when it launches.
+              </p>
+              <Link
+                to="/login?mode=signup"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#fff', color: C.muted, textDecoration: 'none', borderRadius: 10, padding: '11px 22px', fontSize: 14, fontWeight: 700, border: `1px solid ${C.border}` }}>
+                Notify me
+              </Link>
+            </div>
+
           </div>
         </div>
       </section>
