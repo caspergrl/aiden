@@ -156,6 +156,10 @@ export default function AuthScreen() {
         ) : (
           /* ── Sign in / Sign up view ── */
           <>
+            <p style={{ fontFamily: serif, fontSize: 28, fontWeight: 700, color: '#26201a', marginBottom: 24, letterSpacing: -0.5 }}>
+              {mode === 'signin' ? 'Sign in' : 'Sign up'}
+            </p>
+
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#b4aca2', fontFamily: sans, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Email</p>
               <input
