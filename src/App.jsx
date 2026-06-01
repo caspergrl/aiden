@@ -193,22 +193,20 @@ function rColor(id) { return id === 1 ? C.rose : C.blue; }
 function rLightColor(id) { return id === 1 ? C.roseLight : C.blueLight; }
 function initials(name) { return name.split(" ").map(n => n[0]).join("").slice(0, 2); }
 
+const FI = 'https://cdn-icons-png.flaticon.com/512';
 function apptTypeIcon(type, title = '') {
   const s = ((type || '') + ' ' + (title || '')).toLowerCase();
-  if (s.includes('dental') || s.includes('dentist') || s.includes('orthodont')) return '🦷';
-  if (s.includes('eye') || s.includes('vision') || s.includes('optom') || s.includes('ophth')) return '👁️';
-  if (s.includes('lab') || s.includes('blood') || s.includes('imaging') || s.includes('x-ray') || s.includes('mri') || s.includes('scan')) return '🧪';
-  if (s.includes('physical therapy') || s.includes('physio') || s.includes('rehab')) return '🤸';
-  if (s.includes('occupational therapy')) return '🖐️';
-  if (s.includes('mental') || s.includes('counseling') || s.includes('psychiatr') || s.includes('psycholog')) return '🧠';
-  if (s.includes('memory') || s.includes('cognitive') || s.includes('neurolog')) return '🧠';
-  if (s.includes('cardiol') || s.includes('heart')) return '🫀';
-  if (s.includes('pharmacy') || s.includes('prescription')) return '💊';
-  if (s.includes('surgery') || s.includes('surgical') || s.includes('procedure') || s.includes('operation')) return '🏥';
-  if (s.includes('vaccine') || s.includes('shot') || s.includes('flu')) return '💉';
-  if (s.includes('meeting') || s.includes('consult')) return '🤝';
-  if (s.includes('doctor') || s.includes('physician') || s.includes('follow') || s.includes('check') || s.includes('specialist')) return '🩺';
-  return '❤️';
+  if (s.includes('dental') || s.includes('dentist') || s.includes('orthodont'))                           return `${FI}/9441/9441044.png`;
+  if (s.includes('eye') || s.includes('vision') || s.includes('optom') || s.includes('ophth'))            return `${FI}/4706/4706745.png`;
+  if (s.includes('lab') || s.includes('blood') || s.includes('imaging') || s.includes('mri') || s.includes('scan') || s.includes('x-ray')) return `${FI}/9402/9402263.png`;
+  if (s.includes('physical therapy') || s.includes('physio') || s.includes('rehab') || s.includes('occupational therapy')) return `${FI}/14241/14241578.png`;
+  if (s.includes('mental') || s.includes('counseling') || s.includes('psychiatr') || s.includes('psycholog') || s.includes('memory') || s.includes('cognitive') || s.includes('neurolog')) return `${FI}/5100/5100521.png`;
+  if (s.includes('cardiol') || s.includes('heart'))                                                        return `${FI}/10154/10154547.png`;
+  if (s.includes('pharmacy') || s.includes('prescription'))                                               return `${FI}/656/656019.png`;
+  if (s.includes('surgery') || s.includes('surgical') || s.includes('procedure') || s.includes('operation')) return `${FI}/3030/3030918.png`;
+  if (s.includes('vaccine') || s.includes('shot') || s.includes('flu') || s.includes('injection') || s.includes('syringe')) return `${FI}/3583/3583015.png`;
+  if (s.includes('meeting') || s.includes('consult'))                                                     return `${FI}/2548/2548761.png`;
+  return `${FI}/46/46196.png`; // default: stethoscope
 }
 
 function to24h(t) {
@@ -396,7 +394,9 @@ function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
             {/* Header */}
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
               <div style={{ display:"flex", gap:12, alignItems:"center", flex:1, minWidth:0 }}>
-                <div style={{ width:48, height:48, borderRadius:16, background:col+"14", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{icon}</div>
+                <div style={{ width:48, height:48, borderRadius:16, background:col+"14", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <img src={icon} alt="" style={{ width:28, height:28, opacity:0.85 }} />
+                </div>
                 <div style={{ minWidth:0 }}>
                   <p style={{ fontSize:17, fontWeight:700, color:C.text, fontFamily:serif, lineHeight:1.3, margin:0 }}>{appt.title}</p>
                   {r && <span style={{ fontSize:11, color:col, fontFamily:sans, fontWeight:700 }}>{r.nickname || r.name.split(' ')[0]}</span>}
@@ -545,7 +545,9 @@ function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, sh
           return (
             <button key={appt.id} onClick={() => setActiveAppt(appt)} style={{ background: C.card, borderRadius: 18, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: CARD_SHADOW_SM, border: "none", cursor: "pointer", textAlign: "left", width: "100%" }}>
               {/* Type icon */}
-              <div style={{ width: 38, height: 38, borderRadius: 12, background: col + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{icon}</div>
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: col + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <img src={icon} alt="" style={{ width: 22, height: 22, opacity: 0.8 }} />
+              </div>
               {/* Date badge */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 34, flexShrink: 0 }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: col, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: sans }}>{fmtDate(appt.date).split(" ")[0]}</span>
@@ -1719,7 +1721,7 @@ function CalendarTab({ appointments, recipients, onShowAddEvent, onUpdateAppt, o
     return (
       <button onClick={() => setActiveAppt(a)} style={{ background:C.card, borderRadius:18, padding:14, marginBottom:10, boxShadow:CARD_SHADOW_SM, borderLeft:`3px solid ${col}`, width:"100%", border:"none", borderLeftWidth:3, borderLeftStyle:"solid", borderLeftColor:col, cursor:"pointer", textAlign:"left" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <span style={{ fontSize:18, flexShrink:0 }}>{icon}</span>
+          <img src={icon} alt="" style={{ width:20, height:20, opacity:0.8, flexShrink:0 }} />
           <div style={{ flex:1, minWidth:0 }}>
             <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:sans, marginBottom:3 }}>{a.title}</p>
             <div style={{ display:"flex", alignItems:"center", gap:5 }}>
