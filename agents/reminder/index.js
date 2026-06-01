@@ -17,6 +17,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { Resend } from 'resend';
+import twilio from 'twilio';
 import admin from 'firebase-admin';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
@@ -49,6 +50,11 @@ const authAdmin = admin.auth();
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Twilio — only initialised if credentials are provided
+const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 const toDateStr = (d) => d.toISOString().split('T')[0];
@@ -100,9 +106,12 @@ async function processUser(uid, todayStr, tomorrowStr, now) {
   // Extract first name (fall back to 'there')
   const caregiverName = userRecord.displayName?.split(' ')[0] || 'there';
 
-  // Get notification role preference from user doc
+  // Get notification preferences from user doc
   const userDocSnap = await db.collection('users').doc(uid).get();
-  const notificationRole = userDocSnap.data()?.notificationRole || 'caretaker';
+  const userData = userDocSnap.data() || {};
+  const notificationRole  = userData.notificationRole  || 'caretaker';
+  const notificationPhone = userData.notificationPhone || '';
+  const reminderMethods   = userData.reminderMethods?.length ? userData.reminderMethods : ['email'];
 
   // Parallel fetch of everything we need
   const [apptSnap, schedSnap, recipSnap] = await Promise.all([
@@ -183,26 +192,47 @@ async function processUser(uid, todayStr, tomorrowStr, now) {
   // Generate personalised email via Claude
   const { subject, body } = await generateEmail(context, notificationRole);
 
+  const wantEmail = reminderMethods.includes('email');
+  const wantSms   = reminderMethods.includes('sms') && !!notificationPhone;
+
   if (isDryRun) {
     console.log(`  ── [${caregiverEmail}] ──────────────────────────`);
+    console.log(`  Methods: ${[wantEmail && 'email', wantSms && `sms → ${notificationPhone}`].filter(Boolean).join(', ')}`);
     console.log(`  Subject: ${subject}`);
     console.log(`  Body:\n${body.split('\n').map(l => '    ' + l).join('\n')}\n`);
     return 'sent';
   }
 
-  // Send via Resend
-  const { error } = await resend.emails.send({
-    from: 'Aiden <reminders@aidencare.co>',
-    to: caregiverEmail,
-    subject,
-    html: buildEmailHtml(body),
-  });
+  const sends = [];
 
-  if (error) {
-    throw new Error(`Resend error: ${JSON.stringify(error)}`);
+  // Email via Resend
+  if (wantEmail) {
+    const { error } = await resend.emails.send({
+      from: 'Aiden <reminders@aidencare.co>',
+      to: caregiverEmail,
+      subject,
+      html: buildEmailHtml(body),
+    });
+    if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
+    sends.push('email');
   }
 
-  console.log(`  ✓ Sent to ${caregiverEmail} (${todayAppts.length} today, ${tomorrowAppts.length} tomorrow, ${schedules.length} meds)`);
+  // SMS via Twilio
+  if (wantSms) {
+    if (!twilioClient) {
+      console.warn(`  ⚠ SMS requested for ${uid} but Twilio not configured`);
+    } else {
+      const smsBody = buildSmsBody(body, subject);
+      await twilioClient.messages.create({
+        from: process.env.TWILIO_FROM_NUMBER,
+        to: notificationPhone,
+        body: smsBody,
+      });
+      sends.push('sms');
+    }
+  }
+
+  console.log(`  ✓ [${uid}] sent via ${sends.join(' + ')} (${todayAppts.length} today, ${tomorrowAppts.length} tomorrow, ${schedules.length} meds)`);
   return 'sent';
 }
 
@@ -284,6 +314,20 @@ Respond with valid JSON only:
   if (!match) throw new Error('Claude did not return valid JSON');
 
   return JSON.parse(match[0]);
+}
+
+// ── SMS body (plain text, ≤320 chars) ─────────────────────────────────────────
+function buildSmsBody(body, subject) {
+  // Strip the greeting line, trim, cap at 300 chars so carriers don't split
+  const clean = body
+    .split('\n\n')
+    .map(p => p.trim())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const msg = `Aiden reminder: ${clean}`;
+  return msg.length > 300 ? msg.slice(0, 297) + '…' : msg;
 }
 
 // ── HTML email template ────────────────────────────────────────────────────────

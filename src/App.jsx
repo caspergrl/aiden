@@ -296,61 +296,94 @@ function ShowMessageBtn({ onShow }) {
   );
 }
 
-// ─── NOTIFICATION ROLE SHEET ───────────────────────────────────────────────────
+// ─── NOTIFICATION SETTINGS SHEET ──────────────────────────────────────────────
 
-function NotificationRoleSheet({ role, onSave, onClose }) {
-  const [selected, setSelected] = useState(role);
+function NotificationSettingsSheet({ role, phone, reminderMethods, onSave, onClose }) {
+  const [selRole, setSelRole]       = useState(role);
+  const [selPhone, setSelPhone]     = useState(phone || '');
+  const [selMethods, setSelMethods] = useState(reminderMethods?.length ? reminderMethods : ['email']);
+
+  function toggleMethod(m) {
+    setSelMethods(prev =>
+      prev.includes(m)
+        ? prev.length > 1 ? prev.filter(x => x !== m) : prev // keep at least one
+        : [...prev, m]
+    );
+  }
 
   const roles = [
-    {
-      value: 'caretaker',
-      label: 'Caretaker',
-      icon: '💊',
-      desc: 'I give medications and attend appointments',
-      detail: 'Reminders are actionable — you\'ll be prompted to give medications and prepare for upcoming visits.',
-    },
-    {
-      value: 'observer',
-      label: 'Observer',
-      icon: '👁',
-      desc: 'I stay informed but don\'t provide direct care',
-      detail: 'Reminders are informational — you\'ll know what\'s scheduled and what\'s been given, without action items.',
-    },
+    { value: 'caretaker', icon: '💊', label: 'Caretaker', detail: 'Actionable reminders — prompted to give medications and prepare for upcoming visits.' },
+    { value: 'observer',  icon: '👁',  label: 'Observer',  detail: 'Informational updates — know what\'s scheduled without action items.' },
   ];
 
+  const methods = [
+    { value: 'email', icon: '✉️', label: 'Email' },
+    { value: 'sms',   icon: '💬', label: 'Text message' },
+  ];
+
+  const smsSelected = selMethods.includes('sms');
+
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(38,32,26,0.45)" }} onClick={onClose} />
-      <div style={{ position: "relative", background: "#ffffff", borderRadius: "22px 22px 0 0", padding: "24px 20px 44px", zIndex: 1 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 600, fontFamily: serif, color: C.text }}>Notification role</h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color={C.muted} /></button>
+    <div style={{ position:"fixed", inset:0, zIndex:300, display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+      <div style={{ position:"absolute", inset:0, background:"rgba(38,32,26,0.45)" }} onClick={onClose}/>
+      <div style={{ position:"relative", background:"#ffffff", borderRadius:"22px 22px 0 0", padding:"24px 20px 44px", zIndex:1, maxHeight:"90vh", overflowY:"auto" }}>
+
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <h3 style={{ fontSize:18, fontWeight:600, fontFamily:serif, color:C.text }}>Notification settings</h3>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}><X size={18} color={C.muted}/></button>
         </div>
-        <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, marginBottom: 20, lineHeight: 1.6 }}>
-          This changes how your reminder emails are written.
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+
+        {/* Role */}
+        <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:10 }}>My role</p>
+        <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:24 }}>
           {roles.map(r => {
-            const active = selected === r.value;
+            const active = selRole === r.value;
             return (
-              <button
-                key={r.value}
-                onClick={() => setSelected(r.value)}
-                style={{ background: active ? C.roseLight : C.bg, border: `2px solid ${active ? C.rose : C.border}`, borderRadius: 18, padding: "14px 16px", textAlign: "left", cursor: "pointer", transition: "all 0.15s" }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                  <span style={{ fontSize: 20 }}>{r.icon}</span>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: active ? C.roseDark : C.text, fontFamily: serif }}>{r.label}</span>
-                  {active && <span style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: "50%", background: C.rose, display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={11} color="white" /></span>}
+              <button key={r.value} onClick={() => setSelRole(r.value)} style={{ background:active?C.roseLight:C.bg, border:`2px solid ${active?C.rose:C.border}`, borderRadius:16, padding:"12px 14px", textAlign:"left", cursor:"pointer" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:3 }}>
+                  <span style={{ fontSize:18 }}>{r.icon}</span>
+                  <span style={{ fontSize:14, fontWeight:700, color:active?C.roseDark:C.text, fontFamily:serif }}>{r.label}</span>
+                  {active && <span style={{ marginLeft:"auto", width:18, height:18, borderRadius:"50%", background:C.rose, display:"flex", alignItems:"center", justifyContent:"center" }}><Check size={11} color="white"/></span>}
                 </div>
-                <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, lineHeight: 1.55, margin: "0 0 0 30px" }}>{r.detail}</p>
+                <p style={{ fontSize:12, color:C.muted, fontFamily:sans, lineHeight:1.5, margin:"0 0 0 28px" }}>{r.detail}</p>
               </button>
             );
           })}
         </div>
+
+        {/* Delivery methods */}
+        <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:10 }}>Deliver reminders via</p>
+        <div style={{ display:"flex", gap:10, marginBottom: smsSelected ? 14 : 24 }}>
+          {methods.map(m => {
+            const active = selMethods.includes(m.value);
+            return (
+              <button key={m.value} onClick={() => toggleMethod(m.value)} style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"12px 0", borderRadius:14, border:`2px solid ${active?C.rose:C.border}`, background:active?C.roseLight:"white", cursor:"pointer" }}>
+                <span style={{ fontSize:18 }}>{m.icon}</span>
+                <span style={{ fontSize:13, fontWeight:700, color:active?C.roseDark:C.muted, fontFamily:sans }}>{m.label}</span>
+                {active && <Check size={13} color={C.rose}/>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Phone number — shown when SMS selected */}
+        {smsSelected && (
+          <div style={{ marginBottom:24 }}>
+            <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:8 }}>Your mobile number</p>
+            <input
+              type="tel"
+              value={selPhone}
+              onChange={e => setSelPhone(e.target.value)}
+              placeholder="+1 (555) 000-0000"
+              style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px", fontSize:14, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}
+            />
+            <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, marginTop:6, lineHeight:1.5 }}>Used only for appointment and medication reminders. Standard messaging rates may apply.</p>
+          </div>
+        )}
+
         <button
-          onClick={() => { onSave(selected); onClose(); }}
-          style={{ width: "100%", background: `linear-gradient(135deg, ${C.rose}, ${C.roseDark})`, color: "white", border: "none", borderRadius: 14, padding: "14px 0", fontSize: 15, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}
+          onClick={() => { onSave({ role: selRole, phone: selPhone, methods: selMethods }); onClose(); }}
+          style={{ width:"100%", background:`linear-gradient(135deg,${C.rose},${C.roseDark})`, color:"white", border:"none", borderRadius:14, padding:"14px 0", fontSize:15, fontWeight:700, fontFamily:sans, cursor:"pointer" }}
         >
           Save
         </button>
@@ -511,7 +544,7 @@ function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, sh
         >
           <Bell size={12} color={C.muted} />
           <span style={{ fontSize: 11, color: C.muted, fontFamily: sans, fontWeight: 600 }}>
-            {notificationRole === 'caretaker' ? 'Caretaker' : 'Observer'}
+            {notificationRole === 'caretaker' ? 'Caretaker' : 'Observer'} · {reminderMethods.includes('email') && reminderMethods.includes('sms') ? 'Email & Text' : reminderMethods.includes('sms') ? 'Text' : 'Email'}
           </span>
         </button>
       </div>
@@ -1339,7 +1372,7 @@ const CAL_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 // Replace with your Google Maps API key (Geocoding + Places APIs enabled)
 const GOOGLE_MAPS_API_KEY = "YOUR_API_KEY_HERE";
 
-function AddEventScreen({ onBack, onSave, recipients }) {
+function AddEventScreen({ onBack, onSave, recipients, reminderMethods = ['email'] }) {
   const now = new Date();
   const [recipientId, setRecipientId] = useState(recipients[0]?.id || "myself");
   const [type, setType]               = useState("");
@@ -1569,7 +1602,9 @@ function AddEventScreen({ onBack, onSave, recipients }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f7f5f2", borderRadius: 14, padding: "14px 16px" }}>
             <div>
               <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans, margin: 0 }}>Receive reminders</p>
-              <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginTop: 2 }}>Email reminder the day before</p>
+              <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginTop: 2 }}>
+                via {reminderMethods.includes('email') && reminderMethods.includes('sms') ? 'email & text' : reminderMethods.includes('sms') ? 'text message' : 'email'} · the day before
+              </p>
             </div>
             <button
               onClick={() => setReminders(r => !r)}
@@ -2558,7 +2593,9 @@ export default function AidenApp() {
   const [logistics, setLogistics] = useState([]);
   const [showMsg, setShowMsg] = useState(true);
   const [medSchedules, setMedSchedules] = useState([]);
-  const [notificationRole, setNotificationRole] = useState('caretaker'); // 'caretaker' | 'observer'
+  const [notificationRole, setNotificationRole]     = useState('caretaker');
+  const [notificationPhone, setNotificationPhone]   = useState('');
+  const [reminderMethods, setReminderMethods]       = useState(['email']); // ['email'] | ['sms'] | ['email','sms']
   const [showSettings, setShowSettings] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { role: "assistant", text: "Hi Holly! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for Margaret and Thomas — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍" }
@@ -2625,6 +2662,8 @@ export default function AidenApp() {
       const userDocSnap = await getDoc(doc(db, 'users', uid));
       const userData = userDocSnap.data() || {};
       setNotificationRole(userData.notificationRole || 'caretaker');
+      setNotificationPhone(userData.notificationPhone || '');
+      setReminderMethods(userData.reminderMethods?.length ? userData.reminderMethods : ['email']);
 
       const [recSnap, apptSnap, logSnap, docSnap, medSchedSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'recipients')),
@@ -2761,11 +2800,18 @@ export default function AidenApp() {
     }
   }
 
-  async function saveNotificationRole(role) {
+  async function saveNotificationPrefs({ role, phone, methods }) {
     setNotificationRole(role);
+    setNotificationPhone(phone);
+    setReminderMethods(methods);
     if (user) {
-      try { await updateDoc(doc(db, 'users', user.uid), { notificationRole: role }); }
-      catch (e) { console.error('Error saving notification role:', e); }
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          notificationRole: role,
+          notificationPhone: phone || '',
+          reminderMethods: methods,
+        });
+      } catch (e) { console.error('Error saving notification prefs:', e); }
     }
   }
 
@@ -2832,7 +2878,7 @@ export default function AidenApp() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   function renderContent() {
-    if (showAddEvent) return <AddEventScreen onBack={() => setShowAddEvent(false)} onSave={handleAddAppointments} recipients={recipients} />;
+    if (showAddEvent) return <AddEventScreen onBack={() => setShowAddEvent(false)} onSave={handleAddAppointments} recipients={recipients} reminderMethods={reminderMethods} />;
     if (showRecipients) {
       if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} />;
       return <RecipientsPage recipients={recipients} onSelect={r => setSelRecipient(r)} onBack={() => setShowRecipients(false)} onAdd={addRecipient} onDelete={deleteRecipient} />;
@@ -2903,9 +2949,11 @@ export default function AidenApp() {
 
       {/* Notification role settings sheet */}
       {showSettings && (
-        <NotificationRoleSheet
+        <NotificationSettingsSheet
           role={notificationRole}
-          onSave={saveNotificationRole}
+          phone={notificationPhone}
+          reminderMethods={reminderMethods}
+          onSave={saveNotificationPrefs}
           onClose={() => setShowSettings(false)}
         />
       )}
