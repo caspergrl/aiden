@@ -440,8 +440,10 @@ function RecipientsPage({ recipients, onSelect, onBack, onAdd, onDelete }) {
                 </p>
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
                   {(r.insurancePlans ?? []).map(p => INSURANCE_INFO[p] ? <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color} /> : null)}
-                  {r.mobility === 'bedridden' && <Pill label="🛏 Bedridden" color={C.muted} />}
-                  {r.mobility === 'wheelchair' && <Pill label="♿ Wheelchair" color={C.muted} />}
+                  {(Array.isArray(r.mobility) ? r.mobility : (r.mobility ? [r.mobility] : [])).map(m => (
+                    m === 'bedridden' ? <Pill key={m} label="🛏 Bedridden" color={C.muted} /> :
+                    m === 'wheelchair' ? <Pill key={m} label="♿ Wheelchair" color={C.muted} /> : null
+                  ))}
                 </div>
               </div>
               <ChevronRight size={16} color={C.border} style={{ flexShrink: 0 }} />
@@ -521,6 +523,19 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
   const [markGivenId, setMarkGivenId] = useState(null);
   const [markGivenNote, setMarkGivenNote] = useState('');
   const [justMarked, setJustMarked] = useState({});
+  const [showWeeklyCareSetup, setShowWeeklyCareSetup] = useState(false);
+  const [weeklyCareSelection, setWeeklyCareSelection] = useState(['Wash hair', 'Change bedding', 'Trim nails']);
+  const [weeklyCareCustom, setWeeklyCareCustom] = useState('');
+
+  // Normalise mobility to always be an array
+  const mobilityArr = Array.isArray(data.mobility) ? data.mobility : (data.mobility ? [data.mobility] : []);
+
+  function toggleMobility(val) {
+    const next = mobilityArr.includes(val) ? mobilityArr.filter(v => v !== val) : [...mobilityArr, val];
+    const extra = {};
+    if (val === 'wheelchair' && mobilityArr.includes('wheelchair')) extra.wheelchairTransport = null;
+    save({ mobility: next, ...extra });
+  }
   const [openSections, setOpenSections] = useState(new Set(["numbers"]));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef();
@@ -652,45 +667,129 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
             {/* Mobility */}
             <Card style={{ marginBottom: 12 }}>
               <SectionLabel>Mobility</SectionLabel>
-              <div style={{ display: "flex", gap: 8 }}>
+
+              {/* Multi-select toggles */}
+              <div style={{ display: "flex", gap: 8, marginBottom: mobilityArr.length > 0 ? 16 : 0 }}>
                 {[
-                  { value: 'bedridden', label: 'Bedridden', icon: '🛏' },
-                  { value: 'wheelchair', label: 'Wheelchair', icon: '♿' },
+                  { value: 'bedridden', label: 'Bedridden', icon: '🛏', sub: 'Most of the time' },
+                  { value: 'wheelchair', label: 'Wheelchair', icon: '♿', sub: 'Needs most of the time' },
                 ].map(opt => {
-                  const active = data.mobility === opt.value;
+                  const active = mobilityArr.includes(opt.value);
                   return (
-                    <button
-                      key={opt.value}
-                      onClick={() => save({ mobility: active ? null : opt.value })}
-                      style={{
-                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                        background: active ? col + "18" : C.bg,
-                        border: `2px solid ${active ? col : C.border}`,
-                        borderRadius: 14, padding: "10px 8px",
-                        cursor: "pointer", transition: "all 0.15s",
-                      }}
-                    >
-                      <span style={{ fontSize: 18 }}>{opt.icon}</span>
-                      <div style={{ textAlign: "left" }}>
+                    <button key={opt.value} onClick={() => toggleMobility(opt.value)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 7, background: active ? col + "14" : C.bg, border: `2px solid ${active ? col : C.border}`, borderRadius: 14, padding: "10px 10px", cursor: "pointer", transition: "all 0.15s", textAlign: "left" }}>
+                      <span style={{ fontSize: 18, flexShrink: 0 }}>{opt.icon}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: 13, fontWeight: 700, color: active ? col : C.text, fontFamily: sans, margin: 0 }}>{opt.label}</p>
-                        <p style={{ fontSize: 10, color: C.muted, fontFamily: sans, margin: 0 }}>
-                          {opt.value === 'bedridden' ? 'Most of the time' : 'Needs most of the time'}
-                        </p>
+                        <p style={{ fontSize: 10, color: C.muted, fontFamily: sans, margin: 0, lineHeight: 1.4 }}>{opt.sub}</p>
                       </div>
-                      {active && <Check size={14} color={col} style={{ marginLeft: "auto" }} />}
+                      {active && <Check size={13} color={col} style={{ flexShrink: 0 }} />}
                     </button>
                   );
                 })}
               </div>
-              {data.mobility && (
-                <button
-                  onClick={() => save({ mobility: null })}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: C.mutedLight, fontSize: 11, fontFamily: sans, marginTop: 8, padding: 0 }}
-                >
-                  Clear
-                </button>
+
+              {/* ── Bedridden extras ───────────────────────────────── */}
+              {mobilityArr.includes('bedridden') && (
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, marginBottom: mobilityArr.includes('wheelchair') ? 14 : 0 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: "uppercase", fontFamily: sans, marginBottom: 10 }}>Weekly Care</p>
+                  {data.weeklyCareTasks?.length > 0 ? (
+                    <>
+                      {data.weeklyCareTasks.map((task, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0" }}>
+                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: col, flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, color: C.text, fontFamily: sans, flex: 1 }}>{task}</span>
+                          <button onClick={() => save({ weeklyCareTasks: data.weeklyCareTasks.filter((_, j) => j !== i) })} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+                            <X size={12} color={C.mutedLight} />
+                          </button>
+                        </div>
+                      ))}
+                      <button onClick={() => { setWeeklyCareSelection(data.weeklyCareTasks || []); setShowWeeklyCareSetup(true); }} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: `1px dashed ${C.border}`, borderRadius: 10, padding: "5px 10px", color: C.mutedLight, fontSize: 12, fontFamily: sans, cursor: "pointer", marginTop: 8 }}>
+                        <Plus size={11} /> Edit checklist
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={() => { setWeeklyCareSelection(['Wash hair', 'Change bedding', 'Trim nails']); setWeeklyCareCustom(''); setShowWeeklyCareSetup(true); }} style={{ width: "100%", background: col + "0d", border: `1.5px dashed ${col}55`, borderRadius: 12, padding: "11px 14px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textAlign: "left" }}>
+                      <span style={{ fontSize: 16 }}>📋</span>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: col, fontFamily: sans, margin: 0 }}>Create weekly care checklist</p>
+                        <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, margin: 0 }}>Wash hair, change bedding, trim nails & more</p>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* ── Wheelchair extras ──────────────────────────────── */}
+              {mobilityArr.includes('wheelchair') && (
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: "uppercase", fontFamily: sans, marginBottom: 10 }}>Transportation</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {[
+                      { value: 'own', label: 'Has own wheelchair transportation', icon: '🚐' },
+                      { value: 'needs', label: 'Needs transportation recommendations', icon: '📍' },
+                    ].map(opt => {
+                      const active = data.wheelchairTransport === opt.value;
+                      return (
+                        <button key={opt.value} onClick={() => save({ wheelchairTransport: active ? null : opt.value })} style={{ display: "flex", alignItems: "center", gap: 10, background: active ? col + "14" : C.bg, border: `2px solid ${active ? col : C.border}`, borderRadius: 12, padding: "10px 12px", cursor: "pointer", textAlign: "left" }}>
+                          <span style={{ fontSize: 16 }}>{opt.icon}</span>
+                          <span style={{ fontSize: 13, fontWeight: active ? 700 : 400, color: active ? col : C.text, fontFamily: sans, flex: 1 }}>{opt.label}</span>
+                          {active && <Check size={13} color={col} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginTop: 10, background: "#f5f0eb", borderRadius: 10, padding: "8px 10px" }}>
+                    <Info size={12} color={C.muted} style={{ marginTop: 1, flexShrink: 0 }} />
+                    <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, lineHeight: 1.55, margin: 0 }}>
+                      This will be shown when setting up an appointment for {data.nickname || data.name.split(" ")[0]}.
+                    </p>
+                  </div>
+                </div>
               )}
             </Card>
+
+            {/* Weekly care setup sheet */}
+            {showWeeklyCareSetup && (
+              <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                <div style={{ position: "absolute", inset: 0, background: "rgba(38,32,26,0.45)" }} onClick={() => setShowWeeklyCareSetup(false)} />
+                <div style={{ position: "relative", background: C.card, borderRadius: "22px 22px 0 0", padding: "24px 20px 44px", zIndex: 1, maxHeight: "80vh", overflowY: "auto" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 600, fontFamily: serif, color: C.text }}>Weekly Care Checklist</h3>
+                    <button onClick={() => setShowWeeklyCareSetup(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color={C.muted} /></button>
+                  </div>
+                  <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, marginBottom: 20, lineHeight: 1.6 }}>
+                    Select the recurring care tasks for {data.nickname || data.name.split(" ")[0]}. You can add your own too.
+                  </p>
+                  {['Wash hair', 'Change bedding', 'Trim nails'].map(task => {
+                    const on = weeklyCareSelection.includes(task);
+                    return (
+                      <button key={task} onClick={() => setWeeklyCareSelection(prev => on ? prev.filter(t => t !== task) : [...prev, task])} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, background: on ? col + "14" : C.bg, border: `2px solid ${on ? col : C.border}`, borderRadius: 12, padding: "11px 14px", cursor: "pointer", marginBottom: 8, textAlign: "left" }}>
+                        <div style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${on ? col : C.border}`, background: on ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {on && <Check size={12} color="white" />}
+                        </div>
+                        <span style={{ fontSize: 14, fontWeight: on ? 600 : 400, color: on ? col : C.text, fontFamily: sans }}>{task}</span>
+                      </button>
+                    );
+                  })}
+                  {/* Custom tasks already added */}
+                  {weeklyCareSelection.filter(t => !['Wash hair', 'Change bedding', 'Trim nails'].includes(t)).map((task, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: col + "14", border: `2px solid ${col}`, borderRadius: 12, padding: "11px 14px", marginBottom: 8 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: 6, background: col, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={12} color="white" /></div>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: col, fontFamily: sans, flex: 1 }}>{task}</span>
+                      <button onClick={() => setWeeklyCareSelection(prev => prev.filter(t => t !== task))} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><X size={13} color={col} /></button>
+                    </div>
+                  ))}
+                  {/* Add custom */}
+                  <div style={{ display: "flex", gap: 8, marginTop: 4, marginBottom: 20 }}>
+                    <input value={weeklyCareCustom} onChange={e => setWeeklyCareCustom(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && weeklyCareCustom.trim()) { setWeeklyCareSelection(prev => [...prev, weeklyCareCustom.trim()]); setWeeklyCareCustom(''); } }} placeholder="Add your own…" style={{ flex: 1, background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 13, fontFamily: sans, color: C.text, outline: "none" }} />
+                    <button onClick={() => { if (weeklyCareCustom.trim()) { setWeeklyCareSelection(prev => [...prev, weeklyCareCustom.trim()]); setWeeklyCareCustom(''); } }} style={{ background: col + "22", border: "none", borderRadius: 10, padding: "0 14px", color: col, fontFamily: sans, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Add</button>
+                  </div>
+                  <button onClick={() => { save({ weeklyCareTasks: weeklyCareSelection.filter(Boolean) }); setShowWeeklyCareSetup(false); }} disabled={weeklyCareSelection.length === 0} style={{ width: "100%", background: weeklyCareSelection.length === 0 ? C.border : `linear-gradient(135deg, ${col}, ${col}cc)`, color: "white", border: "none", borderRadius: 14, padding: "14px 0", fontSize: 15, fontWeight: 700, fontFamily: sans, cursor: weeklyCareSelection.length === 0 ? "default" : "pointer" }}>
+                    Save checklist ({weeklyCareSelection.length} task{weeklyCareSelection.length !== 1 ? 's' : ''})
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Conditions */}
             <Card style={{ marginBottom: 12 }}>
@@ -1198,6 +1297,26 @@ function AddEventScreen({ onBack, onSave, recipients }) {
                 </button>
               ))}
             </div>
+            {(() => {
+              const sel = recipients.find(r => r.id === recipientId);
+              if (!sel) return null;
+              const mobility = Array.isArray(sel.mobility) ? sel.mobility : (sel.mobility ? [sel.mobility] : []);
+              if (sel.wheelchairTransport === 'needs') return (
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 7, marginTop: 10, background: "#fdf6f5", border: "1px solid #f0d8d5", borderRadius: 10, padding: "9px 12px" }}>
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>♿</span>
+                  <p style={{ fontSize: 12, color: "#7a3a34", fontFamily: sans, lineHeight: 1.6, margin: 0 }}>
+                    <strong>{sel.nickname || sel.name.split(" ")[0]}</strong> needs wheelchair-accessible transportation. You may want to arrange this before confirming the appointment.
+                  </p>
+                </div>
+              );
+              if (sel.wheelchairTransport === 'own' && mobility.includes('wheelchair')) return (
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 10, background: "#f0f7f4", border: "1px solid #c0ddd4", borderRadius: 10, padding: "8px 12px" }}>
+                  <span style={{ fontSize: 13 }}>🚐</span>
+                  <p style={{ fontSize: 12, color: "#3a6e58", fontFamily: sans, margin: 0 }}>{sel.nickname || sel.name.split(" ")[0]} has their own wheelchair transportation.</p>
+                </div>
+              );
+              return null;
+            })()}
           </div>
         )}
 
