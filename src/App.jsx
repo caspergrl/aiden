@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import AuthScreen from './AuthScreen';
 import { auth, db, storage } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
 import {
   ref as storageRef, listAll, getMetadata,
   getDownloadURL, uploadBytes, deleteObject,
@@ -260,9 +260,72 @@ function ShowMessageBtn({ onShow }) {
   );
 }
 
+// ─── NOTIFICATION ROLE SHEET ───────────────────────────────────────────────────
+
+function NotificationRoleSheet({ role, onSave, onClose }) {
+  const [selected, setSelected] = useState(role);
+
+  const roles = [
+    {
+      value: 'caretaker',
+      label: 'Caretaker',
+      icon: '💊',
+      desc: 'I give medications and attend appointments',
+      detail: 'Reminders are actionable — you\'ll be prompted to give medications and prepare for upcoming visits.',
+    },
+    {
+      value: 'observer',
+      label: 'Observer',
+      icon: '👁',
+      desc: 'I stay informed but don\'t provide direct care',
+      detail: 'Reminders are informational — you\'ll know what\'s scheduled and what\'s been given, without action items.',
+    },
+  ];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(38,32,26,0.45)" }} onClick={onClose} />
+      <div style={{ position: "relative", background: "#ffffff", borderRadius: "22px 22px 0 0", padding: "24px 20px 44px", zIndex: 1 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 600, fontFamily: serif, color: C.text }}>Notification role</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color={C.muted} /></button>
+        </div>
+        <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, marginBottom: 20, lineHeight: 1.6 }}>
+          This changes how your reminder emails are written.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+          {roles.map(r => {
+            const active = selected === r.value;
+            return (
+              <button
+                key={r.value}
+                onClick={() => setSelected(r.value)}
+                style={{ background: active ? C.roseLight : C.bg, border: `2px solid ${active ? C.rose : C.border}`, borderRadius: 18, padding: "14px 16px", textAlign: "left", cursor: "pointer", transition: "all 0.15s" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <span style={{ fontSize: 20 }}>{r.icon}</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: active ? C.roseDark : C.text, fontFamily: serif }}>{r.label}</span>
+                  {active && <span style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: "50%", background: C.rose, display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={11} color="white" /></span>}
+                </div>
+                <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, lineHeight: 1.55, margin: "0 0 0 30px" }}>{r.detail}</p>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          onClick={() => { onSave(selected); onClose(); }}
+          style={{ width: "100%", background: `linear-gradient(135deg, ${C.rose}, ${C.roseDark})`, color: "white", border: "none", borderRadius: 14, padding: "14px 0", fontSize: 15, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── HOME TAB ──────────────────────────────────────────────────────────────────
 
-function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent }) {
+function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent, notificationRole, onOpenSettings }) {
   const pending = logistics.filter(l => !l.completed).length;
   const sorted = [...appointments].sort((a, b) => new Date(a.date + " " + a.time) - new Date(b.date + " " + b.time));
 
@@ -273,7 +336,19 @@ function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, sh
 
   return (
     <div style={{ padding: "20px 18px 8px" }}>
-      <p style={{ color: C.mutedLight, fontSize: 12, fontFamily: sans, letterSpacing: 0.3, marginBottom: 4 }}>Wednesday, March 25, 2026</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <p style={{ color: C.mutedLight, fontSize: 12, fontFamily: sans, letterSpacing: 0.3, marginBottom: 4 }}>Wednesday, March 25, 2026</p>
+        <button
+          onClick={onOpenSettings}
+          title="Notification settings"
+          style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 20, padding: "4px 10px", display: "flex", alignItems: "center", gap: 5, cursor: "pointer", marginTop: -2 }}
+        >
+          <Bell size={12} color={C.muted} />
+          <span style={{ fontSize: 11, color: C.muted, fontFamily: sans, fontWeight: 600 }}>
+            {notificationRole === 'caretaker' ? 'Caretaker' : 'Observer'}
+          </span>
+        </button>
+      </div>
       <h1 style={{ fontSize: 26, fontWeight: 600, color: C.text, marginBottom: 20, fontFamily: serif, letterSpacing: -0.5, lineHeight: 1.25 }}>Good morning,<br /><em>Holly.</em></h1>
 
       {showMsg ? <DailyMessageCard onHide={() => setShowMsg(false)} /> : <ShowMessageBtn onShow={() => setShowMsg(true)} />}
@@ -1975,6 +2050,8 @@ export default function AidenApp() {
   const [logistics, setLogistics] = useState([]);
   const [showMsg, setShowMsg] = useState(true);
   const [medSchedules, setMedSchedules] = useState([]);
+  const [notificationRole, setNotificationRole] = useState('caretaker'); // 'caretaker' | 'observer'
+  const [showSettings, setShowSettings] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { role: "assistant", text: "Hi Holly! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for Margaret and Thomas — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍" }
   ]);
@@ -2036,6 +2113,10 @@ export default function AidenApp() {
       if (checkSnap.empty) {
         await seedUserData(uid);
       }
+
+      const userDocSnap = await getDoc(doc(db, 'users', uid));
+      const userData = userDocSnap.data() || {};
+      setNotificationRole(userData.notificationRole || 'caretaker');
 
       const [recSnap, apptSnap, logSnap, docSnap, medSchedSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'recipients')),
@@ -2156,6 +2237,14 @@ export default function AidenApp() {
     }
   }
 
+  async function saveNotificationRole(role) {
+    setNotificationRole(role);
+    if (user) {
+      try { await updateDoc(doc(db, 'users', user.uid), { notificationRole: role }); }
+      catch (e) { console.error('Error saving notification role:', e); }
+    }
+  }
+
   async function logMedication(scheduleId, recipientId, medicationName, note = '') {
     const entry = { scheduleId, recipientId, medicationName, note, administeredAt: new Date() };
     if (user) {
@@ -2226,7 +2315,7 @@ export default function AidenApp() {
     }
     if (tab === "home") return selRecipient
       ? <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} />
-      : <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => setSelRecipient(r)} onGoToList={() => setTab("list")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} />;
+      : <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => setSelRecipient(r)} onGoToList={() => setTab("list")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} onOpenSettings={() => setShowSettings(true)} />;
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={() => setShowAddEvent(true)} />;
     if (tab === "list")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} recipients={recipients} user={user} />;
     if (tab === "info")      return <InfoTab recipients={recipients} />;
@@ -2287,6 +2376,15 @@ export default function AidenApp() {
       <div style={{ flex: 1, overflowY: "auto", background: C.bgWarm, display: "flex", flexDirection: "column" }}>
         {renderContent()}
       </div>
+
+      {/* Notification role settings sheet */}
+      {showSettings && (
+        <NotificationRoleSheet
+          role={notificationRole}
+          onSave={saveNotificationRole}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
 
       {/* Bottom nav */}
       <div style={{ background: "linear-gradient(180deg, rgba(245,237,232,0.92) 0%, rgba(255,255,255,0.96) 100%)", backdropFilter: "blur(16px)", borderTop: `1px solid ${C.border}`, display: "flex", paddingBottom: 8, paddingTop: 8, paddingLeft: "5%", paddingRight: "5%", flexShrink: 0 }}>

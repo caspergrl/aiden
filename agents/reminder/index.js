@@ -100,6 +100,10 @@ async function processUser(uid, todayStr, tomorrowStr, now) {
   // Extract first name (fall back to 'there')
   const caregiverName = userRecord.displayName?.split(' ')[0] || 'there';
 
+  // Get notification role preference from user doc
+  const userDocSnap = await db.collection('users').doc(uid).get();
+  const notificationRole = userDocSnap.data()?.notificationRole || 'caretaker';
+
   // Parallel fetch of everything we need
   const [apptSnap, schedSnap, recipSnap] = await Promise.all([
     db.collection('users').doc(uid).collection('appointments').get(),
@@ -177,7 +181,7 @@ async function processUser(uid, todayStr, tomorrowStr, now) {
   };
 
   // Generate personalised email via Claude
-  const { subject, body } = await generateEmail(context);
+  const { subject, body } = await generateEmail(context, notificationRole);
 
   if (isDryRun) {
     console.log(`  ── [${caregiverEmail}] ──────────────────────────`);
@@ -203,7 +207,7 @@ async function processUser(uid, todayStr, tomorrowStr, now) {
 }
 
 // ── Claude email generation ────────────────────────────────────────────────────
-async function generateEmail(ctx) {
+async function generateEmail(ctx, notificationRole = 'caretaker') {
   const lines = [];
 
   if (ctx.todayAppointments.length > 0) {
@@ -238,6 +242,20 @@ async function generateEmail(ctx) {
     });
   }
 
+  const isCaretaker = notificationRole !== 'observer';
+
+  const roleGuidance = isCaretaker
+    ? `- This person is the CARETAKER — they physically give medications and attend appointments
+- For medications: use actionable language ("it's time to give", "Metformin is due")
+- Mention when each medication was last given if the data shows it (e.g. "you gave Metformin to Mom last night at 8:02 PM")
+- For appointments today: make it feel urgent and prep-oriented ("Mom's cardiology is at 10 AM today — don't forget to leave early")
+- Tone: warm partner-in-care, like a helpful reminder from someone who cares`
+    : `- This person is an OBSERVER — they stay informed but do not give medications or attend appointments themselves
+- For medications: use informational language ("Metformin is scheduled for", "is due to be given")
+- If medication was recently logged, say who likely gave it and when ("Metformin was given to Mom last night at 8:02 PM")
+- For appointments: frame as FYI ("Mom has a cardiology appointment today at 10 AM with Dr. Lee")
+- Tone: warm update, like a caring family member being kept in the loop — no urgency or action items`;
+
   const prompt = `You are Aiden, a warm and supportive caregiving companion app.
 Write a brief reminder email to a caregiver. Today is ${ctx.currentDate}.
 
@@ -246,9 +264,8 @@ ${lines.join('\n')}
 Guidelines:
 - Address them by first name: ${ctx.caregiverName}
 - Warm but not saccharine — matter-of-fact with genuine care
-- For medications: mention when they were last given if the data shows it (e.g. "you gave Metformin to Mom last night at 8:02 PM")
-- For appointments today: make clear they're TODAY and include the time + location
-- For appointments tomorrow: frame as upcoming preparation
+${roleGuidance}
+- For appointments tomorrow: frame as upcoming (not urgent)
 - Keep it under 160 words
 - End with ONE brief encouraging sentence — something real, not generic
 - No markdown, no bullet points in the email — natural paragraphs
