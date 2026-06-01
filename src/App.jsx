@@ -192,6 +192,44 @@ function getFirstDay(m, y) { return new Date(y, m, 1).getDay(); }
 function rColor(id) { return id === 1 ? C.rose : C.blue; }
 function rLightColor(id) { return id === 1 ? C.roseLight : C.blueLight; }
 function initials(name) { return name.split(" ").map(n => n[0]).join("").slice(0, 2); }
+
+function apptTypeIcon(type, title = '') {
+  const s = ((type || '') + ' ' + (title || '')).toLowerCase();
+  if (s.includes('dental') || s.includes('dentist') || s.includes('orthodont')) return '🦷';
+  if (s.includes('eye') || s.includes('vision') || s.includes('optom') || s.includes('ophth')) return '👁️';
+  if (s.includes('lab') || s.includes('blood') || s.includes('imaging') || s.includes('x-ray') || s.includes('mri') || s.includes('scan')) return '🧪';
+  if (s.includes('physical therapy') || s.includes('physio') || s.includes('rehab')) return '🤸';
+  if (s.includes('occupational therapy')) return '🖐️';
+  if (s.includes('mental') || s.includes('counseling') || s.includes('psychiatr') || s.includes('psycholog')) return '🧠';
+  if (s.includes('memory') || s.includes('cognitive') || s.includes('neurolog')) return '🧠';
+  if (s.includes('cardiol') || s.includes('heart')) return '🫀';
+  if (s.includes('pharmacy') || s.includes('prescription')) return '💊';
+  if (s.includes('surgery') || s.includes('surgical') || s.includes('procedure') || s.includes('operation')) return '🏥';
+  if (s.includes('vaccine') || s.includes('shot') || s.includes('flu')) return '💉';
+  if (s.includes('meeting') || s.includes('consult')) return '🤝';
+  if (s.includes('doctor') || s.includes('physician') || s.includes('follow') || s.includes('check') || s.includes('specialist')) return '🩺';
+  return '❤️';
+}
+
+function to24h(t) {
+  if (!t) return '';
+  const [time, period] = t.split(' ');
+  let [h, m] = time.split(':').map(Number);
+  if (period === 'PM' && h !== 12) h += 12;
+  if (period === 'AM' && h === 12) h = 0;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function from24h(t) {
+  if (!t) return '';
+  let [h, m] = t.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  if (h > 12) h -= 12;
+  if (h === 0) h = 12;
+  return `${h}:${String(m).padStart(2,'0')} ${period}`;
+}
+function fmtLongDate(ds) {
+  return new Date(ds + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
 function getDailyMessage() { return DAILY_MESSAGES[(new Date("2026-03-25").getDate() - 1) % DAILY_MESSAGES.length]; }
 function getResponse(text) {
   const t = text.toLowerCase();
@@ -323,11 +361,139 @@ function NotificationRoleSheet({ role, onSave, onClose }) {
   );
 }
 
+// ─── APPOINTMENT SHEET ────────────────────────────────────────────────────────
+
+function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
+  const [mode, setMode] = useState('view'); // 'view' | 'edit'
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [buf, setBuf] = useState({ ...appt });
+
+  const r   = recipients.find(rec => rec.id === appt.recipientId);
+  const col = r ? rColor(r.id) : C.muted;
+  const icon = apptTypeIcon(appt.type, appt.title);
+
+  function handleSave() {
+    const updates = {
+      title:       buf.title?.trim() || appt.title,
+      date:        buf.date  || appt.date,
+      time:        buf._time24 ? from24h(buf._time24) : appt.time,
+      location:    buf.location  || null,
+      doctor:      buf.doctor    || null,
+      type:        buf.type      || null,
+      recipientId: buf.recipientId || appt.recipientId,
+    };
+    onUpdate(appt.id, updates);
+    onClose();
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:300, display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+      <div style={{ position:"absolute", inset:0, background:"rgba(38,32,26,0.45)" }} onClick={onClose}/>
+      <div style={{ position:"relative", background:C.card, borderRadius:"22px 22px 0 0", padding:"24px 20px 44px", zIndex:1, maxHeight:"88vh", overflowY:"auto" }}>
+
+        {mode === 'view' ? (
+          <>
+            {/* Header */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+              <div style={{ display:"flex", gap:12, alignItems:"center", flex:1, minWidth:0 }}>
+                <div style={{ width:48, height:48, borderRadius:16, background:col+"14", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{icon}</div>
+                <div style={{ minWidth:0 }}>
+                  <p style={{ fontSize:17, fontWeight:700, color:C.text, fontFamily:serif, lineHeight:1.3, margin:0 }}>{appt.title}</p>
+                  {r && <span style={{ fontSize:11, color:col, fontFamily:sans, fontWeight:700 }}>{r.nickname || r.name.split(' ')[0]}</span>}
+                </div>
+              </div>
+              <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", padding:4, flexShrink:0 }}><X size={18} color={C.muted}/></button>
+            </div>
+
+            {/* Details */}
+            <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:24 }}>
+              {[
+                { icon:"📅", label: fmtLongDate(appt.date) },
+                { icon:"🕐", label: appt.time },
+                appt.location ? { icon:"📍", label: appt.location } : null,
+                appt.doctor   ? { icon:"🩺", label: appt.doctor   } : null,
+                appt.type     ? { icon:"🏷️", label: appt.type     } : null,
+              ].filter(Boolean).map((row, i) => (
+                <div key={i} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                  <span style={{ fontSize:15, flexShrink:0, marginTop:1 }}>{row.icon}</span>
+                  <span style={{ fontSize:14, color:C.text, fontFamily:sans, lineHeight:1.5 }}>{row.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => { setBuf({ ...appt, _time24: to24h(appt.time) }); setMode('edit'); }} style={{ flex:1, background:C.roseLight, color:C.roseDark, border:"none", borderRadius:14, padding:"12px 0", fontSize:14, fontWeight:700, fontFamily:sans, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                <Pencil size={14}/> Edit
+              </button>
+              {confirmDelete ? (
+                <div style={{ flex:1, display:"flex", gap:6 }}>
+                  <button onClick={() => { onDelete(appt.id); onClose(); }} style={{ flex:1, background:C.coral, color:"white", border:"none", borderRadius:14, padding:"12px 0", fontSize:13, fontWeight:700, fontFamily:sans, cursor:"pointer" }}>Delete</button>
+                  <button onClick={() => setConfirmDelete(false)} style={{ flex:1, background:C.bg, color:C.muted, border:"none", borderRadius:14, padding:"12px 0", fontSize:13, fontWeight:600, fontFamily:sans, cursor:"pointer" }}>Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmDelete(true)} style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:14, padding:"12px 16px", color:C.muted, fontFamily:sans, fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:5 }}>
+                  <Trash2 size={14}/> Delete
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Edit form */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <h3 style={{ fontSize:18, fontWeight:600, fontFamily:serif, color:C.text }}>Edit appointment</h3>
+              <button onClick={() => setMode('view')} style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}><X size={18} color={C.muted}/></button>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              <div>
+                <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Title</p>
+                <input value={buf.title||''} onChange={e=>setBuf(b=>({...b,title:e.target.value}))} style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:14, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <div>
+                  <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Date</p>
+                  <input type="date" value={buf.date||''} onChange={e=>setBuf(b=>({...b,date:e.target.value}))} style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:13, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
+                </div>
+                <div>
+                  <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Time</p>
+                  <input type="time" value={buf._time24||to24h(buf.time)||''} onChange={e=>setBuf(b=>({...b,_time24:e.target.value}))} style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:13, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
+                </div>
+              </div>
+              <div>
+                <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Location</p>
+                <input value={buf.location||''} onChange={e=>setBuf(b=>({...b,location:e.target.value}))} placeholder="Optional" style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:14, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+              <div>
+                <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Doctor</p>
+                <input value={buf.doctor||''} onChange={e=>setBuf(b=>({...b,doctor:e.target.value}))} placeholder="Optional" style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:14, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+              <div>
+                <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:8 }}>Type</p>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {['Doctor\'s Appointment','Physical Therapy','Occupational Therapy','Meeting','Lab / Test','Specialist','Other'].map(t => (
+                    <button key={t} onClick={()=>setBuf(b=>({...b,type:b.type===t?null:t}))} style={{ padding:"5px 12px", borderRadius:20, border:`1.5px solid ${buf.type===t?C.rose:C.border}`, background:buf.type===t?C.roseLight:"white", color:buf.type===t?C.roseDark:C.muted, fontFamily:sans, fontSize:12, fontWeight:600, cursor:"pointer" }}>{t}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10, marginTop:20 }}>
+              <button onClick={handleSave} style={{ flex:1, background:`linear-gradient(135deg,${C.rose},${C.roseDark})`, color:"white", border:"none", borderRadius:14, padding:"13px 0", fontSize:14, fontWeight:700, fontFamily:sans, cursor:"pointer" }}>Save changes</button>
+              <button onClick={()=>setMode('view')} style={{ flex:1, background:C.bg, color:C.muted, border:"none", borderRadius:14, padding:"13px 0", fontSize:14, fontWeight:600, fontFamily:sans, cursor:"pointer" }}>Cancel</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── HOME TAB ──────────────────────────────────────────────────────────────────
 
-function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent, notificationRole, onOpenSettings }) {
+function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent, notificationRole, onOpenSettings, onUpdateAppt, onDeleteAppt }) {
   const pending = logistics.filter(l => !l.completed).length;
   const sorted = [...appointments].sort((a, b) => new Date(a.date + " " + a.time) - new Date(b.date + " " + b.time));
+  const [activeAppt, setActiveAppt] = useState(null);
 
   function fmtDate(d) {
     const dt = new Date(d + "T00:00:00");
@@ -373,14 +539,13 @@ function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, sh
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
         {sorted.map(appt => {
-          const r = recipients.find(x => x.id === appt.recipientId);
-          const col = r?.id === 1 ? C.rose : C.blue;
+          const r   = recipients.find(x => x.id === appt.recipientId);
+          const col = r ? rColor(r.id) : C.muted;
+          const icon = apptTypeIcon(appt.type, appt.title);
           return (
-            <div key={appt.id} style={{ background: C.card, borderRadius: 18, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: CARD_SHADOW_SM }}>
-              {/* Avatar */}
-              <div style={{ width: 38, height: 38, borderRadius: "50%", background: col + "22", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 13, fontWeight: 700, color: col, flexShrink: 0 }}>
-                {r ? initials(r.name) : "?"}
-              </div>
+            <button key={appt.id} onClick={() => setActiveAppt(appt)} style={{ background: C.card, borderRadius: 18, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: CARD_SHADOW_SM, border: "none", cursor: "pointer", textAlign: "left", width: "100%" }}>
+              {/* Type icon */}
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: col + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{icon}</div>
               {/* Date badge */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 34, flexShrink: 0 }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: col, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: sans }}>{fmtDate(appt.date).split(" ")[0]}</span>
@@ -391,10 +556,21 @@ function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, sh
                 <p style={{ fontSize: 13, fontWeight: 600, color: C.text, fontFamily: sans, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{appt.title}</p>
                 <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginTop: 2 }}>{appt.time}{appt.doctor ? ` · ${appt.doctor}` : ""}</p>
               </div>
-            </div>
+              <ChevronRight size={13} color={C.border} style={{ flexShrink: 0 }}/>
+            </button>
           );
         })}
       </div>
+
+      {activeAppt && (
+        <AppointmentSheet
+          appt={activeAppt}
+          recipients={recipients}
+          onUpdate={(id, updates) => { onUpdateAppt?.(id, updates); setActiveAppt(null); }}
+          onDelete={(id) => { onDeleteAppt?.(id); setActiveAppt(null); }}
+          onClose={() => setActiveAppt(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1438,7 +1614,7 @@ function AddEventScreen({ onBack, onSave, recipients }) {
 
 // ─── CALENDAR TAB ──────────────────────────────────────────────────────────────
 
-function CalendarTab({ appointments, recipients, onShowAddEvent }) {
+function CalendarTab({ appointments, recipients, onShowAddEvent, onUpdateAppt, onDeleteAppt }) {
   // Always use the real current date
   const nowRef = useRef(new Date());
   const now = nowRef.current;
@@ -1448,6 +1624,7 @@ function CalendarTab({ appointments, recipients, onShowAddEvent }) {
   const [year, setYear]   = useState(now.getFullYear());
   const [selected, setSelected] = useState(null);
   const [isWide, setIsWide] = useState(() => window.innerWidth >= 680);
+  const [activeAppt, setActiveAppt] = useState(null);
 
   useEffect(() => {
     const onResize = () => setIsWide(window.innerWidth >= 680);
@@ -1536,25 +1713,27 @@ function CalendarTab({ appointments, recipients, onShowAddEvent }) {
 
   // ── Appointment card ───────────────────────────────────────────────────────
   function ApptCard({ a, showDate }) {
-    const r   = recipients.find(rec => rec.id === a.recipientId);
-    const col = r ? rColor(r.id) : C.muted;
+    const r    = recipients.find(rec => rec.id === a.recipientId);
+    const col  = r ? rColor(r.id) : C.muted;
+    const icon = apptTypeIcon(a.type, a.title);
     return (
-      <div style={{ background:C.card, borderRadius:18, padding:14, marginBottom:10, boxShadow:CARD_SHADOW_SM, borderLeft:`3px solid ${col}` }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+      <button onClick={() => setActiveAppt(a)} style={{ background:C.card, borderRadius:18, padding:14, marginBottom:10, boxShadow:CARD_SHADOW_SM, borderLeft:`3px solid ${col}`, width:"100%", border:"none", borderLeftWidth:3, borderLeftStyle:"solid", borderLeftColor:col, cursor:"pointer", textAlign:"left" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:18, flexShrink:0 }}>{icon}</span>
           <div style={{ flex:1, minWidth:0 }}>
-            <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:sans, marginBottom:4 }}>{a.title}</p>
+            <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:sans, marginBottom:3 }}>{a.title}</p>
             <div style={{ display:"flex", alignItems:"center", gap:5 }}>
               <Clock size={11} color={C.mutedLight}/>
               <span style={{ fontSize:12, color:C.muted, fontFamily:sans }}>
                 {showDate ? `${fmtApptDate(a.date)} · ` : ""}{a.time}
               </span>
             </div>
-            {a.location && <p style={{ fontSize:11, color:C.mutedLight, marginTop:3, fontFamily:sans }}>{a.location}</p>}
-            {a.doctor   && <p style={{ fontSize:12, color:col, fontFamily:sans, marginTop:4, fontWeight:600 }}>{a.doctor}</p>}
+            {a.location && <p style={{ fontSize:11, color:C.mutedLight, marginTop:2, fontFamily:sans }}>{a.location}</p>}
+            {a.doctor   && <p style={{ fontSize:12, color:col, fontFamily:sans, marginTop:3, fontWeight:600 }}>{a.doctor}</p>}
           </div>
-          {r && <span style={{ background:col+"14", color:col, borderRadius:20, padding:"3px 10px", fontSize:10, fontFamily:sans, fontWeight:700, flexShrink:0, marginLeft:8 }}>{r.nickname || r.name.split(' ')[0]}</span>}
+          {r && <span style={{ background:col+"14", color:col, borderRadius:20, padding:"3px 10px", fontSize:10, fontFamily:sans, fontWeight:700, flexShrink:0 }}>{r.nickname || r.name.split(' ')[0]}</span>}
         </div>
-      </div>
+      </button>
     );
   }
 
@@ -1602,6 +1781,7 @@ function CalendarTab({ appointments, recipients, onShowAddEvent }) {
   // ── Wide (desktop) layout ──────────────────────────────────────────────────
   if (isWide) {
     return (
+      <>
       <div style={{ display:"flex", height:"100%", overflow:"hidden" }}>
         {/* Left: calendar + month list */}
         <div style={{ width:320, flexShrink:0, borderRight:`1px solid ${C.border}`, overflowY:"auto", padding:"20px 18px" }}>
@@ -1634,6 +1814,17 @@ function CalendarTab({ appointments, recipients, onShowAddEvent }) {
           )}
         </div>
       </div>
+
+      {activeAppt && (
+        <AppointmentSheet
+          appt={activeAppt}
+          recipients={recipients}
+          onUpdate={(id, updates) => { onUpdateAppt?.(id, updates); setActiveAppt(null); }}
+          onDelete={(id) => { onDeleteAppt?.(id); setActiveAppt(null); }}
+          onClose={() => setActiveAppt(null)}
+        />
+      )}
+      </>
     );
   }
 
@@ -1664,6 +1855,17 @@ function CalendarTab({ appointments, recipients, onShowAddEvent }) {
             <DayDetail onClose={() => setSelected(null)}/>
           </div>
         </div>
+      )}
+
+      {/* Appointment detail/edit sheet */}
+      {activeAppt && (
+        <AppointmentSheet
+          appt={activeAppt}
+          recipients={recipients}
+          onUpdate={(id, updates) => { onUpdateAppt?.(id, updates); setActiveAppt(null); }}
+          onDelete={(id) => { onDeleteAppt?.(id); setActiveAppt(null); }}
+          onClose={() => setActiveAppt(null)}
+        />
       )}
     </div>
   );
@@ -2497,6 +2699,22 @@ export default function AidenApp() {
     }
   }
 
+  async function updateAppointment(id, updates) {
+    setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    if (user) {
+      try { await updateDoc(doc(db, 'users', user.uid, 'appointments', String(id)), updates); }
+      catch (e) { console.error('Error updating appointment:', e); }
+    }
+  }
+
+  async function deleteAppointment(id) {
+    setAppointments(prev => prev.filter(a => a.id !== id));
+    if (user) {
+      try { await deleteDoc(doc(db, 'users', user.uid, 'appointments', String(id))); }
+      catch (e) { console.error('Error deleting appointment:', e); }
+    }
+  }
+
   async function handleAddAppointments(newAppts) {
     if (user) {
       try {
@@ -2642,8 +2860,8 @@ export default function AidenApp() {
     }
     if (tab === "home") return selRecipient
       ? <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} />
-      : <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => setSelRecipient(r)} onGoToList={() => setTab("list")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} onOpenSettings={() => setShowSettings(true)} />;
-    if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={() => setShowAddEvent(true)} />;
+      : <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => setSelRecipient(r)} onGoToList={() => setTab("list")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} onOpenSettings={() => setShowSettings(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
+    if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={() => setShowAddEvent(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "list")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} recipients={recipients} user={user} />;
     if (tab === "info")      return <InfoTab recipients={recipients} />;
     if (tab === "chat")      return <ChatTab messages={chatMessages} setMessages={setChatMessages} />;
