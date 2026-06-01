@@ -1437,71 +1437,232 @@ function AddEventScreen({ onBack, onSave, recipients }) {
 // ─── CALENDAR TAB ──────────────────────────────────────────────────────────────
 
 function CalendarTab({ appointments, recipients, onShowAddEvent }) {
-  const [month, setMonth] = useState(2);
-  const [year, setYear] = useState(2026);
+  // Always use the real current date
+  const nowRef = useRef(new Date());
+  const now = nowRef.current;
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+  const [month, setMonth] = useState(now.getMonth());
+  const [year, setYear]   = useState(now.getFullYear());
   const [selected, setSelected] = useState(null);
-  const days = getDaysInMonth(month, year);
+  const [isWide, setIsWide] = useState(() => window.innerWidth >= 680);
+
+  useEffect(() => {
+    const onResize = () => setIsWide(window.innerWidth >= 680);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const days  = getDaysInMonth(month, year);
   const first = getFirstDay(month, year);
   const apptDates = new Set(appointments.map(a => a.date));
-  const prev = () => month === 0 ? (setMonth(11), setYear(y => y - 1)) : setMonth(m => m - 1);
-  const next = () => month === 11 ? (setMonth(0), setYear(y => y + 1)) : setMonth(m => m + 1);
-  const visible = selected
-    ? appointments.filter(a => a.date === selected)
-    : appointments.filter(a => { const [y, m] = a.date.split("-").map(Number); return m - 1 === month && y === year; });
 
-  return (
-    <div style={{ padding: "20px 18px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <button onClick={prev} style={{ background: C.card, border: "none", borderRadius: 12, padding: "8px 12px", cursor: "pointer", boxShadow: CARD_SHADOW_SM }}><ChevronLeft size={17} color={C.muted} /></button>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, fontFamily: serif }}>{FULL_MONTHS[month]} {year}</h2>
-        <button onClick={next} style={{ background: C.card, border: "none", borderRadius: 12, padding: "8px 12px", cursor: "pointer", boxShadow: CARD_SHADOW_SM }}><ChevronRight size={17} color={C.muted} /></button>
-      </div>
+  const goToPrev  = () => { if (month === 0) { setMonth(11); setYear(y=>y-1); } else setMonth(m=>m-1); };
+  const goToNext  = () => { if (month === 11) { setMonth(0); setYear(y=>y+1); } else setMonth(m=>m+1); };
+  const goToToday = () => { setMonth(now.getMonth()); setYear(now.getFullYear()); setSelected(todayStr); };
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", textAlign: "center", marginBottom: 8 }}>
-        {DAYS_OF_WEEK.map(d => <span key={d} style={{ fontSize: 10, fontWeight: 600, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.5 }}>{d}</span>)}
-      </div>
+  const isCurrentMonth = month === now.getMonth() && year === now.getFullYear();
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 20 }}>
-        {Array(first).fill(null).map((_, i) => <div key={`e${i}`} />)}
-        {Array(days).fill(null).map((_, i) => {
-          const day = i + 1;
-          const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-          const hasA = apptDates.has(ds), isToday = ds === "2026-03-25", isSel = selected === ds;
-          return (
-            <button key={day} onClick={() => setSelected(isSel ? null : ds)} style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", background: isSel ? C.primary : isToday ? C.primaryLight : "transparent", cursor: "pointer", position: "relative", padding: 0 }}>
-              <span style={{ fontSize: 13, fontWeight: isToday || isSel ? 700 : 400, color: isSel ? "white" : isToday ? C.primary : C.text, fontFamily: sans }}>{day}</span>
-              {hasA && <div style={{ width: 4, height: 4, borderRadius: "50%", background: isSel ? "rgba(255,255,255,0.7)" : C.rose, position: "absolute", bottom: 4 }} />}
-            </button>
-          );
-        })}
-      </div>
+  const selectedAppts = selected
+    ? appointments.filter(a => a.date === selected).sort((a,b) => a.time.localeCompare(b.time))
+    : [];
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, color: C.muted, fontFamily: sans }}>{selected || "This month"}</p>
-        <button onClick={onShowAddEvent} style={{ display: "flex", alignItems: "center", gap: 4, background: C.roseLight, border: "none", borderRadius: 16, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: C.roseDark, fontFamily: sans, cursor: "pointer" }}>
-          <Plus size={13} /> Add event
-        </button>
-      </div>
+  const monthAppts = appointments
+    .filter(a => { const [y,m] = a.date.split('-').map(Number); return m-1===month && y===year; })
+    .sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
 
-      {visible.length === 0
-        ? <p style={{ textAlign: "center", color: C.mutedLight, fontFamily: sans, fontSize: 13, padding: 24 }}>No appointments</p>
-        : visible.map(a => {
-          const r = recipients.find(rec => rec.id === a.recipientId);
-          const col = r ? rColor(r.id) : C.muted;
-          return (
-            <div key={a.id} style={{ background: C.card, borderRadius: 18, padding: 14, marginBottom: 10, boxShadow: CARD_SHADOW_SM, borderLeft: `3px solid ${col}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans }}>{a.title}</p>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}><Clock size={11} color={C.mutedLight} /><span style={{ fontSize: 12, color: C.muted, fontFamily: sans }}>{a.date} · {a.time}</span></div>
-                  {a.location && <p style={{ fontSize: 11, color: C.mutedLight, marginTop: 2, fontFamily: sans }}>{a.location}</p>}
-                  {a.doctor && <p style={{ fontSize: 12, color: col, fontFamily: sans, marginTop: 4, fontWeight: 600 }}>{a.doctor}</p>}
-                </div>
-                {r && <span style={{ background: col + "14", color: col, borderRadius: 20, padding: "3px 10px", fontSize: 10, fontFamily: sans, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>{r.nickname}</span>}
-              </div>
+  function fmtDayHeading(ds) {
+    const d = new Date(ds + 'T12:00:00');
+    const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const date    = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    return { weekday, date };
+  }
+  function fmtApptDate(ds) {
+    return new Date(ds+'T12:00:00').toLocaleDateString('en-US',{ month:'short', day:'numeric' });
+  }
+
+  // ── Shared calendar grid ───────────────────────────────────────────────────
+  function CalGrid() {
+    return (
+      <>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+          <button onClick={goToPrev} style={{ background:C.card, border:"none", borderRadius:12, padding:"8px 12px", cursor:"pointer", boxShadow:CARD_SHADOW_SM }}>
+            <ChevronLeft size={17} color={C.muted}/>
+          </button>
+          <div style={{ textAlign:"center" }}>
+            <h2 style={{ fontSize:20, fontWeight:600, color:C.text, fontFamily:serif, margin:0 }}>{FULL_MONTHS[month]} {year}</h2>
+            {!isCurrentMonth && (
+              <button onClick={goToToday} style={{ background:"none", border:"none", color:C.rose, fontFamily:sans, fontSize:12, fontWeight:600, cursor:"pointer", marginTop:2, padding:0 }}>
+                Back to today
+              </button>
+            )}
+          </div>
+          <button onClick={goToNext} style={{ background:C.card, border:"none", borderRadius:12, padding:"8px 12px", cursor:"pointer", boxShadow:CARD_SHADOW_SM }}>
+            <ChevronRight size={17} color={C.muted}/>
+          </button>
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", textAlign:"center", marginBottom:6 }}>
+          {DAYS_OF_WEEK.map(d => <span key={d} style={{ fontSize:10, fontWeight:600, color:C.mutedLight, fontFamily:sans, letterSpacing:0.5 }}>{d}</span>)}
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+          {Array(first).fill(null).map((_,i) => <div key={`e${i}`}/>)}
+          {Array(days).fill(null).map((_,i) => {
+            const day = i + 1;
+            const ds  = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const count   = appointments.filter(a => a.date === ds).length;
+            const isToday = ds === todayStr;
+            const isSel   = selected === ds;
+            return (
+              <button key={day} onClick={() => setSelected(isSel ? null : ds)} style={{ aspectRatio:"1", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", borderRadius:10, border: isToday && !isSel ? `2px solid ${C.rose}` : "2px solid transparent", background: isSel ? C.rose : "transparent", cursor:"pointer", position:"relative", padding:0, transition:"background 0.12s" }}>
+                <span style={{ fontSize:13, fontWeight: isToday || isSel ? 700 : 400, color: isSel ? "white" : isToday ? C.rose : C.text, fontFamily:sans, lineHeight:1 }}>{day}</span>
+                {count > 0 && (
+                  <div style={{ display:"flex", gap:2, position:"absolute", bottom:3 }}>
+                    {Array(Math.min(count,3)).fill(null).map((_,k) => (
+                      <div key={k} style={{ width:3, height:3, borderRadius:"50%", background: isSel ? "rgba(255,255,255,0.75)" : C.rose }}/>
+                    ))}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </>
+    );
+  }
+
+  // ── Appointment card ───────────────────────────────────────────────────────
+  function ApptCard({ a, showDate }) {
+    const r   = recipients.find(rec => rec.id === a.recipientId);
+    const col = r ? rColor(r.id) : C.muted;
+    return (
+      <div style={{ background:C.card, borderRadius:18, padding:14, marginBottom:10, boxShadow:CARD_SHADOW_SM, borderLeft:`3px solid ${col}` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:sans, marginBottom:4 }}>{a.title}</p>
+            <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+              <Clock size={11} color={C.mutedLight}/>
+              <span style={{ fontSize:12, color:C.muted, fontFamily:sans }}>
+                {showDate ? `${fmtApptDate(a.date)} · ` : ""}{a.time}
+              </span>
             </div>
-          );
-        })}
+            {a.location && <p style={{ fontSize:11, color:C.mutedLight, marginTop:3, fontFamily:sans }}>{a.location}</p>}
+            {a.doctor   && <p style={{ fontSize:12, color:col, fontFamily:sans, marginTop:4, fontWeight:600 }}>{a.doctor}</p>}
+          </div>
+          {r && <span style={{ background:col+"14", color:col, borderRadius:20, padding:"3px 10px", fontSize:10, fontFamily:sans, fontWeight:700, flexShrink:0, marginLeft:8 }}>{r.nickname || r.name.split(' ')[0]}</span>}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Day detail content ─────────────────────────────────────────────────────
+  function DayDetail({ onClose }) {
+    if (!selected) return null;
+    const { weekday, date } = fmtDayHeading(selected);
+    const isToday = selected === todayStr;
+    return (
+      <div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+          <div>
+            <p style={{ fontSize:11, fontWeight:700, color: isToday ? C.rose : C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:2 }}>
+              {isToday ? "Today · " : ""}{weekday}
+            </p>
+            <h2 style={{ fontSize:24, fontWeight:600, fontFamily:serif, color:C.text, letterSpacing:-0.5, margin:0 }}>{date}</h2>
+          </div>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <button onClick={onShowAddEvent} style={{ display:"flex", alignItems:"center", gap:4, background:C.roseLight, border:"none", borderRadius:16, padding:"6px 12px", fontSize:12, fontWeight:600, color:C.roseDark, fontFamily:sans, cursor:"pointer" }}>
+              <Plus size={13}/> Add
+            </button>
+            {onClose && (
+              <button onClick={onClose} style={{ background:C.card, border:"none", borderRadius:12, padding:"6px 10px", cursor:"pointer", boxShadow:CARD_SHADOW_SM }}>
+                <X size={16} color={C.muted}/>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {selectedAppts.length === 0 ? (
+          <div style={{ textAlign:"center", padding:"32px 0" }}>
+            <p style={{ fontSize:32, marginBottom:8 }}>🗓</p>
+            <p style={{ fontSize:14, color:C.mutedLight, fontFamily:sans, marginBottom:16 }}>Nothing scheduled</p>
+            <button onClick={onShowAddEvent} style={{ background:C.roseLight, border:"none", borderRadius:14, padding:"9px 20px", fontSize:13, fontWeight:600, color:C.roseDark, fontFamily:sans, cursor:"pointer" }}>
+              Add an event
+            </button>
+          </div>
+        ) : (
+          selectedAppts.map(a => <ApptCard key={a.id} a={a} showDate={false}/>)
+        )}
+      </div>
+    );
+  }
+
+  // ── Wide (desktop) layout ──────────────────────────────────────────────────
+  if (isWide) {
+    return (
+      <div style={{ display:"flex", height:"100%", overflow:"hidden" }}>
+        {/* Left: calendar + month list */}
+        <div style={{ width:320, flexShrink:0, borderRight:`1px solid ${C.border}`, overflowY:"auto", padding:"20px 18px" }}>
+          <CalGrid/>
+          <div style={{ marginTop:20 }}>
+            <p style={{ fontSize:10, fontWeight:700, color:C.mutedLight, letterSpacing:1, textTransform:"uppercase", fontFamily:sans, marginBottom:12 }}>
+              {FULL_MONTHS[month]}
+            </p>
+            {monthAppts.length === 0
+              ? <p style={{ fontSize:13, color:C.mutedLight, fontFamily:sans }}>No appointments this month</p>
+              : monthAppts.map(a => <ApptCard key={a.id} a={a} showDate={true}/>)
+            }
+          </div>
+        </div>
+
+        {/* Right: day detail or prompt */}
+        <div style={{ flex:1, overflowY:"auto", padding:"20px 24px" }}>
+          {selected ? (
+            <DayDetail onClose={null}/>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", gap:12 }}>
+              <p style={{ fontSize:40 }}>👆</p>
+              <p style={{ fontSize:15, color:C.muted, fontFamily:sans }}>Select a day to see details</p>
+              {!isCurrentMonth && (
+                <button onClick={goToToday} style={{ background:C.roseLight, border:"none", borderRadius:14, padding:"8px 18px", fontSize:13, fontWeight:600, color:C.roseDark, fontFamily:sans, cursor:"pointer" }}>
+                  Go to today
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Mobile layout ──────────────────────────────────────────────────────────
+  return (
+    <div style={{ padding:"20px 18px" }}>
+      <CalGrid/>
+
+      <div style={{ marginTop:20 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <p style={{ fontSize:10, fontWeight:700, color:C.mutedLight, letterSpacing:1, textTransform:"uppercase", fontFamily:sans }}>
+            {FULL_MONTHS[month]}
+          </p>
+          <button onClick={onShowAddEvent} style={{ display:"flex", alignItems:"center", gap:4, background:C.roseLight, border:"none", borderRadius:16, padding:"5px 12px", fontSize:12, fontWeight:600, color:C.roseDark, fontFamily:sans, cursor:"pointer" }}>
+            <Plus size={13}/> Add event
+          </button>
+        </div>
+        {monthAppts.length === 0
+          ? <p style={{ textAlign:"center", color:C.mutedLight, fontFamily:sans, fontSize:13, padding:24 }}>No appointments this month</p>
+          : monthAppts.map(a => <ApptCard key={a.id} a={a} showDate={true}/>)
+        }
+      </div>
+
+      {/* Full-screen day overlay (mobile) */}
+      {selected && (
+        <div style={{ position:"fixed", inset:0, zIndex:200, background:C.bgWarm, overflowY:"auto" }}>
+          <div style={{ padding:"20px 18px 48px" }}>
+            <DayDetail onClose={() => setSelected(null)}/>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
