@@ -438,8 +438,10 @@ function RecipientsPage({ recipients, onSelect, onBack, onAdd, onDelete }) {
                 <p style={{ fontSize: 12, color: C.muted, marginBottom: 8, fontFamily: sans }}>
                   {r.age ? `Age ${r.age}` : ""}{r.age && r.conditions?.length ? " · " : ""}{r.conditions?.[0] ?? ""}{r.conditions?.length > 1 ? ` +${r.conditions.length - 1}` : ""}
                 </p>
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
                   {(r.insurancePlans ?? []).map(p => INSURANCE_INFO[p] ? <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color} /> : null)}
+                  {r.mobility === 'bedridden' && <Pill label="🛏 Bedridden" color={C.muted} />}
+                  {r.mobility === 'wheelchair' && <Pill label="♿ Wheelchair" color={C.muted} />}
                 </div>
               </div>
               <ChevronRight size={16} color={C.border} style={{ flexShrink: 0 }} />
@@ -647,6 +649,49 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
         {/* ── OVERVIEW ─────────────────────────────────────────────────── */}
         {tab === "overview" && (
           <>
+            {/* Mobility */}
+            <Card style={{ marginBottom: 12 }}>
+              <SectionLabel>Mobility</SectionLabel>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[
+                  { value: 'bedridden', label: 'Bedridden', icon: '🛏' },
+                  { value: 'wheelchair', label: 'Wheelchair', icon: '♿' },
+                ].map(opt => {
+                  const active = data.mobility === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => save({ mobility: active ? null : opt.value })}
+                      style={{
+                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        background: active ? col + "18" : C.bg,
+                        border: `2px solid ${active ? col : C.border}`,
+                        borderRadius: 14, padding: "10px 8px",
+                        cursor: "pointer", transition: "all 0.15s",
+                      }}
+                    >
+                      <span style={{ fontSize: 18 }}>{opt.icon}</span>
+                      <div style={{ textAlign: "left" }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: active ? col : C.text, fontFamily: sans, margin: 0 }}>{opt.label}</p>
+                        <p style={{ fontSize: 10, color: C.muted, fontFamily: sans, margin: 0 }}>
+                          {opt.value === 'bedridden' ? 'Most of the time' : 'Needs most of the time'}
+                        </p>
+                      </div>
+                      {active && <Check size={14} color={col} style={{ marginLeft: "auto" }} />}
+                    </button>
+                  );
+                })}
+              </div>
+              {data.mobility && (
+                <button
+                  onClick={() => save({ mobility: null })}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: C.mutedLight, fontSize: 11, fontFamily: sans, marginTop: 8, padding: 0 }}
+                >
+                  Clear
+                </button>
+              )}
+            </Card>
+
             {/* Conditions */}
             <Card style={{ marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
