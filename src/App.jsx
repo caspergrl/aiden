@@ -471,8 +471,8 @@ function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
               <div>
                 <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:8 }}>Type</p>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                  {['Doctor\'s Appointment','Physical Therapy','Occupational Therapy','Meeting','Lab / Test','Specialist','Other'].map(t => (
-                    <button key={t} onClick={()=>setBuf(b=>({...b,type:b.type===t?null:t}))} style={{ padding:"5px 12px", borderRadius:20, border:`1.5px solid ${buf.type===t?C.rose:C.border}`, background:buf.type===t?C.roseLight:"white", color:buf.type===t?C.roseDark:C.muted, fontFamily:sans, fontSize:12, fontWeight:600, cursor:"pointer" }}>{t}</button>
+                  {EVENT_TYPES.map(t => (
+                    <button key={t.label} onClick={()=>setBuf(b=>({...b,type:b.type===t.label?null:t.label}))} style={{ padding:"5px 12px", borderRadius:20, border:`1.5px solid ${buf.type===t.label?C.rose:C.border}`, background:buf.type===t.label?C.roseLight:"white", color:buf.type===t.label?C.roseDark:C.muted, fontFamily:sans, fontSize:12, fontWeight:600, cursor:"pointer" }}>{t.label}</button>
                   ))}
                 </div>
               </div>
@@ -1325,129 +1325,70 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
 
 // ─── ADD EVENT SCREEN ──────────────────────────────────────────────────────────
 
-const GOOGLE_MAPS_API_KEY = "YOUR_API_KEY_HERE"; // Replace with your Google Maps API key
-
 const EVENT_TYPES = [
-  "Doctor's Appointment", "Physical Therapy", "Occupational Therapy",
-  "Meeting", "Lab / Test", "Specialist", "Other",
-];
-
-const RECURRENCE_OPTIONS = [
-  { id: "none", label: "None" },
-  { id: "daily", label: "Daily" },
-  { id: "weekly", label: "Weekly" },
-  { id: "monthly", label: "Monthly" },
-  { id: "yearly", label: "Yearly" },
-  { id: "custom", label: "Custom" },
+  { label: "Doctor's Appointment", icon: `${FI}/46/46196.png` },
+  { label: "Physical Therapy",     icon: `${FI}/14241/14241578.png` },
+  { label: "Occupational Therapy", icon: `${FI}/14241/14241578.png` },
+  { label: "Meeting",              icon: `${FI}/2548/2548761.png` },
+  { label: "Lab / Test",           icon: `${FI}/9402/9402263.png` },
+  { label: "Procedure",            icon: `${FI}/3030/3030918.png` },
+  { label: "Pre-op",               icon: `${FI}/3030/3030918.png` },
+  { label: "Consultation",         icon: `${FI}/46/46196.png` },
+  { label: "Other",                icon: null },
 ];
 
 const CAL_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function AddEventScreen({ onBack, onSave, recipients }) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState("");
-  const [selectedDates, setSelectedDates] = useState([]);
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [recurrence, setRecurrence] = useState("none");
-  const [customDays, setCustomDays] = useState([]);
-  const [recurrenceEnd, setRecurrenceEnd] = useState("");
-  const [addressQuery, setAddressQuery] = useState("");
-  const [address, setAddress] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
-  const [notes, setNotes] = useState("");
-  const [url, setUrl] = useState("");
-  const [recipientId, setRecipientId] = useState(recipients[0]?.id || "");
-  const searchTimeout = useRef(null);
+  const now = new Date();
+  const [recipientId, setRecipientId] = useState(recipients[0]?.id || "myself");
+  const [type, setType]               = useState("");
+  const [title, setTitle]             = useState("");
+  const [date, setDate]               = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`);
+  const [time24, setTime24]           = useState("10:00");
+  const [locMode, setLocMode]         = useState("inperson"); // 'inperson' | 'video'
+  const [location, setLocation]       = useState("");
+  const [reminders, setReminders]     = useState(true);
+  const [notes, setNotes]             = useState("");
 
-  const days = getDaysInMonth(calMonth, calYear);
-  const first = getFirstDay(calMonth, calYear);
-
-  function toggleDate(ds) {
-    setSelectedDates(prev => prev.includes(ds) ? prev.filter(d => d !== ds) : [...prev, ds]);
+  // Auto-fill title when type is picked (if title is still the previous auto-fill or empty)
+  const [autoTitle, setAutoTitle] = useState(true);
+  function pickType(t) {
+    setType(t);
+    if (autoTitle) setTitle(t);
   }
-
-  function toggleCustomDay(i) {
-    setCustomDays(prev => prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i]);
-  }
-
-  async function fetchSuggestions(query) {
-    if (!query || query.length < 3) { setSuggestions([]); return; }
-    try {
-      if (GOOGLE_MAPS_API_KEY === "YOUR_API_KEY_HERE") {
-        setSuggestions([
-          { place_id: "1", description: `${query} Medical Center, New York, NY` },
-          { place_id: "2", description: `${query} Clinic, Los Angeles, CA` },
-          { place_id: "3", description: `${query} Health Center, Chicago, IL` },
-        ]);
-      } else {
-        const res = await fetch(`https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${GOOGLE_MAPS_API_KEY}&types=establishment|geocode`);
-        const data = await res.json();
-        setSuggestions(data.predictions || []);
-      }
-    } catch { setSuggestions([]); }
-  }
-
-  function handleAddressInput(val) {
-    setAddressQuery(val);
-    setAddress(val);
-    clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => fetchSuggestions(val), 400);
-  }
-
-  function selectSuggestion(s) {
-    setAddress(s.description);
-    setAddressQuery(s.description);
-    setSuggestions([]);
+  function handleTitleChange(v) {
+    setTitle(v);
+    setAutoTitle(false); // user has customised — stop auto-filling
   }
 
   function handleSave() {
-    if (!name.trim() || selectedDates.length === 0) return;
-    let allDates = [...selectedDates];
-
-    if (recurrence !== "none" && selectedDates.length > 0) {
-      const base = new Date(selectedDates[0] + "T12:00:00");
-      const end = recurrenceEnd ? new Date(recurrenceEnd + "T23:59:59") : null;
-      const limit = end ? 365 : 12;
-      let current = new Date(base);
-      let count = 0;
-
-      while (count < limit) {
-        if (recurrence === "daily")   current.setDate(current.getDate() + 1);
-        else if (recurrence === "weekly")  current.setDate(current.getDate() + 7);
-        else if (recurrence === "monthly") current.setMonth(current.getMonth() + 1);
-        else if (recurrence === "yearly")  current.setFullYear(current.getFullYear() + 1);
-        else if (recurrence === "custom") {
-          let found = false;
-          for (let i = 1; i <= 7; i++) {
-            const next = new Date(current); next.setDate(next.getDate() + i);
-            if (customDays.includes(next.getDay())) { current = next; found = true; break; }
-          }
-          if (!found) break;
-        }
-        if (end && current > end) break;
-        const ds = `${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,"0")}-${String(current.getDate()).padStart(2,"0")}`;
-        if (!allDates.includes(ds)) allDates.push(ds);
-        count++;
-      }
-    }
-
-    const newAppts = allDates.map((date, i) => ({
-      id: Date.now() + i,
-      title: name.trim(),
+    if (!date) return;
+    const appt = {
+      id: Date.now(),
+      title: title.trim() || type || "Appointment",
       date,
-      time: "12:00 PM",
-      location: address || null,
+      time: from24h(time24),
+      location: location.trim() || null,
       type: type || null,
-      notes: notes || null,
-      url: url || null,
-      recipientId: recipientId || null,
+      notes: notes.trim() || null,
+      recipientId: recipientId === "myself" ? null : recipientId,
+      reminders,
       doctor: null,
-    }));
-    onSave(newAppts);
+    };
+    onSave([appt]);
   }
 
-  const canSave = name.trim() && selectedDates.length > 0;
+  const canSave = !!date;
+
+  // Wheelchair note for selected recipient
+  const selRecip = recipients.find(r => r.id === recipientId);
+  const selMobility = selRecip ? (Array.isArray(selRecip.mobility) ? selRecip.mobility : (selRecip.mobility ? [selRecip.mobility] : [])) : [];
+
+  const fieldLabel = (text) => (
+    <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>{text}</p>
+  );
+  const inputStyle = { width: "100%", background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", fontSize: 14, fontFamily: sans, color: C.text, outline: "none", boxSizing: "border-box" };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -1455,158 +1396,117 @@ function AddEventScreen({ onBack, onSave, recipients }) {
       <div style={{ background: GRAD, padding: "16px 18px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: C.rose, fontFamily: sans, fontSize: 14, fontWeight: 600, padding: 0 }}>Cancel</button>
         <span style={{ fontSize: 16, fontWeight: 700, color: C.text, fontFamily: serif }}>New Event</span>
-        <button onClick={handleSave} disabled={!canSave} style={{ background: canSave ? "#904848" : C.border, border: "none", borderRadius: 12, padding: "7px 16px", color: "white", fontFamily: sans, fontSize: 13, fontWeight: 700, cursor: canSave ? "pointer" : "default", transition: "background 0.2s" }}>Save</button>
+        <button onClick={handleSave} disabled={!canSave} style={{ background: canSave ? C.roseDark : C.border, border: "none", borderRadius: 12, padding: "7px 16px", color: "white", fontFamily: sans, fontSize: 13, fontWeight: 700, cursor: canSave ? "pointer" : "default", transition: "background 0.2s" }}>Save</button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "22px 18px 40px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "22px 18px 48px" }}>
 
-        {/* Event Name */}
-        <div style={{ marginBottom: 26 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Event Name</p>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Cardiology Follow-up" style={{ width: "100%", background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", fontSize: 14, fontFamily: sans, color: C.text, outline: "none", boxSizing: "border-box" }} />
-        </div>
-
-        {/* For (recipient) */}
-        {recipients.length > 1 && (
-          <div style={{ marginBottom: 26 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>For</p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {recipients.map(r => (
-                <button key={r.id} onClick={() => setRecipientId(r.id)} style={{ padding: "7px 16px", borderRadius: 20, border: `1.5px solid ${recipientId === r.id ? "#904848" : C.border}`, background: recipientId === r.id ? "#fdf6f5" : "white", color: recipientId === r.id ? "#904848" : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                  {r.name.split(" ")[0]}
-                </button>
-              ))}
-            </div>
-            {(() => {
-              const sel = recipients.find(r => r.id === recipientId);
-              if (!sel) return null;
-              const mobility = Array.isArray(sel.mobility) ? sel.mobility : (sel.mobility ? [sel.mobility] : []);
-              if (sel.wheelchairTransport === 'needs') return (
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 7, marginTop: 10, background: "#fdf6f5", border: "1px solid #f0d8d5", borderRadius: 10, padding: "9px 12px" }}>
-                  <span style={{ fontSize: 14, flexShrink: 0 }}>♿</span>
-                  <p style={{ fontSize: 12, color: "#7a3a34", fontFamily: sans, lineHeight: 1.6, margin: 0 }}>
-                    <strong>{sel.nickname || sel.name.split(" ")[0]}</strong> needs wheelchair-accessible transportation. You may want to arrange this before confirming the appointment.
-                  </p>
-                </div>
-              );
-              if (sel.wheelchairTransport === 'own' && mobility.includes('wheelchair')) return (
-                <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 10, background: "#f0f7f4", border: "1px solid #c0ddd4", borderRadius: 10, padding: "8px 12px" }}>
-                  <span style={{ fontSize: 13 }}>🚐</span>
-                  <p style={{ fontSize: 12, color: "#3a6e58", fontFamily: sans, margin: 0 }}>{sel.nickname || sel.name.split(" ")[0]} has their own wheelchair transportation.</p>
-                </div>
-              );
-              return null;
-            })()}
-          </div>
-        )}
-
-        {/* Type */}
-        <div style={{ marginBottom: 26 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Type</p>
+        {/* ── For ── */}
+        <div style={{ marginBottom: 24 }}>
+          {fieldLabel("For")}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {EVENT_TYPES.map(t => (
-              <button key={t} onClick={() => setType(type === t ? "" : t)} style={{ padding: "7px 14px", borderRadius: 20, border: `1.5px solid ${type === t ? "#904848" : C.border}`, background: type === t ? "#fdf6f5" : "white", color: type === t ? "#904848" : C.muted, fontFamily: sans, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                {t}
+            {recipients.map(r => {
+              const active = recipientId === r.id;
+              const col = rColor(r.id);
+              return (
+                <button key={r.id} onClick={() => setRecipientId(r.id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 14px", borderRadius: 20, border: `1.5px solid ${active ? col : C.border}`, background: active ? col + "14" : "white", color: active ? col : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", background: col + "33", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: col }}>{initials(r.name)}</div>
+                  {r.nickname || r.name.split(" ")[0]}
+                </button>
+              );
+            })}
+            <button onClick={() => setRecipientId("myself")} style={{ padding: "7px 14px", borderRadius: 20, border: `1.5px solid ${recipientId === "myself" ? C.rose : C.border}`, background: recipientId === "myself" ? C.roseLight : "white", color: recipientId === "myself" ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              Myself
+            </button>
+          </div>
+          {/* Wheelchair note */}
+          {selRecip?.wheelchairTransport === 'needs' && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 7, marginTop: 10, background: "#fdf6f5", border: "1px solid #f0d8d5", borderRadius: 10, padding: "9px 12px" }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>♿</span>
+              <p style={{ fontSize: 12, color: "#7a3a34", fontFamily: sans, lineHeight: 1.6, margin: 0 }}><strong>{selRecip.nickname || selRecip.name.split(" ")[0]}</strong> needs wheelchair-accessible transportation.</p>
+            </div>
+          )}
+          {selRecip?.wheelchairTransport === 'own' && selMobility.includes('wheelchair') && (
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 10, background: "#f0f7f4", border: "1px solid #c0ddd4", borderRadius: 10, padding: "8px 12px" }}>
+              <span style={{ fontSize: 13 }}>🚐</span>
+              <p style={{ fontSize: 12, color: "#3a6e58", fontFamily: sans, margin: 0 }}>{selRecip.nickname || selRecip.name.split(" ")[0]} has their own wheelchair transportation.</p>
+            </div>
+          )}
+        </div>
+
+        {/* ── Type ── */}
+        <div style={{ marginBottom: 24 }}>
+          {fieldLabel("Type of Event")}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {EVENT_TYPES.map(t => {
+              const active = type === t.label;
+              return (
+                <button key={t.label} onClick={() => pickType(t.label)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: 14, border: `2px solid ${active ? C.rose : C.border}`, background: active ? C.roseLight : "white", cursor: "pointer", textAlign: "left" }}>
+                  {t.icon
+                    ? <img src={t.icon} alt="" style={{ width: 22, height: 22, opacity: active ? 0.9 : 0.55 }} />
+                    : <div style={{ width: 22, height: 22, borderRadius: "50%", background: active ? C.rose : C.border, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 10, color: "white", fontWeight: 700 }}>?</span></div>
+                  }
+                  <span style={{ fontSize: 14, fontWeight: active ? 700 : 400, color: active ? C.roseDark : C.text, fontFamily: sans }}>{t.label}</span>
+                  {active && <Check size={15} color={C.rose} style={{ marginLeft: "auto" }} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Event name ── */}
+        <div style={{ marginBottom: 24 }}>
+          {fieldLabel("Event Name")}
+          <input value={title} onChange={e => handleTitleChange(e.target.value)} placeholder={type || "e.g. Cardiology Follow-up"} style={inputStyle} />
+        </div>
+
+        {/* ── Date & Time ── */}
+        <div style={{ marginBottom: 24 }}>
+          {fieldLabel("Date & Time")}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...inputStyle, fontSize: 13 }} />
+            <input type="time" value={time24} onChange={e => setTime24(e.target.value)} style={{ ...inputStyle, fontSize: 13 }} />
+          </div>
+        </div>
+
+        {/* ── Location or Video ── */}
+        <div style={{ marginBottom: 24 }}>
+          {fieldLabel("Location")}
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            {[{ id: "inperson", label: "📍 In person" }, { id: "video", label: "📹 Video call" }].map(m => (
+              <button key={m.id} onClick={() => { setLocMode(m.id); setLocation(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 12, border: `2px solid ${locMode === m.id ? C.rose : C.border}`, background: locMode === m.id ? C.roseLight : "white", color: locMode === m.id ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                {m.label}
               </button>
             ))}
           </div>
+          <input
+            value={location}
+            onChange={e => setLocation(e.target.value)}
+            placeholder={locMode === "video" ? "https://zoom.us/j/…  or  meet.google.com/…" : "Address or place name"}
+            style={inputStyle}
+          />
         </div>
 
-        {/* Date picker */}
-        <div style={{ marginBottom: 26 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>
-            Date{selectedDates.length > 1 ? "s" : ""}{selectedDates.length > 0 ? ` · ${selectedDates.length} selected` : ""}
-          </p>
-          <div style={{ background: "#f7f5f2", borderRadius: 16, padding: "14px 12px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <button onClick={() => calMonth === 0 ? (setCalMonth(11), setCalYear(y => y-1)) : setCalMonth(m => m-1)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><ChevronLeft size={16} color={C.muted} /></button>
-              <span style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans }}>{FULL_MONTHS[calMonth]} {calYear}</span>
-              <button onClick={() => calMonth === 11 ? (setCalMonth(0), setCalYear(y => y+1)) : setCalMonth(m => m+1)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><ChevronRight size={16} color={C.muted} /></button>
+        {/* ── Reminders ── */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f7f5f2", borderRadius: 14, padding: "14px 16px" }}>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans, margin: 0 }}>Receive reminders</p>
+              <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginTop: 2 }}>Email reminder the day before</p>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", textAlign: "center", marginBottom: 4 }}>
-              {CAL_DAYS.map(d => <span key={d} style={{ fontSize: 9, fontWeight: 700, color: C.mutedLight, fontFamily: sans }}>{d}</span>)}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
-              {Array(first).fill(null).map((_, i) => <div key={`e${i}`} />)}
-              {Array(days).fill(null).map((_, i) => {
-                const day = i + 1;
-                const ds = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-                const isSel = selectedDates.includes(ds);
-                return (
-                  <button key={day} onClick={() => toggleDate(ds)} style={{ aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, border: "none", background: isSel ? "#904848" : "transparent", cursor: "pointer" }}>
-                    <span style={{ fontSize: 12, fontWeight: isSel ? 700 : 400, color: isSel ? "white" : C.text, fontFamily: sans }}>{day}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <button
+              onClick={() => setReminders(r => !r)}
+              style={{ width: 48, height: 28, borderRadius: 14, background: reminders ? C.rose : C.border, border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
+            >
+              <div style={{ position: "absolute", top: 3, left: reminders ? 23 : 3, width: 22, height: 22, borderRadius: "50%", background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.2)", transition: "left 0.2s" }} />
+            </button>
           </div>
-          {selectedDates.length > 0 && (
-            <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {[...selectedDates].sort().map(d => (
-                <span key={d} onClick={() => toggleDate(d)} style={{ background: "#fdf6f5", border: "1px solid #e8d0d0", borderRadius: 10, padding: "4px 10px", fontSize: 11, color: "#904848", fontFamily: sans, fontWeight: 600, cursor: "pointer" }}>{d} ×</span>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* Recurrence */}
-        <div style={{ marginBottom: 26 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Repeat</p>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {RECURRENCE_OPTIONS.map(o => (
-              <button key={o.id} onClick={() => setRecurrence(o.id)} style={{ padding: "7px 14px", borderRadius: 20, border: `1.5px solid ${recurrence === o.id ? C.rose : C.border}`, background: recurrence === o.id ? C.roseLight : "white", color: recurrence === o.id ? C.roseDark : C.muted, fontFamily: sans, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-          {recurrence === "custom" && (
-            <div style={{ marginTop: 14 }}>
-              <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 8 }}>Repeat on</p>
-              <div style={{ display: "flex", gap: 6 }}>
-                {CAL_DAYS.map((d, i) => (
-                  <button key={i} onClick={() => toggleCustomDay(i)} style={{ width: 36, height: 36, borderRadius: "50%", border: `1.5px solid ${customDays.includes(i) ? C.rose : C.border}`, background: customDays.includes(i) ? C.roseLight : "white", color: customDays.includes(i) ? C.roseDark : C.muted, fontFamily: sans, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {recurrence !== "none" && (
-            <div style={{ marginTop: 14 }}>
-              <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 6 }}>End date <span style={{ color: C.mutedLight }}>(optional)</span></p>
-              <input type="date" value={recurrenceEnd} onChange={e => setRecurrenceEnd(e.target.value)} style={{ background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 13, fontFamily: sans, color: C.text, outline: "none" }} />
-            </div>
-          )}
-        </div>
-
-        {/* Address */}
-        <div style={{ marginBottom: 26 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Address</p>
-          <div style={{ position: "relative" }}>
-            <input value={addressQuery} onChange={e => handleAddressInput(e.target.value)} placeholder="Search address or location…" style={{ width: "100%", background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", fontSize: 14, fontFamily: sans, color: C.text, outline: "none", boxSizing: "border-box" }} />
-            {suggestions.length > 0 && (
-              <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", borderRadius: 12, boxShadow: CARD_SHADOW, zIndex: 20, overflow: "hidden" }}>
-                {suggestions.map((s, i) => (
-                  <button key={s.place_id} onClick={() => selectSuggestion(s)} style={{ width: "100%", padding: "11px 14px", background: "none", border: "none", borderBottom: i < suggestions.length - 1 ? `1px solid ${C.border}` : "none", textAlign: "left", cursor: "pointer", fontFamily: sans, fontSize: 13, color: C.text, display: "block" }}>
-                    {s.description}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <p style={{ fontSize: 10, color: C.mutedLight, fontFamily: sans, marginTop: 5 }}>Powered by Google Maps</p>
-        </div>
-
-        {/* Notes */}
-        <div style={{ marginBottom: 26 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Notes <span style={{ fontWeight: 400, textTransform: "none", fontSize: 10 }}>(optional)</span></p>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any additional details…" rows={3} style={{ width: "100%", background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", fontSize: 14, fontFamily: sans, color: C.text, outline: "none", boxSizing: "border-box", resize: "none" }} />
-        </div>
-
-        {/* Event URL */}
+        {/* ── Notes ── */}
         <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Event URL <span style={{ fontWeight: 400, textTransform: "none", fontSize: 10 }}>(optional)</span></p>
-          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://…" style={{ width: "100%", background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", fontSize: 14, fontFamily: sans, color: C.text, outline: "none", boxSizing: "border-box" }} />
+          {fieldLabel("Notes (optional)")}
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any additional details, prep instructions, questions to ask…" rows={4} style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }} />
         </div>
 
       </div>
