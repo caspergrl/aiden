@@ -443,7 +443,7 @@ function RecipientsPage({ recipients, onSelect, onBack, onAdd, onDelete }) {
                   {(Array.isArray(r.mobility) ? r.mobility : (r.mobility ? [r.mobility] : [])).map(m => (
                     m === 'bedridden' ? <Pill key={m} label="🛏 Bedridden" color={C.muted} /> :
                     m === 'wheelchair' ? <Pill key={m} label="♿ Wheelchair" color={C.muted} /> :
-                    m === 'walker' ? <Pill key={m} label="🦯 Walker" color={C.muted} /> : null
+                    m === 'walker' ? <Pill key={m} label="🦯 Walking aid" color={C.muted} /> : null
                   ))}
                 </div>
               </div>
@@ -674,7 +674,7 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
                 {[
                   { value: 'bedridden', label: 'Bedridden', icon: '🛏', sub: 'Most of the time' },
                   { value: 'wheelchair', label: 'Wheelchair', icon: '♿', sub: 'Needs most of the time' },
-                  { value: 'walker', label: 'Uses Walker', icon: '🦯', sub: 'For mobility assistance' },
+                  { value: 'walker', label: 'Uses walking aid', icon: '🦯', sub: 'Canes, crutches, etc.' },
                 ].map(opt => {
                   const active = mobilityArr.includes(opt.value);
                   return (
