@@ -1330,14 +1330,14 @@ const EVENT_TYPES = [
   { label: "Physical Therapy",     icon: `${FI}/14241/14241578.png` },
   { label: "Occupational Therapy", icon: `${FI}/14241/14241578.png` },
   { label: "Meeting",              icon: `${FI}/2548/2548761.png` },
-  { label: "Lab / Test",           icon: `${FI}/9402/9402263.png` },
-  { label: "Procedure",            icon: `${FI}/3030/3030918.png` },
-  { label: "Pre-op",               icon: `${FI}/3030/3030918.png` },
   { label: "Consultation",         icon: `${FI}/46/46196.png` },
   { label: "Other",                icon: null },
 ];
 
 const CAL_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+// Replace with your Google Maps API key (Geocoding + Places APIs enabled)
+const GOOGLE_MAPS_API_KEY = "YOUR_API_KEY_HERE";
 
 function AddEventScreen({ onBack, onSave, recipients }) {
   const now = new Date();
@@ -1348,8 +1348,12 @@ function AddEventScreen({ onBack, onSave, recipients }) {
   const [time24, setTime24]           = useState("10:00");
   const [locMode, setLocMode]         = useState("inperson"); // 'inperson' | 'video'
   const [location, setLocation]       = useState("");
+  const [addressQuery, setAddressQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [suite, setSuite]             = useState("");
   const [reminders, setReminders]     = useState(true);
   const [notes, setNotes]             = useState("");
+  const searchTimeout = useRef(null);
 
   // Auto-fill title when type is picked (if title is still the previous auto-fill or empty)
   const [autoTitle, setAutoTitle] = useState(true);
@@ -1362,6 +1366,40 @@ function AddEventScreen({ onBack, onSave, recipients }) {
     setAutoTitle(false); // user has customised — stop auto-filling
   }
 
+  async function fetchSuggestions(query) {
+    if (!query || query.length < 2) { setSuggestions([]); return; }
+    try {
+      if (GOOGLE_MAPS_API_KEY === "YOUR_API_KEY_HERE") {
+        // Dev mock — replace key to get real results
+        setSuggestions([
+          { place_id: "1", description: `${query} Medical Center, New York, NY` },
+          { place_id: "2", description: `${query} Clinic, Los Angeles, CA` },
+          { place_id: "3", description: `${query} Health Center, Chicago, IL` },
+          { place_id: "4", description: `${query} — type address manually` },
+        ]);
+      } else {
+        const res = await fetch(
+          `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${GOOGLE_MAPS_API_KEY}&types=establishment|geocode`
+        );
+        const json = await res.json();
+        setSuggestions(json.predictions || []);
+      }
+    } catch { setSuggestions([]); }
+  }
+
+  function handleAddressInput(val) {
+    setAddressQuery(val);
+    setLocation(val); // keep manual typed value as fallback
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => fetchSuggestions(val), 380);
+  }
+
+  function selectSuggestion(s) {
+    setLocation(s.description);
+    setAddressQuery(s.description);
+    setSuggestions([]);
+  }
+
   function handleSave() {
     if (!date) return;
     const appt = {
@@ -1369,7 +1407,7 @@ function AddEventScreen({ onBack, onSave, recipients }) {
       title: title.trim() || type || "Appointment",
       date,
       time: from24h(time24),
-      location: location.trim() || null,
+      location: (location.trim() + (suite.trim() ? `, ${suite.trim()}` : '')) || null,
       type: type || null,
       notes: notes.trim() || null,
       recipientId: recipientId === "myself" ? null : recipientId,
@@ -1474,17 +1512,56 @@ function AddEventScreen({ onBack, onSave, recipients }) {
           {fieldLabel("Location")}
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
             {[{ id: "inperson", label: "📍 In person" }, { id: "video", label: "📹 Video call" }].map(m => (
-              <button key={m.id} onClick={() => { setLocMode(m.id); setLocation(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 12, border: `2px solid ${locMode === m.id ? C.rose : C.border}`, background: locMode === m.id ? C.roseLight : "white", color: locMode === m.id ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <button key={m.id} onClick={() => { setLocMode(m.id); setLocation(""); setAddressQuery(""); setSuite(""); setSuggestions([]); }} style={{ flex: 1, padding: "9px 0", borderRadius: 12, border: `2px solid ${locMode === m.id ? C.rose : C.border}`, background: locMode === m.id ? C.roseLight : "white", color: locMode === m.id ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                 {m.label}
               </button>
             ))}
           </div>
-          <input
-            value={location}
-            onChange={e => setLocation(e.target.value)}
-            placeholder={locMode === "video" ? "https://zoom.us/j/…  or  meet.google.com/…" : "Address or place name"}
-            style={inputStyle}
-          />
+
+          {locMode === "inperson" ? (
+            <>
+              {/* Address with Google autocomplete */}
+              <div style={{ position: "relative", marginBottom: 8 }}>
+                <input
+                  value={addressQuery}
+                  onChange={e => handleAddressInput(e.target.value)}
+                  placeholder="Search address or place name…"
+                  style={inputStyle}
+                  autoComplete="off"
+                />
+                {suggestions.length > 0 && (
+                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", borderRadius: 14, boxShadow: CARD_SHADOW, zIndex: 30, overflow: "hidden", border: `1px solid ${C.border}` }}>
+                    {suggestions.map((s, i) => (
+                      <button key={s.place_id} onClick={() => selectSuggestion(s)} style={{ width: "100%", padding: "11px 14px", background: "none", border: "none", borderBottom: i < suggestions.length - 1 ? `1px solid ${C.border}` : "none", textAlign: "left", cursor: "pointer", fontFamily: sans, fontSize: 13, color: C.text, display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 14, flexShrink: 0 }}>📍</span>
+                        <span style={{ flex: 1 }}>{s.description}</span>
+                      </button>
+                    ))}
+                    <button onClick={() => setSuggestions([])} style={{ width: "100%", padding: "9px 14px", background: C.bg, border: "none", textAlign: "left", cursor: "pointer", fontFamily: sans, fontSize: 12, color: C.mutedLight, fontStyle: "italic" }}>
+                      Not listed — use address as typed
+                    </button>
+                  </div>
+                )}
+              </div>
+              {/* Suite / Unit */}
+              <input
+                value={suite}
+                onChange={e => setSuite(e.target.value)}
+                placeholder="Suite / Unit / Room (optional)"
+                style={{ ...inputStyle, fontSize: 13 }}
+              />
+              {GOOGLE_MAPS_API_KEY === "YOUR_API_KEY_HERE" && (
+                <p style={{ fontSize: 10, color: C.mutedLight, fontFamily: sans, marginTop: 5 }}>Add a Google Maps API key to enable live address search</p>
+              )}
+            </>
+          ) : (
+            <input
+              value={location}
+              onChange={e => setLocation(e.target.value)}
+              placeholder="https://zoom.us/j/…  or  meet.google.com/…"
+              style={inputStyle}
+            />
+          )}
         </div>
 
         {/* ── Reminders ── */}
@@ -1601,7 +1678,7 @@ function CalendarTab({ appointments, recipients, onShowAddEvent, onUpdateAppt, o
                 {count > 0 && (
                   <div style={{ display:"flex", gap:2, position:"absolute", bottom:3 }}>
                     {Array(Math.min(count,3)).fill(null).map((_,k) => (
-                      <div key={k} style={{ width:3, height:3, borderRadius:"50%", background: isSel ? "rgba(255,255,255,0.75)" : C.rose }}/>
+                      <div key={k} style={{ width:5, height:5, borderRadius:"50%", background: isSel ? "rgba(255,255,255,0.85)" : C.rose }}/>
                     ))}
                   </div>
                 )}
