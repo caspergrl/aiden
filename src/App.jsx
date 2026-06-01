@@ -523,7 +523,7 @@ function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
 
 // ─── HOME TAB ──────────────────────────────────────────────────────────────────
 
-function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent, notificationRole, onOpenSettings, onUpdateAppt, onDeleteAppt }) {
+function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent, notificationRole, reminderMethods, onOpenSettings, onUpdateAppt, onDeleteAppt }) {
   const pending = logistics.filter(l => !l.completed).length;
   const sorted = [...appointments].sort((a, b) => new Date(a.date + " " + a.time) - new Date(b.date + " " + b.time));
   const [activeAppt, setActiveAppt] = useState(null);
@@ -2885,7 +2885,7 @@ export default function AidenApp() {
     }
     if (tab === "home") return selRecipient
       ? <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} />
-      : <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => setSelRecipient(r)} onGoToList={() => setTab("list")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} onOpenSettings={() => setShowSettings(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
+      : <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => setSelRecipient(r)} onGoToList={() => setTab("list")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} reminderMethods={reminderMethods} onOpenSettings={() => setShowSettings(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={() => setShowAddEvent(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "list")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} recipients={recipients} user={user} />;
     if (tab === "info")      return <InfoTab recipients={recipients} />;
