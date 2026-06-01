@@ -434,11 +434,16 @@ function SaveCancelRow({ onSave, onCancel, col }) {
   );
 }
 
-function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments }) {
+function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments, medSchedules = [], onSaveMedSchedule, onDeleteMedSchedule, onLogMedication }) {
   const [tab, setTab] = useState("overview");
   const [data, setData] = useState({ ...r });
   const [editSection, setEditSection] = useState(null);
   const [buf, setBuf] = useState({});
+  const [scheduleSheet, setScheduleSheet] = useState(null); // { medName } | null
+  const [schedBuf, setSchedBuf] = useState({ times: [''], enabled: true });
+  const [markGivenId, setMarkGivenId] = useState(null);
+  const [markGivenNote, setMarkGivenNote] = useState('');
+  const [justMarked, setJustMarked] = useState({});
   const [openSections, setOpenSections] = useState(new Set(["numbers"]));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef();
@@ -603,19 +608,77 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
                 <SectionLabel>Medications</SectionLabel>
                 <EditBtn col={col} onClick={() => startEdit("medications", { newItem: "" })} />
               </div>
-              {data.medications.map((m, i) => (
-                <div key={i} style={rowStyle(i === data.medications.length - 1 && editSection !== "medications")}>
-                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: C.peach, flexShrink: 0 }} />
-                  {editSection === "medications"
-                    ? <EditInput value={m} onChange={v => updateItem("medications", i, v)} />
-                    : <span style={{ fontSize: 14, color: C.text, fontFamily: sans, flex: 1 }}>{m}</span>}
-                  {editSection === "medications" && (
-                    <button onClick={() => removeItem("medications", i)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                      <Trash2 size={14} color={C.coral} />
-                    </button>
-                  )}
-                </div>
-              ))}
+              {data.medications.map((m, i) => {
+                const sched = medSchedules.find(s => s.recipientId === data.id && s.medicationName === m);
+                const isLast = i === data.medications.length - 1 && editSection !== "medications";
+                return (
+                  <div key={i}>
+                    <div style={rowStyle(isLast && !sched)}>
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: C.peach, flexShrink: 0 }} />
+                      {editSection === "medications"
+                        ? <EditInput value={m} onChange={v => updateItem("medications", i, v)} />
+                        : <span style={{ fontSize: 14, color: C.text, fontFamily: sans, flex: 1 }}>{m}</span>}
+                      {editSection !== "medications" && (
+                        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                          {/* Mark given */}
+                          {sched && (
+                            <button
+                              onClick={() => {
+                                if (markGivenId === sched.id) { setMarkGivenId(null); setMarkGivenNote(''); return; }
+                                setMarkGivenId(sched.id); setMarkGivenNote('');
+                              }}
+                              title="Mark as given"
+                              style={{ background: justMarked[sched.id] ? C.sage + "22" : C.roseLight, border: "none", borderRadius: 8, padding: "4px 8px", fontSize: 11, color: justMarked[sched.id] ? C.sage : C.roseDark, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
+                            >
+                              <Check size={11} />{justMarked[sched.id] ? "Given!" : "Mark given"}
+                            </button>
+                          )}
+                          {/* Schedule reminder */}
+                          <button
+                            onClick={() => {
+                              setScheduleSheet({ medName: m });
+                              const existing = medSchedules.find(s => s.recipientId === data.id && s.medicationName === m);
+                              setSchedBuf(existing ? { times: existing.times?.length ? existing.times : [''], enabled: existing.enabled !== false } : { times: [''], enabled: true });
+                            }}
+                            title={sched ? "Edit reminder schedule" : "Set reminder schedule"}
+                            style={{ background: sched ? C.sage + "22" : C.bg, border: `1px solid ${sched ? C.sage : C.border}`, borderRadius: 8, padding: "4px 7px", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
+                          >
+                            <Bell size={11} color={sched ? C.sage : C.mutedLight} />
+                            {sched && <span style={{ fontSize: 10, color: C.sage, fontFamily: sans, fontWeight: 600 }}>{sched.times?.join(', ')}</span>}
+                          </button>
+                        </div>
+                      )}
+                      {editSection === "medications" && (
+                        <button onClick={() => removeItem("medications", i)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                          <Trash2 size={14} color={C.coral} />
+                        </button>
+                      )}
+                    </div>
+                    {/* Mark given inline */}
+                    {sched && markGivenId === sched.id && (
+                      <div style={{ background: C.roseLight, borderRadius: 10, padding: "10px 12px", marginBottom: 8, display: "flex", gap: 8, alignItems: "center" }}>
+                        <input
+                          value={markGivenNote}
+                          onChange={e => setMarkGivenNote(e.target.value)}
+                          placeholder="Optional note (e.g. gave with food)"
+                          style={{ flex: 1, background: "white", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: sans, color: C.text, outline: "none" }}
+                        />
+                        <button
+                          onClick={async () => {
+                            await onLogMedication?.(sched.id, data.id, m, markGivenNote);
+                            setJustMarked(prev => ({ ...prev, [sched.id]: true }));
+                            setMarkGivenId(null); setMarkGivenNote('');
+                            setTimeout(() => setJustMarked(prev => ({ ...prev, [sched.id]: false })), 3000);
+                          }}
+                          style={{ background: C.rose, color: "white", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}
+                        >
+                          Confirm
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               {editSection === "medications" && (
                 <>
                   <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
@@ -626,6 +689,78 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
                 </>
               )}
             </Card>
+
+            {/* Medication schedule sheet */}
+            {scheduleSheet && (
+              <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                <div style={{ position: "absolute", inset: 0, background: "rgba(38,32,26,0.45)" }} onClick={() => setScheduleSheet(null)} />
+                <div style={{ position: "relative", background: C.card, borderRadius: "22px 22px 0 0", padding: "24px 20px 40px", zIndex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 600, fontFamily: serif, color: C.text }}>Reminder for {scheduleSheet.medName}</h3>
+                    <button onClick={() => setScheduleSheet(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color={C.muted} /></button>
+                  </div>
+                  <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, marginBottom: 20 }}>
+                    The reminder agent will email you each morning when this medication is due.
+                  </p>
+
+                  <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: "uppercase", fontFamily: sans, marginBottom: 8 }}>Time(s) of day</p>
+                  {schedBuf.times.map((t, i) => (
+                    <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                      <input
+                        type="time"
+                        value={t}
+                        onChange={e => {
+                          const times = [...schedBuf.times]; times[i] = e.target.value;
+                          setSchedBuf(b => ({ ...b, times }));
+                        }}
+                        style={{ flex: 1, background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: sans, color: C.text, outline: "none" }}
+                      />
+                      {schedBuf.times.length > 1 && (
+                        <button onClick={() => setSchedBuf(b => ({ ...b, times: b.times.filter((_, j) => j !== i) }))} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                          <Trash2 size={14} color={C.coral} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {schedBuf.times.length < 4 && (
+                    <button onClick={() => setSchedBuf(b => ({ ...b, times: [...b.times, ''] }))} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: `1px dashed ${C.border}`, borderRadius: 10, padding: "6px 12px", color: C.mutedLight, fontSize: 12, fontFamily: sans, cursor: "pointer", marginBottom: 20 }}>
+                      <Plus size={12} /> Add another time
+                    </button>
+                  )}
+
+                  <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                    <button
+                      onClick={async () => {
+                        const validTimes = schedBuf.times.map(t => {
+                          if (!t) return null;
+                          const [h, m] = t.split(':').map(Number);
+                          const d = new Date(); d.setHours(h, m);
+                          return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                        }).filter(Boolean);
+                        if (!validTimes.length) return;
+                        await onSaveMedSchedule?.({ recipientId: data.id, medicationName: scheduleSheet.medName, times: validTimes, enabled: true });
+                        setScheduleSheet(null);
+                      }}
+                      style={{ flex: 1, background: `linear-gradient(135deg, ${col}, ${col}cc)`, color: "white", border: "none", borderRadius: 14, padding: "13px 0", fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}
+                    >
+                      Save reminder
+                    </button>
+                    {medSchedules.find(s => s.recipientId === data.id && s.medicationName === scheduleSheet.medName) && (
+                      <button
+                        onClick={async () => {
+                          const existing = medSchedules.find(s => s.recipientId === data.id && s.medicationName === scheduleSheet.medName);
+                          if (existing) await onDeleteMedSchedule?.(existing.id);
+                          setScheduleSheet(null);
+                        }}
+                        style={{ background: C.roseLight, color: C.coral, border: "none", borderRadius: 14, padding: "13px 16px", fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Doctors */}
             <Card style={{ marginBottom: 12 }}>
@@ -1839,6 +1974,7 @@ export default function AidenApp() {
   const [doctors, setDoctors] = useState([]);
   const [logistics, setLogistics] = useState([]);
   const [showMsg, setShowMsg] = useState(true);
+  const [medSchedules, setMedSchedules] = useState([]);
   const [chatMessages, setChatMessages] = useState([
     { role: "assistant", text: "Hi Holly! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for Margaret and Thomas — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍" }
   ]);
@@ -1901,17 +2037,19 @@ export default function AidenApp() {
         await seedUserData(uid);
       }
 
-      const [recSnap, apptSnap, logSnap, docSnap] = await Promise.all([
+      const [recSnap, apptSnap, logSnap, docSnap, medSchedSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'recipients')),
         getDocs(collection(db, 'users', uid, 'appointments')),
         getDocs(collection(db, 'users', uid, 'logistics')),
         getDocs(collection(db, 'users', uid, 'doctors')),
+        getDocs(collection(db, 'users', uid, 'medicationSchedules')),
       ]);
 
       setRecipients(recSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setAppointments(apptSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setLogistics(logSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setDoctors(docSnap.docs.map(d => ({ ...d.data(), id: d.id })));
+      setMedSchedules(medSchedSnap.docs.map(d => ({ ...d.data(), id: d.id })));
     } catch (e) {
       console.error('Error loading data:', e);
     }
@@ -1987,6 +2125,45 @@ export default function AidenApp() {
     }
   }
 
+  // ── Medication schedule CRUD ─────────────────────────────────────────────────
+  async function saveMedSchedule(data) {
+    // data = { recipientId, medicationName, times[], enabled }
+    // Upsert: if a schedule already exists for this recipient+medication, update it; else create
+    const existing = medSchedules.find(s => s.recipientId === data.recipientId && s.medicationName === data.medicationName);
+    if (existing) {
+      setMedSchedules(prev => prev.map(s => s.id === existing.id ? { ...s, ...data } : s));
+      if (user) {
+        try { await updateDoc(doc(db, 'users', user.uid, 'medicationSchedules', existing.id), data); }
+        catch (e) { console.error('Error updating med schedule:', e); }
+      }
+    } else {
+      if (user) {
+        try {
+          const ref = await addDoc(collection(db, 'users', user.uid, 'medicationSchedules'), { ...data, createdAt: new Date().toISOString() });
+          setMedSchedules(prev => [...prev, { ...data, id: ref.id, createdAt: new Date().toISOString() }]);
+        } catch (e) { console.error('Error adding med schedule:', e); }
+      } else {
+        setMedSchedules(prev => [...prev, { ...data, id: String(Date.now()), createdAt: new Date().toISOString() }]);
+      }
+    }
+  }
+
+  async function deleteMedSchedule(id) {
+    setMedSchedules(prev => prev.filter(s => s.id !== id));
+    if (user) {
+      try { await deleteDoc(doc(db, 'users', user.uid, 'medicationSchedules', id)); }
+      catch (e) { console.error('Error deleting med schedule:', e); }
+    }
+  }
+
+  async function logMedication(scheduleId, recipientId, medicationName, note = '') {
+    const entry = { scheduleId, recipientId, medicationName, note, administeredAt: new Date() };
+    if (user) {
+      try { await addDoc(collection(db, 'users', user.uid, 'medicationLogs'), { ...entry, administeredAt: new Date() }); }
+      catch (e) { console.error('Error logging medication:', e); }
+    }
+  }
+
   // ── Auth loading screens ─────────────────────────────────────────────────────
   const SplashScreen = ({ subtitle }) => (
     <>
@@ -2044,11 +2221,11 @@ export default function AidenApp() {
   function renderContent() {
     if (showAddEvent) return <AddEventScreen onBack={() => setShowAddEvent(false)} onSave={handleAddAppointments} recipients={recipients} />;
     if (showRecipients) {
-      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} />;
+      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} />;
       return <RecipientsPage recipients={recipients} onSelect={r => setSelRecipient(r)} onBack={() => setShowRecipients(false)} onAdd={addRecipient} onDelete={deleteRecipient} />;
     }
     if (tab === "home") return selRecipient
-      ? <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} />
+      ? <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} />
       : <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => setSelRecipient(r)} onGoToList={() => setTab("list")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} />;
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={() => setShowAddEvent(true)} />;
     if (tab === "list")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} recipients={recipients} user={user} />;
