@@ -4,6 +4,7 @@ import { signOut } from 'firebase/auth';
 import { Menu, X, LogOut, Settings } from 'lucide-react';
 import { auth } from '../firebase';
 import { useAuth } from '../App';
+import { C, serif } from '../theme';
 import Logo from './Logo';
 
 // Nav items — keep in sync with /shared/nav.config.js
@@ -29,44 +30,41 @@ function UserAvatar({ user, onSignOut }) {
   }, []);
 
   return (
-    <div className="relative" ref={ref}>
+    <div style={{ position: 'relative' }} ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-9 h-9 rounded-full bg-rose text-white font-bold text-sm font-serif flex items-center justify-center border-none cursor-pointer flex-shrink-0 hover:bg-rose-dark transition-colors"
         title="My profile"
+        style={{ width: 36, height: 36, borderRadius: '50%', background: C.rose, color: '#fff', fontWeight: 700, fontSize: 15, fontFamily: serif, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', flexShrink: 0 }}
       >
         {initial}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-card border border-border z-50 overflow-hidden">
+        <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 240, background: '#fff', borderRadius: 18, boxShadow: '0 4px 28px rgba(140,60,40,0.13)', border: `1px solid ${C.border}`, zIndex: 200, overflow: 'hidden' }}>
           {/* User info */}
-          <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
-            <div className="w-10 h-10 rounded-full bg-rose flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold font-serif">{initial}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: C.rose, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ color: '#fff', fontWeight: 700, fontFamily: serif, fontSize: 15 }}>{initial}</span>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-ink font-sans truncate">{displayName}</p>
-              <p className="text-xs text-ink-muted font-sans truncate">{user?.email}</p>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: C.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</p>
+              <p style={{ fontSize: 12, color: C.muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</p>
             </div>
           </div>
-
-          {/* Links */}
-          <div className="py-1">
+          {/* Actions */}
+          <div style={{ padding: '4px 0' }}>
             <Link
               to="/account"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm font-sans text-ink hover:bg-warm no-underline transition-colors"
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', fontSize: 14, color: C.text, textDecoration: 'none' }}
             >
-              <Settings size={15} className="text-ink-muted flex-shrink-0" />
-              Account settings
+              <Settings size={15} color={C.muted} /> Account settings
             </Link>
             <button
               onClick={() => { onSignOut(); setOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-sans text-ink-muted hover:bg-warm bg-transparent border-none cursor-pointer text-left transition-colors"
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', fontSize: 14, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             >
-              <LogOut size={15} className="flex-shrink-0" />
-              Sign out
+              <LogOut size={15} /> Sign out
             </button>
           </div>
         </div>
@@ -77,7 +75,7 @@ function UserAvatar({ user, onSignOut }) {
 
 export default function Navbar() {
   const { user, profile } = useAuth();
-  const location = useLocation();
+  const location  = useLocation();
   const navigate  = useNavigate();
   const [open, setOpen]       = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -99,6 +97,16 @@ export default function Navbar() {
   const linkTarget = (item) =>
     item.section && !user ? `/login?redirect=${encodeURIComponent(item.path)}` : item.path;
 
+  const navLinkStyle = (item) => ({
+    fontSize: 14, fontWeight: 600,
+    color: isActive(item) ? C.roseDark : C.text,
+    textDecoration: 'none',
+    paddingBottom: 2,
+    borderBottom: isActive(item) ? `2px solid ${C.roseDark}` : '2px solid transparent',
+    transition: 'color 0.2s',
+    whiteSpace: 'nowrap',
+  });
+
   function handleSignOut() { signOut(auth); navigate('/login'); }
 
   return (
@@ -106,95 +114,77 @@ export default function Navbar() {
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
       background: scrolled ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.85)',
       backdropFilter: 'blur(10px)',
-      borderBottom: scrolled ? '1px solid #ebe2d8' : '1px solid transparent',
+      borderBottom: scrolled ? `1px solid ${C.border}` : '1px solid transparent',
       transition: 'all 0.3s',
     }}>
-      <div className="max-w-[1100px] mx-auto px-6 h-16 flex items-center justify-between">
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
         {/* Logo */}
-        <Link to="/" className="flex items-center no-underline flex-shrink-0">
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0 }}>
           <Logo width={80} />
         </Link>
 
         {/* Desktop nav */}
-        <div className="nav-desktop flex items-center gap-7">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28 }} className="nav-desktop">
           {NAV_ITEMS.map(item => (
-            <Link
-              key={item.label}
-              to={linkTarget(item)}
-              className={[
-                'text-sm font-semibold no-underline pb-px border-b-2 transition-colors whitespace-nowrap',
-                isActive(item)
-                  ? 'text-rose-dark border-rose-dark'
-                  : 'text-ink border-transparent hover:text-rose',
-              ].join(' ')}
-            >
-              {item.label}
-            </Link>
+            <Link key={item.label} to={linkTarget(item)} style={navLinkStyle(item)}>{item.label}</Link>
           ))}
           {user && profile?.role === 'admin' && (
-            <Link to="/admin" className="text-sm font-semibold text-ink-muted no-underline">Admin</Link>
+            <Link to="/admin" style={{ fontSize: 14, fontWeight: 600, color: C.muted, textDecoration: 'none' }}>Admin</Link>
           )}
         </div>
 
         {/* Desktop auth */}
-        <div className="nav-desktop flex items-center gap-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} className="nav-desktop">
           {user ? (
             <UserAvatar user={user} onSignOut={handleSignOut} />
           ) : (
             <>
-              <Link to="/login" className="text-sm font-semibold text-ink no-underline px-3 py-2 whitespace-nowrap">Sign in</Link>
-              <Link to="/login?mode=signup" className="text-sm font-bold text-white no-underline bg-rose-dark rounded-lg px-[18px] py-[7px] whitespace-nowrap hover:bg-rose transition-colors">Get started</Link>
+              <Link to="/login" style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none', padding: '7px 14px' }}>Sign in</Link>
+              <Link to="/login?mode=signup" style={{ fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: C.roseDark, borderRadius: 8, padding: '7px 18px' }}>Get started</Link>
             </>
           )}
         </div>
 
         {/* Mobile burger */}
-        <button onClick={() => setOpen(o => !o)} className="nav-burger bg-transparent border-none cursor-pointer p-1">
-          {open ? <X size={22} /> : <Menu size={22} />}
+        <button onClick={() => setOpen(o => !o)} className="nav-burger" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+          {open ? <X size={22} color={C.text} /> : <Menu size={22} color={C.text} />}
         </button>
       </div>
 
       {/* Mobile menu */}
       {open && (
-        <div className="bg-white border-t border-border px-6 pt-4 pb-6 flex flex-col">
+        <div style={{ background: '#fff', borderTop: `1px solid ${C.border}`, padding: '12px 24px 24px', display: 'flex', flexDirection: 'column' }}>
           {NAV_ITEMS.map(item => (
-            <Link
-              key={item.label}
-              to={linkTarget(item)}
-              className={[
-                'text-[15px] font-semibold no-underline py-3 border-b border-border',
-                isActive(item) ? 'text-rose-dark' : 'text-ink',
-              ].join(' ')}
-            >
+            <Link key={item.label} to={linkTarget(item)} style={{ fontSize: 15, fontWeight: 600, color: isActive(item) ? C.roseDark : C.text, textDecoration: 'none', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>
               {item.label}
             </Link>
           ))}
-          <div className="mt-4">
+          <div style={{ marginTop: 16 }}>
             {user ? (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-3 py-3 border-b border-border">
-                  <div className="w-8 h-8 rounded-full bg-rose flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-sm font-bold font-serif">
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: `1px solid ${C.border}`, marginBottom: 4 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: C.rose, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ color: '#fff', fontWeight: 700, fontFamily: serif, fontSize: 14 }}>
                       {(user?.displayName?.[0] || user?.email?.[0] || '?').toUpperCase()}
                     </span>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink font-sans truncate">{user?.displayName || user?.email?.split('@')[0]}</p>
-                    <p className="text-xs text-ink-muted font-sans truncate">{user?.email}</p>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text, margin: 0 }}>{user?.displayName || user?.email?.split('@')[0]}</p>
+                    <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{user?.email}</p>
                   </div>
                 </div>
-                <Link to="/account" onClick={() => setOpen(false)} className="flex items-center gap-2 text-[15px] font-semibold text-ink no-underline py-3">
-                  <Settings size={15} /> Account settings
+                <Link to="/account" onClick={() => setOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none', padding: '12px 0' }}>
+                  <Settings size={15} color={C.muted} /> Account settings
                 </Link>
-                <button onClick={() => { handleSignOut(); setOpen(false); }} className="flex items-center gap-2 text-[15px] font-semibold text-ink-muted bg-transparent border-none cursor-pointer py-3 px-0 text-left">
+                <button onClick={() => { handleSignOut(); setOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '12px 0', textAlign: 'left' }}>
                   <LogOut size={15} /> Sign out
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
-                <Link to="/login" className="text-[15px] font-semibold text-ink no-underline">Sign in</Link>
-                <Link to="/login?mode=signup" className="text-[15px] font-bold text-rose-dark no-underline">Get started →</Link>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Link to="/login" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>Sign in</Link>
+                <Link to="/login?mode=signup" style={{ fontSize: 15, fontWeight: 700, color: C.roseDark, textDecoration: 'none' }}>Get started →</Link>
               </div>
             )}
           </div>
@@ -205,7 +195,7 @@ export default function Navbar() {
         .nav-burger { display: none; }
         @media (max-width: 767px) {
           .nav-desktop { display: none !important; }
-          .nav-burger   { display: flex !important; }
+          .nav-burger   { display: block !important; }
         }
       `}</style>
     </nav>
