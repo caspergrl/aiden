@@ -82,7 +82,7 @@ export default function AuthScreen() {
   }
 
   return (
-    <div style={{ height: '100%', background: 'linear-gradient(160deg, #fdf6f5 0%, #ffffff 60%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 32px', fontFamily: sans }}>
+    <div style={{ height: '100%', background: 'linear-gradient(160deg, #fdf6f5 0%, #ffffff 60%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'max(env(safe-area-inset-top, 0px), 40px) 32px 40px', fontFamily: sans }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Ledger&display=swap'); * { box-sizing: border-box; } button { font-family: inherit; }`}</style>
 
       {/* Logo */}

@@ -2996,9 +2996,12 @@ export default function AidenApp() {
         ::-webkit-scrollbar { width: 0; }
       `}</style>
 
+      {/* Safe-area top spacer — always present so no view slides under the status bar */}
+      <div style={{ height: "env(safe-area-inset-top, 0px)", background: GRAD, flexShrink: 0 }} />
+
       {/* App header */}
       {!showAddEvent && !(tab === "care" && selRecipient) && tab !== "chat" && (
-        <div style={{ background: GRAD, paddingTop: "env(safe-area-inset-top, 0px)", paddingLeft: 18, paddingRight: 18, paddingBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+        <div style={{ background: GRAD, paddingLeft: 18, paddingRight: 18, paddingBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
           <button onClick={() => { setTab("home"); setSelRecipient(null); setShowRecipients(false); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
             <svg width="72" height="32" viewBox="0 0 138 61" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8.704 60.48C6.05867 60.48 3.94667 59.52 2.368 57.6C0.789333 55.68 0 53.1627 0 50.048C0 46.6347 0.789333 43.4133 2.368 40.384C3.94667 37.312 6.03733 34.8587 8.64 33.024C11.2853 31.1467 14.08 30.208 17.024 30.208C17.9627 30.208 18.5813 30.4 18.88 30.784C19.2213 31.1253 19.4987 31.7653 19.712 32.704C20.608 32.5333 21.5467 32.448 22.528 32.448C24.6187 32.448 25.664 33.1947 25.664 34.688C25.664 35.584 25.344 37.7173 24.704 41.088C23.7227 45.9947 23.232 49.408 23.232 51.328C23.232 51.968 23.3813 52.48 23.68 52.864C24.0213 53.248 24.448 53.44 24.96 53.44C25.7707 53.44 26.752 52.928 27.904 51.904C29.056 50.8373 30.6133 49.1307 32.576 46.784C33.088 46.1867 33.664 45.888 34.304 45.888C34.8587 45.888 35.2853 46.144 35.584 46.656C35.9253 47.168 36.096 47.872 36.096 48.768C36.096 50.4747 35.6907 51.7973 34.88 52.736C33.1307 54.912 31.2747 56.7467 29.312 58.24C27.3493 59.7333 25.4507 60.48 23.616 60.48C22.208 60.48 20.9067 60.0107 19.712 59.072C18.56 58.0907 17.6853 56.768 17.088 55.104C14.8693 58.688 12.0747 60.48 8.704 60.48ZM11.008 54.016C11.9467 54.016 12.8427 53.4613 13.696 52.352C14.5493 51.2427 15.168 49.7707 15.552 47.936L17.92 36.16C16.128 36.2027 14.464 36.8853 12.928 38.208C11.4347 39.488 10.24 41.1947 9.344 43.328C8.448 45.4613 8 47.7227 8 50.112C8 51.4347 8.256 52.416 8.768 53.056C9.32267 53.696 10.0693 54.016 11.008 54.016Z" fill="#D29C9C"/>
