@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { C, serif, sans, FONTS_URL, GRAD, CARD_SHADOW, CARD_SHADOW_SM } from '@shared/theme';
 import AuthScreen from './AuthScreen';
 import { auth, db, storage } from './firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
 import {
   ref as storageRef, listAll, getMetadata,
@@ -267,6 +267,130 @@ function ShowMessageBtn({ onShow }) {
     <button onClick={onShow} style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: `1px dashed ${C.border}`, borderRadius: 14, padding: "8px 14px", color: C.mutedLight, fontSize: 12, fontWeight: 500, fontFamily: sans, cursor: "pointer", marginBottom: 20 }}>
       <Eye size={13} /> Show today's message
     </button>
+  );
+}
+
+// ─── PROFILE SHEET ────────────────────────────────────────────────────────────
+
+function ProfileSheet({ user, onClose, onSignOut, onRefresh }) {
+  const [editingName, setEditingName] = useState(false);
+  const [nameBuf, setNameBuf]         = useState(user?.displayName || '');
+  const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState('');
+  const [success, setSuccess]         = useState('');
+  const [resetSent, setResetSent]     = useState(false);
+
+  const initial = (user?.displayName?.[0] || user?.email?.[0] || '?').toUpperCase();
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Account';
+
+  async function saveName() {
+    if (!nameBuf.trim() || saving) return;
+    setSaving(true); setError('');
+    try {
+      await updateProfile(auth.currentUser, { displayName: nameBuf.trim() });
+      try { await updateDoc(doc(db, 'users', auth.currentUser.uid), { name: nameBuf.trim() }); } catch {}
+      onRefresh?.();
+      setEditingName(false);
+      setSuccess('Name updated'); setTimeout(() => setSuccess(''), 2500);
+    } catch { setError('Could not update name — try again.'); }
+    setSaving(false);
+  }
+
+  async function handlePasswordReset() {
+    try {
+      await sendPasswordResetEmail(auth, user.email);
+      setResetSent(true);
+    } catch { setError('Could not send reset email.'); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[400] flex flex-col justify-end">
+      <div className="absolute inset-0 bg-[rgba(38,32,26,0.45)]" onClick={onClose} />
+      <div className="relative bg-white rounded-t-[22px] px-5 pt-6 pb-12 z-10 max-h-[85vh] overflow-y-auto">
+
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold font-serif text-ink">My Profile</h2>
+          <button onClick={onClose} className="bg-transparent border-none cursor-pointer p-1"><X size={18} color={C.muted} /></button>
+        </div>
+
+        {/* Avatar + name */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-[72px] h-[72px] rounded-full bg-rose flex items-center justify-center mb-3">
+            <span className="text-white text-3xl font-bold font-serif">{initial}</span>
+          </div>
+          <p className="text-lg font-semibold font-serif text-ink">{displayName}</p>
+          <p className="text-sm text-ink-muted">{user?.email}</p>
+        </div>
+
+        {error   && <p className="text-xs text-rose bg-rose-light rounded-lg px-3 py-2 mb-3 font-sans">{error}</p>}
+        {success && <p className="text-xs text-[#3a6e58] bg-[#f0f7f4] rounded-lg px-3 py-2 mb-3 font-sans">{success}</p>}
+
+        {/* Fields */}
+        <div className="rounded-2xl border border-border overflow-hidden mb-4">
+          {/* Name */}
+          <div className="p-4 border-b border-border">
+            <div className="flex justify-between items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-ink-subtle mb-1 font-sans">Full Name</p>
+                {editingName ? (
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      value={nameBuf}
+                      onChange={e => setNameBuf(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && saveName()}
+                      placeholder="Your name"
+                      className="flex-1 bg-warm border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none font-sans"
+                    />
+                    <button onClick={saveName} disabled={saving || !nameBuf.trim()} className="bg-rose text-white rounded-lg px-3 py-2 text-xs font-bold border-none cursor-pointer disabled:opacity-50">
+                      {saving ? '…' : 'Save'}
+                    </button>
+                    <button onClick={() => setEditingName(false)} className="bg-warm rounded-lg px-3 py-2 text-xs font-semibold text-ink-muted border-none cursor-pointer">
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink font-sans">{user?.displayName || '—'}</p>
+                )}
+              </div>
+              {!editingName && (
+                <button
+                  onClick={() => { setEditingName(true); setNameBuf(user?.displayName || ''); }}
+                  className="flex items-center gap-1 text-xs font-bold text-rose-dark bg-rose-light border-none rounded-lg px-3 py-2 cursor-pointer flex-shrink-0"
+                >
+                  <Pencil size={11} /> Edit
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Email */}
+          <div className="p-4 border-b border-border">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-ink-subtle mb-1 font-sans">Email</p>
+            <p className="text-sm text-ink font-sans">{user?.email}</p>
+          </div>
+
+          {/* Password */}
+          <div className="p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-ink-subtle mb-1 font-sans">Password</p>
+            {resetSent ? (
+              <p className="text-sm text-[#3a6e58] font-sans">Reset link sent to {user?.email}</p>
+            ) : (
+              <button onClick={handlePasswordReset} className="text-sm text-rose font-semibold bg-transparent border-none cursor-pointer p-0 font-sans">
+                Send password reset email →
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Sign out */}
+        <button
+          onClick={onSignOut}
+          className="w-full bg-rose-light text-rose-dark border-none rounded-[14px] py-[14px] text-sm font-bold cursor-pointer flex items-center justify-center gap-2 font-sans"
+        >
+          <LogOut size={15} /> Sign out
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -2691,6 +2815,7 @@ export default function AidenApp() {
   const [notificationPhone, setNotificationPhone]   = useState('');
   const [reminderMethods, setReminderMethods]       = useState(['email']); // ['email'] | ['sms'] | ['email','sms']
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile]   = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { role: "assistant", text: "Hi Holly! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for Margaret and Thomas — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍" }
   ]);
@@ -3001,7 +3126,7 @@ export default function AidenApp() {
 
       {/* App header */}
       {!showAddEvent && !(tab === "care" && selRecipient) && tab !== "chat" && (
-        <div style={{ background: GRAD, paddingLeft: 18, paddingRight: 18, paddingBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+        <div style={{ background: GRAD, paddingTop: 18, paddingLeft: 18, paddingRight: 18, paddingBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
           <button onClick={() => { setTab("home"); setSelRecipient(null); setShowRecipients(false); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
             <svg width="72" height="32" viewBox="0 0 138 61" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8.704 60.48C6.05867 60.48 3.94667 59.52 2.368 57.6C0.789333 55.68 0 53.1627 0 50.048C0 46.6347 0.789333 43.4133 2.368 40.384C3.94667 37.312 6.03733 34.8587 8.64 33.024C11.2853 31.1467 14.08 30.208 17.024 30.208C17.9627 30.208 18.5813 30.4 18.88 30.784C19.2213 31.1253 19.4987 31.7653 19.712 32.704C20.608 32.5333 21.5467 32.448 22.528 32.448C24.6187 32.448 25.664 33.1947 25.664 34.688C25.664 35.584 25.344 37.7173 24.704 41.088C23.7227 45.9947 23.232 49.408 23.232 51.328C23.232 51.968 23.3813 52.48 23.68 52.864C24.0213 53.248 24.448 53.44 24.96 53.44C25.7707 53.44 26.752 52.928 27.904 51.904C29.056 50.8373 30.6133 49.1307 32.576 46.784C33.088 46.1867 33.664 45.888 34.304 45.888C34.8587 45.888 35.2853 46.144 35.584 46.656C35.9253 47.168 36.096 47.872 36.096 48.768C36.096 50.4747 35.6907 51.7973 34.88 52.736C33.1307 54.912 31.2747 56.7467 29.312 58.24C27.3493 59.7333 25.4507 60.48 23.616 60.48C22.208 60.48 20.9067 60.0107 19.712 59.072C18.56 58.0907 17.6853 56.768 17.088 55.104C14.8693 58.688 12.0747 60.48 8.704 60.48ZM11.008 54.016C11.9467 54.016 12.8427 53.4613 13.696 52.352C14.5493 51.2427 15.168 49.7707 15.552 47.936L17.92 36.16C16.128 36.2027 14.464 36.8853 12.928 38.208C11.4347 39.488 10.24 41.1947 9.344 43.328C8.448 45.4613 8 47.7227 8 50.112C8 51.4347 8.256 52.416 8.768 53.056C9.32267 53.696 10.0693 54.016 11.008 54.016Z" fill="#D29C9C"/>
@@ -3024,12 +3149,14 @@ export default function AidenApp() {
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Bell size={17} color={C.mutedLight} />
-            <button onClick={() => signOut(auth)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }} title="Sign out">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={C.mutedLight} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
+            <button
+              onClick={() => setShowProfile(true)}
+              className="w-8 h-8 rounded-full bg-rose flex items-center justify-center border-none cursor-pointer flex-shrink-0"
+              title="My profile"
+            >
+              <span className="text-white text-sm font-bold font-serif">
+                {(user?.displayName?.[0] || user?.email?.[0] || '?').toUpperCase()}
+              </span>
             </button>
           </div>
         </div>
@@ -3051,8 +3178,17 @@ export default function AidenApp() {
         />
       )}
 
+      {showProfile && (
+        <ProfileSheet
+          user={user}
+          onClose={() => setShowProfile(false)}
+          onSignOut={() => { signOut(auth); setShowProfile(false); }}
+          onRefresh={() => setUser({ ...auth.currentUser })}
+        />
+      )}
+
       {/* Bottom nav */}
-      <div style={{ background: "linear-gradient(180deg, rgba(245,237,232,0.92) 0%, rgba(255,255,255,0.96) 100%)", backdropFilter: "blur(16px)", borderTop: `1px solid ${C.border}`, display: "flex", paddingBottom: 8, paddingTop: 8, paddingLeft: "5%", paddingRight: "5%", flexShrink: 0 }}>
+      <div style={{ background: "#ffffff", borderTop: `1px solid ${C.border}`, display: "flex", paddingBottom: 8, paddingTop: 8, paddingLeft: "5%", paddingRight: "5%", flexShrink: 0 }}>
         {NAV.map(({ id, Icon, label }) => {
           const active = tab === id;
           return (
