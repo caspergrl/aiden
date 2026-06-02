@@ -58,7 +58,7 @@ export default function Footer() {
               <div style={{ marginTop: 4 }}>
                 {user ? (
                   <button
-                    onClick={() => { signOut(auth); navigate('/'); }}
+                    onClick={() => { signOut(auth); navigate('/login'); }}
                     style={{ background: 'none', border: 'none', padding: 0, fontSize: 13, color: '#b4aca2', cursor: 'pointer', display: 'block', marginBottom: 10 }}
                   >
                     Sign out

@@ -82,7 +82,7 @@ export default function Navbar() {
         {/* Desktop auth */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} className="desktop-nav">
           {user ? (
-            <button onClick={() => { signOut(auth); navigate('/'); }}
+            <button onClick={() => { signOut(auth); navigate('/login'); }}
               style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
               Sign out
             </button>
@@ -111,7 +111,7 @@ export default function Navbar() {
           ))}
           <div style={{ marginTop: 16 }}>
             {user ? (
-              <button onClick={() => { signOut(auth); navigate('/'); }}
+              <button onClick={() => { signOut(auth); navigate('/login'); }}
                 style={{ background: 'none', border: 'none', fontSize: 15, fontWeight: 600, color: C.muted, cursor: 'pointer', textAlign: 'left', padding: '12px 0', width: '100%' }}>
                 Sign out
               </button>

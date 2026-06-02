@@ -61,7 +61,7 @@ export default function DashboardLayout({ active, setActive, children }) {
         <Link to="/account" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: 'none' }}>
           <Settings size={18} strokeWidth={1.8} /> Account
         </Link>
-        <button onClick={() => { signOut(auth); navigate('/'); }} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 500, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
+        <button onClick={() => { signOut(auth); navigate('/login'); }} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 500, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
           <LogOut size={18} strokeWidth={1.8} /> Sign out
         </button>
       </div>
