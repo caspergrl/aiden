@@ -117,7 +117,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-7">
+        <div className="nav-desktop flex items-center gap-7">
           {NAV_ITEMS.map(item => (
             <Link
               key={item.label}
@@ -138,7 +138,7 @@ export default function Navbar() {
         </div>
 
         {/* Desktop auth */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="nav-desktop flex items-center gap-3">
           {user ? (
             <UserAvatar user={user} onSignOut={handleSignOut} />
           ) : (
@@ -150,7 +150,7 @@ export default function Navbar() {
         </div>
 
         {/* Mobile burger */}
-        <button onClick={() => setOpen(o => !o)} className="flex md:hidden bg-transparent border-none cursor-pointer p-1">
+        <button onClick={() => setOpen(o => !o)} className="nav-burger bg-transparent border-none cursor-pointer p-1">
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
@@ -200,6 +200,14 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      <style>{`
+        .nav-burger { display: none; }
+        @media (max-width: 767px) {
+          .nav-desktop { display: none !important; }
+          .nav-burger   { display: flex !important; }
+        }
+      `}</style>
     </nav>
   );
 }
