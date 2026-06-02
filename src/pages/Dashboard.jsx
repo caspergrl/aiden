@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   collection, doc, getDocs, addDoc, updateDoc,
   deleteDoc, setDoc, writeBatch,
@@ -20,7 +21,8 @@ import {
 
 export default function Dashboard() {
   const { user, profile } = useAuth();
-  const [active, setActive] = useState('home');
+  const [searchParams] = useSearchParams();
+  const [active, setActive] = useState(() => searchParams.get('section') || 'home');
   const [dataLoading, setDataLoading] = useState(true);
 
   const [recipients,   setRecipients]   = useState([]);

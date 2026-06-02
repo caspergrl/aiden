@@ -7,6 +7,15 @@ import { useAuth } from '../App';
 import { C, serif } from '../theme';
 import Logo from './Logo';
 
+// Nav items — keep in sync with /shared/nav.config.js
+const NAV_ITEMS = [
+  { label: 'Home',       section: null,       path: '/' },
+  { label: 'Care',       section: 'care',     path: '/dashboard?section=care' },
+  { label: 'Calendar',   section: 'calendar', path: '/dashboard?section=calendar' },
+  { label: 'To Do',      section: 'list',     path: '/dashboard?section=list' },
+  { label: 'Ask Aiden',  section: 'chat',     path: '/dashboard?section=chat' },
+];
+
 export default function Navbar() {
   const { user, profile } = useAuth();
   const location = useLocation();
@@ -22,14 +31,25 @@ export default function Navbar() {
 
   useEffect(() => { setOpen(false); }, [location]);
 
-  const active = (path) => location.pathname === path;
-  const linkStyle = (path) => ({
-    fontSize: 14, fontWeight: 600,
-    color: active(path) ? C.roseDark : C.text,
+  // A nav item is active if we're on its exact path or on the dashboard with its section
+  function isActive(item) {
+    if (item.path === '/') return location.pathname === '/';
+    const section = new URLSearchParams(location.search).get('section') || 'home';
+    return location.pathname === '/dashboard' && section === (item.section || 'home');
+  }
+
+  const linkTarget = (item) =>
+    item.section && !user ? `/login?redirect=${encodeURIComponent(item.path)}` : item.path;
+
+  const linkStyle = (item) => ({
+    fontSize: 14,
+    fontWeight: 600,
+    color: isActive(item) ? C.roseDark : C.text,
     textDecoration: 'none',
     padding: '4px 2px',
-    borderBottom: active(path) ? `2px solid ${C.roseDark}` : '2px solid transparent',
+    borderBottom: isActive(item) ? `2px solid ${C.roseDark}` : '2px solid transparent',
     transition: 'color 0.2s',
+    whiteSpace: 'nowrap',
   });
 
   return (
@@ -43,32 +63,34 @@ export default function Navbar() {
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
         {/* Logo */}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0 }}>
           <Logo width={80} />
         </Link>
 
-        {/* Desktop links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 32 }} className="desktop-nav">
-          <Link to="/" style={linkStyle('/')}>Home</Link>
-          <Link to="/faq" style={linkStyle('/faq')}>FAQ</Link>
-          <Link to="/contact" style={linkStyle('/contact')}>Contact</Link>
+        {/* Desktop nav */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28 }} className="desktop-nav">
+          {NAV_ITEMS.map(item => (
+            <Link key={item.label} to={linkTarget(item)} style={linkStyle(item)}>
+              {item.label}
+            </Link>
+          ))}
           {user && profile?.role === 'admin' && (
-            <Link to="/admin" style={linkStyle('/admin')}>Admin</Link>
+            <Link to="/admin" style={{ fontSize: 14, fontWeight: 600, color: C.muted, textDecoration: 'none' }}>Admin</Link>
           )}
+        </div>
+
+        {/* Desktop auth */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} className="desktop-nav">
           {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <Link to="/dashboard" style={linkStyle('/dashboard')}>Dashboard</Link>
-              <Link to="/account" style={linkStyle('/account')}>My Account</Link>
-              <button onClick={() => { signOut(auth); navigate('/'); }}
-                style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
-                Sign out
-              </button>
-            </div>
+            <button onClick={() => { signOut(auth); navigate('/'); }}
+              style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              Sign out
+            </button>
           ) : (
-            <div style={{ display: 'flex', gap: 10 }}>
-              <Link to="/login" style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none', padding: '7px 16px' }}>Sign in</Link>
-              <Link to="/login?mode=signup" style={{ fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: C.roseDark, borderRadius: 8, padding: '7px 18px' }}>Get started</Link>
-            </div>
+            <>
+              <Link to="/login" style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none', padding: '7px 14px', whiteSpace: 'nowrap' }}>Sign in</Link>
+              <Link to="/login?mode=signup" style={{ fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: C.roseDark, borderRadius: 8, padding: '7px 18px', whiteSpace: 'nowrap' }}>Get started</Link>
+            </>
           )}
         </div>
 
@@ -80,29 +102,31 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {open && (
-        <div style={{ background: '#fff', borderTop: `1px solid ${C.border}`, padding: '16px 24px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Link to="/" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>Home</Link>
-          <Link to="/faq" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>FAQ</Link>
-          <Link to="/contact" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>Contact</Link>
-          {user && profile?.role === 'admin' && (
-            <Link to="/admin" style={{ fontSize: 15, fontWeight: 600, color: C.roseDark, textDecoration: 'none' }}>Admin</Link>
-          )}
-          {user ? (
-            <>
-              <Link to="/account" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>My Account</Link>
-              <button onClick={() => { signOut(auth); navigate('/'); }} style={{ background: 'none', border: 'none', fontSize: 15, fontWeight: 600, color: C.muted, cursor: 'pointer', textAlign: 'left', padding: 0 }}>Sign out</button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>Sign in</Link>
-              <Link to="/login?mode=signup" style={{ fontSize: 15, fontWeight: 700, color: C.roseDark, textDecoration: 'none' }}>Get started →</Link>
-            </>
-          )}
+        <div style={{ background: '#fff', borderTop: `1px solid ${C.border}`, padding: '16px 24px 24px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {NAV_ITEMS.map(item => (
+            <Link key={item.label} to={linkTarget(item)}
+              style={{ fontSize: 15, fontWeight: 600, color: isActive(item) ? C.roseDark : C.text, textDecoration: 'none', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>
+              {item.label}
+            </Link>
+          ))}
+          <div style={{ marginTop: 16 }}>
+            {user ? (
+              <button onClick={() => { signOut(auth); navigate('/'); }}
+                style={{ background: 'none', border: 'none', fontSize: 15, fontWeight: 600, color: C.muted, cursor: 'pointer', textAlign: 'left', padding: '12px 0', width: '100%' }}>
+                Sign out
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+                <Link to="/login" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>Sign in</Link>
+                <Link to="/login?mode=signup" style={{ fontSize: 15, fontWeight: 700, color: C.roseDark, textDecoration: 'none' }}>Get started →</Link>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       <style>{`
-        @media (max-width: 700px) { .desktop-nav { display: none !important; } .burger { display: flex !important; } }
+        @media (max-width: 780px) { .desktop-nav { display: none !important; } .burger { display: flex !important; } }
       `}</style>
     </nav>
   );
