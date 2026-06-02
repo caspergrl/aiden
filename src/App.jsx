@@ -2572,14 +2572,134 @@ function InfoTab({ recipients }) {
   );
 }
 
+// ─── CARE TAB ─────────────────────────────────────────────────────────────────
+// Combines: recipients list + Insurance / Legal / Transitional / Support resources
+
+function CareTab({ recipients, onSelect, onAdd, onDelete }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm]       = useState({ name:"", nickname:"", age:"", relationship:"", conditions:[], medications:[], insurancePlans:[], notes:"", importantNumbers:[], photo:null });
+  const [saving, setSaving]   = useState(false);
+  const [infoSection, setInfoSection] = useState(null); // null | 'insurance' | 'legal' | 'transitional' | 'support'
+
+  async function handleAdd() {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    await onAdd({ ...form, age: form.age ? Number(form.age) : null });
+    setSaving(false);
+    setShowAdd(false);
+    setForm({ name:"", nickname:"", age:"", relationship:"", conditions:[], medications:[], insurancePlans:[], notes:"", importantNumbers:[], photo:null });
+  }
+
+  // Sub-section views
+  if (infoSection === "insurance")    return <div><div style={{ padding:"16px 18px 0" }}><BackBtn onBack={() => setInfoSection(null)} label="Care" /></div><InsuranceTab recipients={recipients} /></div>;
+  if (infoSection === "legal")        return <LegalSection onBack={() => setInfoSection(null)} />;
+  if (infoSection === "transitional") return <TransitionalSection onBack={() => setInfoSection(null)} />;
+  if (infoSection === "support")      return <SupportSection onBack={() => setInfoSection(null)} />;
+
+  const resources = [
+    { id:"insurance",    Icon:Shield,         label:"Insurance",         desc:"Medicare, Medicaid & private plans in plain language",              color:C.blue },
+    { id:"legal",        Icon:Scale,          label:"Legal",             desc:"Wills, POA, HIPAA, Advanced Directives & more",                     color:C.lavender },
+    { id:"transitional", Icon:ArrowRightLeft, label:"Transitional Help", desc:"Assisted living, hospice, rehab & in-home transitions",             color:C.sage },
+    { id:"support",      Icon:Users,          label:"Support",           desc:"Support groups, home health & caregiver resources",                  color:C.peach },
+  ];
+
+  return (
+    <div style={{ padding:"20px 18px 8px" }}>
+      {/* Recipients */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <h1 style={{ fontSize:24, fontWeight:600, color:C.text, fontFamily:serif, letterSpacing:-0.5 }}>Care</h1>
+        <button onClick={() => setShowAdd(true)} style={{ background:C.roseLight, border:"none", color:C.roseDark, fontSize:13, fontWeight:600, fontFamily:sans, cursor:"pointer", display:"flex", alignItems:"center", gap:4, borderRadius:20, padding:"7px 14px" }}>
+          <Plus size={14}/> Add
+        </button>
+      </div>
+
+      {recipients.map(r => (
+        <div key={r.id} style={{ position:"relative", marginBottom:10 }}>
+          <button onClick={() => onSelect(r)} style={{ width:"100%", background:C.card, border:"none", borderRadius:22, padding:"14px 16px", textAlign:"left", cursor:"pointer", boxShadow:CARD_SHADOW, display:"flex", alignItems:"center", gap:14 }}>
+            <Avatar r={r} size={48}/>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2 }}>
+                <span style={{ fontSize:15, fontWeight:600, color:C.text, fontFamily:serif }}>{r.name}</span>
+                {r.relationship && <span style={{ fontSize:10, color:C.muted, background:C.bg, borderRadius:10, padding:"2px 8px", fontWeight:600, fontFamily:sans }}>{r.relationship}</span>}
+              </div>
+              <p style={{ fontSize:12, color:C.muted, fontFamily:sans, marginBottom:4 }}>
+                {r.age ? `Age ${r.age}` : ""}{r.age && r.conditions?.length ? " · " : ""}{r.conditions?.[0] ?? ""}{r.conditions?.length > 1 ? ` +${r.conditions.length - 1}` : ""}
+              </p>
+              <div style={{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center" }}>
+                {(r.insurancePlans ?? []).map(p => INSURANCE_INFO[p] ? <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color}/> : null)}
+                {(Array.isArray(r.mobility) ? r.mobility : (r.mobility ? [r.mobility] : [])).map(m => (
+                  m === 'bedridden' ? <Pill key={m} label="🛏 Bedridden" color={C.muted}/> :
+                  m === 'wheelchair' ? <Pill key={m} label="♿ Wheelchair" color={C.muted}/> :
+                  m === 'walker' ? <Pill key={m} label="🦯 Walking aid" color={C.muted}/> : null
+                ))}
+              </div>
+            </div>
+            <ChevronRight size={16} color={C.border} style={{ flexShrink:0 }}/>
+          </button>
+        </div>
+      ))}
+
+      <button onClick={() => setShowAdd(true)} style={{ width:"100%", border:`1.5px dashed ${C.border}`, borderRadius:22, padding:"12px 18px", background:"none", color:C.mutedLight, fontSize:13, fontFamily:sans, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:28 }}>
+        <Plus size={16}/> Add a care recipient
+      </button>
+
+      {/* Resources */}
+      <p style={{ fontSize:10, fontWeight:700, color:C.mutedLight, letterSpacing:1.2, textTransform:"uppercase", fontFamily:sans, marginBottom:12 }}>Resources</p>
+      <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:20 }}>
+        {resources.map(({ id, Icon:ItemIcon, label, desc, color }) => (
+          <button key={id} onClick={() => setInfoSection(id)} style={{ width:"100%", background:C.card, border:"none", borderRadius:18, padding:"14px 16px", textAlign:"left", cursor:"pointer", boxShadow:CARD_SHADOW_SM, display:"flex", alignItems:"center", gap:14 }}>
+            <div style={{ width:40, height:40, borderRadius:12, background:color+"22", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <ItemIcon size={18} color={color}/>
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:serif, marginBottom:2 }}>{label}</p>
+              <p style={{ fontSize:12, color:C.muted, fontFamily:sans, lineHeight:1.4 }}>{desc}</p>
+            </div>
+            <ChevronRight size={15} color={C.border} style={{ flexShrink:0 }}/>
+          </button>
+        ))}
+      </div>
+
+      {/* Add recipient sheet */}
+      {showAdd && (
+        <div style={{ position:"fixed", inset:0, zIndex:100, display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+          <div style={{ position:"absolute", inset:0, background:"rgba(38,32,26,0.45)" }} onClick={() => setShowAdd(false)}/>
+          <div style={{ position:"relative", background:C.card, borderRadius:"22px 22px 0 0", padding:"24px 20px 36px", zIndex:1, maxHeight:"85vh", overflowY:"auto" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <h3 style={{ fontSize:20, fontWeight:600, fontFamily:serif, color:C.text }}>Add Care Recipient</h3>
+              <button onClick={() => setShowAdd(false)} style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}><X size={20} color={C.muted}/></button>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              <EditInput value={form.name} onChange={v => setForm(f=>({...f,name:v}))} placeholder="Full name *"/>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                <EditInput value={form.nickname} onChange={v => setForm(f=>({...f,nickname:v}))} placeholder="Nickname"/>
+                <EditInput value={form.age} onChange={v => setForm(f=>({...f,age:v}))} placeholder="Age"/>
+              </div>
+              <EditInput value={form.relationship} onChange={v => setForm(f=>({...f,relationship:v}))} placeholder="Relationship (e.g. Parent)"/>
+              <EditInput value={form.notes} onChange={v => setForm(f=>({...f,notes:v}))} placeholder="Notes (optional)" multiline/>
+            </div>
+            <div style={{ display:"flex", gap:10, marginTop:20 }}>
+              <button onClick={handleAdd} disabled={saving || !form.name.trim()} style={{ flex:1, background:saving || !form.name.trim() ? C.border : `linear-gradient(135deg,${C.rose},${C.roseDark})`, color:"white", border:"none", borderRadius:14, padding:"13px 0", fontSize:14, fontWeight:600, fontFamily:sans, cursor:saving || !form.name.trim() ? "default" : "pointer" }}>
+                {saving ? "Saving…" : "Add recipient"}
+              </button>
+              <button onClick={() => setShowAdd(false)} style={{ flex:1, background:C.bg, color:C.muted, border:"none", borderRadius:14, padding:"13px 0", fontSize:14, fontWeight:600, fontFamily:sans, cursor:"pointer" }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN APP ──────────────────────────────────────────────────────────────────
 
+// Nav — keep in sync with /shared/nav.config.js
 const NAV = [
-  { id: "home",      Icon: Home,          label: "Home"      },
-  { id: "calendar",  Icon: CalendarDays,  label: "Calendar"  },
-  { id: "list",      Icon: ClipboardList, label: "To Dos"   },
-  { id: "info",      Icon: Info,           label: "Get help"  },
-  { id: "chat",      Icon: MessageCircle, label: "Ask Aiden" },
+  { id: "home",     Icon: Home,          label: "Home"      },
+  { id: "care",     Icon: Users,         label: "Care"      },
+  { id: "calendar", Icon: CalendarDays,  label: "Calendar"  },
+  { id: "todo",     Icon: ClipboardList, label: "To Do"     },
+  { id: "chat",     Icon: MessageCircle, label: "Ask Aiden" },
 ];
 
 export default function AidenApp() {
@@ -2879,16 +2999,16 @@ export default function AidenApp() {
   // ── Render ───────────────────────────────────────────────────────────────────
   function renderContent() {
     if (showAddEvent) return <AddEventScreen onBack={() => setShowAddEvent(false)} onSave={handleAddAppointments} recipients={recipients} reminderMethods={reminderMethods} />;
-    if (showRecipients) {
-      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} />;
-      return <RecipientsPage recipients={recipients} onSelect={r => setSelRecipient(r)} onBack={() => setShowRecipients(false)} onAdd={addRecipient} onDelete={deleteRecipient} />;
+
+    // Care tab — recipients list, profiles, and resources (insurance etc.)
+    if (tab === "care" || showRecipients) {
+      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => { setSelRecipient(null); }} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} />;
+      return <CareTab recipients={recipients} onSelect={r => setSelRecipient(r)} onAdd={addRecipient} onDelete={deleteRecipient} />;
     }
-    if (tab === "home") return selRecipient
-      ? <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} />
-      : <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => setSelRecipient(r)} onGoToList={() => setTab("list")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} reminderMethods={reminderMethods} onOpenSettings={() => setShowSettings(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
+
+    if (tab === "home") return <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => { setSelRecipient(r); setTab("care"); }} onGoToList={() => setTab("todo")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} reminderMethods={reminderMethods} onOpenSettings={() => setShowSettings(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={() => setShowAddEvent(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
-    if (tab === "list")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} recipients={recipients} user={user} />;
-    if (tab === "info")      return <InfoTab recipients={recipients} />;
+    if (tab === "todo")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} recipients={recipients} user={user} />;
     if (tab === "chat")      return <ChatTab messages={chatMessages} setMessages={setChatMessages} />;
   }
 
@@ -2903,7 +3023,7 @@ export default function AidenApp() {
       `}</style>
 
       {/* App header */}
-      {!showAddEvent && !(tab === "home" && selRecipient) && tab !== "chat" && (
+      {!showAddEvent && !(tab === "care" && selRecipient) && tab !== "chat" && (
         <div style={{ background: GRAD, paddingTop: "env(safe-area-inset-top, 0px)", paddingLeft: 18, paddingRight: 18, paddingBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
           <button onClick={() => { setTab("home"); setSelRecipient(null); setShowRecipients(false); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
             <svg width="72" height="32" viewBox="0 0 138 61" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -2926,10 +3046,6 @@ export default function AidenApp() {
             </svg>
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => { setShowRecipients(true); setSelRecipient(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: C.roseLight, borderRadius: 20, padding: "5px 10px 5px 8px", border: "none", cursor: "pointer" }}>
-              <User size={13} color={C.roseDark} strokeWidth={2.5} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, fontFamily: sans }}>{recipients.length}</span>
-            </button>
             <Bell size={17} color={C.mutedLight} />
             <button onClick={() => signOut(auth)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }} title="Sign out">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={C.mutedLight} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
