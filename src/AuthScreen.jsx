@@ -2,14 +2,7 @@ import { useState } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
-
-const C = {
-  primary: "#7a9dc2", primaryLight: "#dde8f5", primaryDark: "#4a6d8e",
-  rose: "#c4938a", roseLight: "#f8f0ee", bg: "#ffffff",
-  border: "#ede5d8", text: "#26201a", muted: "#8a8076", mutedLight: "#b4aca2",
-};
-const serif = "'Ledger', Georgia, serif";
-const sans = "'Ledger', Georgia, serif";
+import { C, serif, sans } from '@shared/theme';
 
 export default function AuthScreen() {
   const [mode, setMode] = useState('signup'); // 'signin' | 'signup' | 'forgot'
@@ -90,7 +83,7 @@ export default function AuthScreen() {
 
   return (
     <div style={{ height: '100%', background: 'linear-gradient(160deg, #fdf6f5 0%, #ffffff 60%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 32px', fontFamily: sans }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Ledger&display=swap'); * { box-sizing: border-box; } button { font-family: inherit; }`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Ledger&display=swap'); * { box-sizing: border-box; } button { font-family: inherit; }`}</style>
 
       {/* Logo */}
       <div style={{ marginBottom: 48, textAlign: 'center', paddingTop: 48 }}>

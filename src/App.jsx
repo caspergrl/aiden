@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { C, serif, sans, FONTS_URL, GRAD, CARD_SHADOW, CARD_SHADOW_SM } from '@shared/theme';
 import AuthScreen from './AuthScreen';
 import { auth, db, storage } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -16,33 +17,7 @@ import {
   Camera, Pencil, Trash2, X,
 } from "lucide-react";
 
-// ─── PALETTE ───────────────────────────────────────────────────────────────────
-const C = {
-  primary:       "#7a9dc2",   // blue — recipient color coding only
-  primaryLight:  "#dde8f5",
-  primaryDark:   "#4a6d8e",
-  rose:          "#c85c55",   // vivid warm rose — main brand accent
-  roseDark:      "#8b3733",
-  roseLight:     "#faecea",
-  blue:          "#8aaabf",
-  blueLight:     "#e4eef6",
-  bg:            "#ffffff",
-  bgWarm:        "#f5ede8",   // warm cream app background
-  card:          "#ffffff",
-  border:        "#ebe2d8",
-  text:          "#211810",
-  muted:         "#8a7d76",
-  mutedLight:    "#b8ada6",
-  sage:          "#7daa94",
-  peach:         "#d4a87c",
-  coral:         "#c85c55",   // alias for rose
-  lavender:      "#a08ac0",
-  lavenderLight: "#f0ecf8",
-};
-
-const GRAD = "linear-gradient(160deg, #f5ede8 0%, #ffffff 55%)";
-const CARD_SHADOW = "0 4px 28px rgba(140,60,40,0.10), 0 1px 6px rgba(140,60,40,0.05)";
-const CARD_SHADOW_SM = "0 2px 14px rgba(140,60,40,0.08)";
+// ─── PALETTE ── imported from @shared/theme ────────────────────────────────────
 
 // ─── DATA ──────────────────────────────────────────────────────────────────────
 
@@ -184,8 +159,7 @@ const SUGGESTIONS = [
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
 
-const serif = "'Ledger', Georgia, serif";
-const sans  = "'Ledger', Georgia, serif";
+// serif and sans imported from @shared/theme
 
 function getDaysInMonth(m, y) { return new Date(y, m + 1, 0).getDate(); }
 function getFirstDay(m, y) { return new Date(y, m, 1).getDay(); }
@@ -3015,7 +2989,7 @@ export default function AidenApp() {
   return (
     <div style={{ height: "100%", background: C.bg, display: "flex", flexDirection: "column", fontFamily: sans }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Ledger&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Ledger&display=swap');
         @keyframes pulse { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1)} }
         * { box-sizing: border-box; }
         button { font-family: inherit; }
