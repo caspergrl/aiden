@@ -55,19 +55,24 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
   const [locMode, setLocMode] = useState(
     appt.location?.startsWith('http') ? 'video' : 'inperson'
   );
-  const [notes, setNotes]     = useState(appt.notes || '');
+  const [notes, setNotes]           = useState(appt.notes || '');
+  const [recipientId, setRecipientId] = useState(appt.recipientId || 'myself');
 
   const r   = recipients?.find(rec => rec.id === appt.recipientId);
   const col = r ? (r.id === 1 ? C.rose : C.primary) : C.muted;
 
+  function rColor(id) { return id === 1 ? C.rose : C.primary; }
+  function initials(name) { return name.split(' ').map(n => n[0]).join('').slice(0, 2); }
+
   function handleSave() {
     onUpdate(appt.id, {
-      title:    title.trim() || appt.title,
+      title:       title.trim() || appt.title,
       date,
-      time:     from24h(time24),
-      type:     type || null,
-      location: location.trim() || null,
-      notes:    notes.trim() || null,
+      time:        from24h(time24),
+      type:        type || null,
+      location:    location.trim() || null,
+      notes:       notes.trim() || null,
+      recipientId: recipientId === 'myself' ? null : recipientId,
     });
     onClose();
   }
@@ -136,6 +141,28 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
         ) : (
           <>
             <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+              {/* For */}
+              {recipients?.length > 0 && (
+                <div>
+                  <p style={labelStyle}>For</p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {recipients.map(rec => {
+                      const active = recipientId === rec.id;
+                      const col = rColor(rec.id);
+                      return (
+                        <button key={rec.id} onClick={() => setRecipientId(rec.id)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 20, border: `1.5px solid ${active ? col : C.border}`, background: active ? col + '14' : 'white', color: active ? col : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                          <div style={{ width: 20, height: 20, borderRadius: '50%', background: col + '33', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: col }}>{initials(rec.name)}</div>
+                          {rec.nickname || rec.name.split(' ')[0]}
+                        </button>
+                      );
+                    })}
+                    <button onClick={() => setRecipientId('myself')} style={{ padding: '7px 14px', borderRadius: 20, border: `1.5px solid ${recipientId === 'myself' ? C.rose : C.border}`, background: recipientId === 'myself' ? C.roseLight : 'white', color: recipientId === 'myself' ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      Myself
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Title */}
               <div>
