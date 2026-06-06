@@ -41,7 +41,7 @@ export default function CalendarView({ appointments, recipients }) {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         {/* Calendar grid */}
         <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${C.border}`, padding: 24 }}>
           {/* Month nav */}
