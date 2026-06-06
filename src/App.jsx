@@ -577,6 +577,27 @@ function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
               <button onClick={() => setMode('view')} style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}><X size={18} color={C.muted}/></button>
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {/* For */}
+              {recipients?.length > 0 && (
+                <div>
+                  <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:8 }}>For</p>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    {recipients.map(rec => {
+                      const active = (buf.recipientId !== undefined ? buf.recipientId : appt.recipientId) === rec.id;
+                      const rcol = rColor(rec.id);
+                      return (
+                        <button key={rec.id} onClick={() => setBuf(b=>({...b, recipientId: rec.id}))} style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:20, border:`1.5px solid ${active ? rcol : C.border}`, background:active ? rcol+'14' : 'white', color:active ? rcol : C.muted, fontFamily:sans, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                          <div style={{ width:18, height:18, borderRadius:"50%", background:rcol+'33', display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:rcol }}>{initials(rec.name)}</div>
+                          {rec.nickname || rec.name.split(' ')[0]}
+                        </button>
+                      );
+                    })}
+                    <button onClick={() => setBuf(b=>({...b, recipientId: null}))} style={{ padding:"6px 12px", borderRadius:20, border:`1.5px solid ${(buf.recipientId !== undefined ? buf.recipientId : appt.recipientId) === null ? C.rose : C.border}`, background:(buf.recipientId !== undefined ? buf.recipientId : appt.recipientId) === null ? C.roseLight : 'white', color:(buf.recipientId !== undefined ? buf.recipientId : appt.recipientId) === null ? C.roseDark : C.muted, fontFamily:sans, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                      Myself
+                    </button>
+                  </div>
+                </div>
+              )}
               <div>
                 <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Title</p>
                 <input value={buf.title||''} onChange={e=>setBuf(b=>({...b,title:e.target.value}))} style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:14, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
