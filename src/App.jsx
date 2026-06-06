@@ -2478,6 +2478,7 @@ function InsuranceTab({ recipients }) {
 function ChatTab({ messages, setMessages }) {
   const [input, setInput] = useState("");
   const [waiting, setWaiting] = useState(false);
+  const [showSuggested, setShowSuggested] = useState(true);
 
   function send(text) {
     if (!text.trim() || waiting) return;
@@ -2518,9 +2519,14 @@ function ChatTab({ messages, setMessages }) {
         )}
       </div>
 
-      {messages.length <= 1 && !waiting && (
+      {messages.length <= 1 && !waiting && showSuggested && (
         <div style={{ padding: "0 18px 10px", display: "flex", flexDirection: "column", gap: 7 }}>
-          <p style={{ fontSize: 10, fontWeight: 700, color: C.mutedLight, letterSpacing: 1, textTransform: "uppercase", fontFamily: sans }}>Suggested</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: C.mutedLight, letterSpacing: 1, textTransform: "uppercase", fontFamily: sans }}>Suggested</p>
+            <button onClick={() => setShowSuggested(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
+              <X size={14} color={C.mutedLight} />
+            </button>
+          </div>
           {SUGGESTIONS.map((s, i) => (
             <button key={i} onClick={() => send(s)} style={{ background: C.card, border: "none", borderRadius: 14, padding: "10px 14px", textAlign: "left", fontSize: 13, color: C.text, fontFamily: sans, cursor: "pointer", boxShadow: CARD_SHADOW_SM }}>
               {s}
@@ -3151,10 +3157,10 @@ export default function AidenApp() {
             <Bell size={17} color={C.mutedLight} />
             <button
               onClick={() => setShowProfile(true)}
-              className="w-8 h-8 rounded-full bg-rose flex items-center justify-center border-none cursor-pointer flex-shrink-0"
+              style={{ width: 32, height: 32, borderRadius: '50%', background: C.rose, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', flexShrink: 0 }}
               title="My profile"
             >
-              <span className="text-white text-sm font-bold font-serif">
+              <span style={{ color: '#ffffff', fontSize: 14, fontWeight: 700, fontFamily: serif }}>
                 {(user?.displayName?.[0] || user?.email?.[0] || '?').toUpperCase()}
               </span>
             </button>

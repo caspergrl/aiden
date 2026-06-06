@@ -5,7 +5,7 @@ import { auth, db } from './firebase';
 import { C, serif, sans } from '@shared/theme';
 
 export default function AuthScreen() {
-  const [mode, setMode] = useState('signup'); // 'signin' | 'signup' | 'forgot'
+  const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
