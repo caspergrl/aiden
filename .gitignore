@@ -3,3 +3,7 @@ dist/
 .DS_Store
 .claude/
 *.local
+
+# Secrets — never commit these
+agents/reminder/.env
+agents/reminder/service-account.json
