@@ -158,6 +158,13 @@ export default function Dashboard() {
       setAppointments(prev => prev.filter(a => a.id !== tempId));
     }
   }
+  async function updateAppointment(id, updates) {
+    setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    try {
+      const { id: _id, ...data } = updates;
+      await updateDoc(doc(db, 'users', user.uid, 'appointments', id), data);
+    } catch (e) { fsError('updateAppointment', e); }
+  }
   async function deleteAppointment(id) {
     setAppointments(prev => prev.filter(a => a.id !== id));
     try {
@@ -203,7 +210,7 @@ export default function Dashboard() {
   function renderContent() {
     switch (active) {
       case 'home':
-        return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={setActive} onAddRecipient={addRecipient} />;
+        return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={setActive} onAddRecipient={addRecipient} onUpdateAppointment={updateAppointment} onDeleteAppointment={deleteAppointment} />;
       case 'care':
         return (
           <Care
@@ -220,7 +227,7 @@ export default function Dashboard() {
           />
         );
       case 'calendar':
-        return <CalendarView appointments={appointments} recipients={recipients} onAddAppointment={addAppointment} />;
+        return <CalendarView appointments={appointments} recipients={recipients} onAddAppointment={addAppointment} onUpdateAppointment={updateAppointment} onDeleteAppointment={deleteAppointment} />;
       case 'list':
         return (
           <MyList

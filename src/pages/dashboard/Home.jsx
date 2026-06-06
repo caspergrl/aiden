@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CalendarDays, ClipboardList, ChevronRight, Plus, Eye, EyeOff, AlertCircle, Clock } from 'lucide-react';
+import AppointmentModal from '../../components/AppointmentModal';
 import { C, serif, shadow, shadowSm, radius } from '../../theme';
 import { getDailyMessage, INSURANCE_INFO } from '../../data';
 import { AddRecipientModal } from './Care';
@@ -14,8 +15,9 @@ function todayStr() {
   return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-export default function Home({ recipients, appointments, logistics, onNavigate, onAddRecipient }) {
-  const [showMsg, setShowMsg] = useState(true);
+export default function Home({ recipients, appointments, logistics, onNavigate, onAddRecipient, onUpdateAppointment, onDeleteAppointment }) {
+  const [showMsg, setShowMsg]       = useState(true);
+  const [activeAppt, setActiveAppt] = useState(null);
   const [showAddRecipient, setShowAddRecipient] = useState(false);
   const pending = logistics.filter(l => !l.completed).length;
   const pct = Math.round(((logistics.length - pending) / logistics.length) * 100);
@@ -86,7 +88,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
               const r = recipients.find(x => x.id === appt.recipientId);
               const col = rColor(r?.id);
               return (
-                <div key={appt.id} style={{ padding: '12px 20px', borderBottom: i < sorted.length - 1 ? `1px solid ${C.border}` : 'none', display: 'flex', gap: 14, alignItems: 'center' }}>
+                <button key={appt.id} onClick={() => setActiveAppt(appt)} style={{ width: '100%', padding: '12px 20px', borderBottom: i < sorted.length - 1 ? `1px solid ${C.border}` : 'none', display: 'flex', gap: 14, alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: col + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: col, flexShrink: 0 }}>
                     {r ? initials(r.name) : '?'}
                   </div>
@@ -98,7 +100,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
                     </div>
                   </div>
                   <span style={{ background: col + '18', color: col, borderRadius: 12, padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{r?.nickname || '?'}</span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -135,6 +137,15 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
           ))}
         </div>
       </div>
+      {activeAppt && (
+        <AppointmentModal
+          appt={activeAppt}
+          recipients={recipients}
+          onUpdate={onUpdateAppointment}
+          onDelete={onDeleteAppointment}
+          onClose={() => setActiveAppt(null)}
+        />
+      )}
     </div>
   );
 }

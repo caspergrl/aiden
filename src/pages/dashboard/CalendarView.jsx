@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Clock, MapPin, X, Check, Video } from 'lucide-react';
 import { C, serif, sans } from '../../theme';
 import { FULL_MONTHS, DAYS_OF_WEEK } from '../../data';
+import AppointmentModal from '../../components/AppointmentModal';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function rColor(id) { return id === 1 ? C.rose : C.primary; }
@@ -208,12 +209,13 @@ function AddAppointmentModal({ recipients, onSave, onClose }) {
 }
 
 // ── Calendar View ──────────────────────────────────────────────────────────────
-export default function CalendarView({ appointments, recipients, onAddAppointment }) {
+export default function CalendarView({ appointments, recipients, onAddAppointment, onUpdateAppointment, onDeleteAppointment }) {
   const today = new Date();
   const [month, setMonth]       = useState(today.getMonth());
   const [year, setYear]         = useState(today.getFullYear());
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd]   = useState(false);
+  const [activeAppt, setActiveAppt] = useState(null);
 
   const days  = getDaysInMonth(month, year);
   const first = getFirstDay(month, year);
@@ -315,7 +317,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
               const r   = recipients.find(rec => rec.id === a.recipientId);
               const col = rColor(r?.id);
               return (
-                <div key={a.id} style={{ padding: '14px 20px', borderBottom: i < visible.length - 1 ? `1px solid ${C.border}` : 'none', borderLeft: `3px solid ${col}` }}>
+                <button key={a.id} onClick={() => setActiveAppt(a)} style={{ width: '100%', padding: '14px 20px', borderBottom: i < visible.length - 1 ? `1px solid ${C.border}` : 'none', borderLeft: `3px solid ${col}`, background: 'none', border: 'none', borderLeft: `3px solid ${col}`, borderBottom: i < visible.length - 1 ? `1px solid ${C.border}` : 'none', cursor: 'pointer', textAlign: 'left', display: 'block' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                     <p style={{ fontSize: 14, fontWeight: 700, color: C.text, flex: 1 }}>{a.title}</p>
                     {r && <span style={{ background: col+'18', color: col, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>{r.nickname}</span>}
@@ -331,7 +333,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
                     </div>
                   )}
                   {a.doctor && <p style={{ fontSize: 12, color: col, fontWeight: 600, marginTop: 2 }}>{a.doctor}</p>}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -344,6 +346,17 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
           recipients={recipients}
           onSave={onAddAppointment}
           onClose={() => setShowAdd(false)}
+        />
+      )}
+
+      {/* Edit / delete modal */}
+      {activeAppt && (
+        <AppointmentModal
+          appt={activeAppt}
+          recipients={recipients}
+          onUpdate={onUpdateAppointment}
+          onDelete={onDeleteAppointment}
+          onClose={() => setActiveAppt(null)}
         />
       )}
     </div>
