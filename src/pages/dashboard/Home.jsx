@@ -71,7 +71,8 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
         </button>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <style>{`@media (max-width: 900px) { .home-two-col { grid-template-columns: 1fr !important; } }`}</style>
+      <div className="home-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {/* Upcoming appointments */}
         <div style={{ background: '#fff', borderRadius: radius.xl, boxShadow: shadowSm, overflow: 'hidden' }}>
           <div style={{ padding: '18px 20px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}` }}>
