@@ -248,7 +248,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* Calendar grid */}
-        <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${C.border}`, padding: 24 }}>
+        <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${C.border}`, padding: 24, maxWidth: 620 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <button onClick={prev} style={{ background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 12px', cursor: 'pointer' }}>
               <ChevronLeft size={18} color={C.muted} />
