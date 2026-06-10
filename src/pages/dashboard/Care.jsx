@@ -351,7 +351,7 @@ function MedicationBuilder({ value, onChange }) {
           </div>
         </div>
       ) : (
-        <button onClick={openAdd} style={{ width: '100%', border: `1.5px dashed ${C.border}`, borderRadius: 10, padding: '9px 0', background: 'none', color: C.mutedLight, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <button onClick={openAdd} style={{ width: '100%', border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '10px 18px', background: C.roseLight, color: C.roseDark, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           <Plus size={14} /> Add medication
         </button>
       )}

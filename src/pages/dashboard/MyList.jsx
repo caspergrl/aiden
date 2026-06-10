@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  CheckSquare, Square, Plus, Phone, FileText, Image,
+  CheckSquare, Square, Plus, FileText, Image,
   GripVertical, ChevronDown, ChevronRight,
-  RotateCcw, Trash2, Download, Upload, AlertCircle,
+  RotateCcw, Trash2, Download, Upload, AlertCircle, Pencil, X,
 } from 'lucide-react';
 import {
   ref as storageRef, listAll, getMetadata,
@@ -90,7 +90,7 @@ function fmtSize(bytes) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────────
-export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAddLogistic, doctors, recipients = [] }) {
+export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAddLogistic, doctors, onAddDoctor, onUpdateDoctor, onDeleteDoctor, recipients = [] }) {
   const { user } = useAuth();
   const [sub, setSub]         = useState('logistics');
   const [adding, setAdding]   = useState(false);
@@ -105,6 +105,26 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
   // ── Drag state ────────────────────────────────────────────────────────────────
   const dragId              = useRef(null);
   const [dragOverId, setDragOverId] = useState(null);
+
+  // ── Doctor modal state ────────────────────────────────────────────────────────
+  const BLANK_DOC = { name: '', specialty: '', phone: '', address: '', notes: '', recipientId: '' };
+  const [doctorModal, setDoctorModal] = useState(null); // null | 'add' | doctor-object (edit)
+  const [doctorBuf, setDoctorBuf]     = useState(BLANK_DOC);
+  const [deletingDoctor, setDeletingDoctor] = useState(null); // id being confirmed
+
+  function openAddDoctor()    { setDoctorBuf(BLANK_DOC); setDoctorModal('add'); }
+  function openEditDoctor(d)  { setDoctorBuf({ name: d.name||'', specialty: d.specialty||'', phone: d.phone||'', address: d.address||'', notes: d.notes||'', recipientId: d.recipientId||'' }); setDoctorModal(d); }
+  function closeDoctorModal() { setDoctorModal(null); }
+
+  function saveDoctorModal() {
+    if (!doctorBuf.name.trim()) return;
+    if (doctorModal === 'add') {
+      onAddDoctor?.({ ...doctorBuf, name: doctorBuf.name.trim() });
+    } else {
+      onUpdateDoctor?.(doctorModal.id, { ...doctorBuf, name: doctorBuf.name.trim() });
+    }
+    closeDoctorModal();
+  }
 
   // ── Documents state ───────────────────────────────────────────────────────────
   const [docs, setDocs]                 = useState([]);
@@ -341,8 +361,8 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                 </div>
               </div>
             ) : (
-              <button onClick={() => setAdding(true)} style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 14, padding: 14, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <Plus size={15} /> Add item to checklist
+              <button onClick={() => setAdding(true)} style={{ width: '100%', border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '10px 18px', background: C.roseLight, color: C.roseDark, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Plus size={14} /> Add item to checklist
               </button>
             )}
           </div>
@@ -399,41 +419,129 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
         <>
           <FilterBar recipients={recipients} filterId={filterRecipId} setFilterId={setFilterRecipId} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+            {/* Empty state */}
             {filteredDoctors.length === 0 && (
-              <p style={{ fontSize: 14, color: C.mutedLight, textAlign: 'center', padding: '20px 0' }}>
-                {filterRecipId ? 'No doctors for this person.' : 'No doctors yet.'}
-              </p>
+              <div style={{ textAlign: 'center', padding: '32px 0 20px' }}>
+                <p style={{ fontSize: 32, marginBottom: 8 }}>🩺</p>
+                <p style={{ fontSize: 14, color: C.mutedLight, marginBottom: 4 }}>
+                  {filterRecipId ? 'No doctors for this person.' : 'No doctors added yet.'}
+                </p>
+                <p style={{ fontSize: 12, color: C.mutedLight }}>Add a doctor to keep their info handy.</p>
+              </div>
             )}
+
+            {/* Doctor cards */}
             {filteredDoctors.map(d => {
               const col = rColor(d.recipientId);
               const recip = d.recipientId ? recipients.find(r => r.id === d.recipientId) : null;
               return (
-                <div key={d.id} style={{ background: '#fff', borderRadius: 16, padding: '16px 20px', border: `1px solid ${C.border}`, borderLeft: `4px solid ${col}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                      <p style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{d.name}</p>
-                      {recip && <RecipAvatar r={recip} size={22} />}
+                <div key={d.id} style={{ background: '#fff', borderRadius: 16, padding: '16px 20px', border: `1px solid ${C.border}`, borderLeft: `4px solid ${col}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                        <p style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{d.name}</p>
+                        {recip && <RecipAvatar r={recip} size={22} />}
+                      </div>
+                      {d.specialty && <p style={{ fontSize: 13, color: col, fontWeight: 700, marginTop: 2 }}>{d.specialty}</p>}
+                      {d.phone && <a href={`tel:${d.phone}`} style={{ fontSize: 12, color: C.primary, marginTop: 3, display: 'block', textDecoration: 'none', fontWeight: 500 }}>{d.phone}</a>}
+                      {d.address && <p style={{ fontSize: 12, color: C.mutedLight }}>{d.address}</p>}
+                      {d.notes && <p style={{ fontSize: 12, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>{d.notes}</p>}
                     </div>
-                    <p style={{ fontSize: 13, color: col, fontWeight: 700, marginTop: 2 }}>{d.specialty}</p>
-                    <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{d.phone}</p>
-                    <p style={{ fontSize: 12, color: C.mutedLight }}>{d.address}</p>
-                    {d.notes && <p style={{ fontSize: 12, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>{d.notes}</p>}
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => openEditDoctor(d)} style={{ width: 34, height: 34, background: C.bgWarm, border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <Pencil size={14} color={C.muted} />
+                      </button>
+                      {deletingDoctor === d.id ? (
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <button onClick={() => { onDeleteDoctor?.(d.id); setDeletingDoctor(null); }} style={{ background: '#c0392b', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Delete</button>
+                          <button onClick={() => setDeletingDoctor(null)} style={{ background: 'none', border: 'none', fontSize: 12, color: C.muted, cursor: 'pointer' }}>Cancel</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setDeletingDoctor(d.id)} style={{ width: 34, height: 34, background: C.bgWarm, border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                          <Trash2 size={14} color={C.muted} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <a href={`tel:${d.phone}`} style={{ width: 42, height: 42, background: col + '18', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}>
-                    <Phone size={16} color={col} />
-                  </a>
                 </div>
               );
             })}
-            <button style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 16, padding: 16, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <Plus size={15} /> Add a doctor
+
+            <button onClick={openAddDoctor} style={{ width: '100%', border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '10px 18px', background: C.roseLight, color: C.roseDark, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Plus size={14} /> Add a doctor
             </button>
           </div>
+
+          {/* Doctor add/edit modal */}
+          {doctorModal && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={closeDoctorModal}>
+              <div style={{ background: 'rgba(38,32,26,0.4)', position: 'absolute', inset: 0 }} />
+              <div style={{ background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 480, position: 'relative', zIndex: 1, boxShadow: '0 8px 40px rgba(140,60,40,0.15)' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+                  <h2 style={{ fontFamily: serif, fontSize: 20, color: C.text, margin: 0 }}>{doctorModal === 'add' ? 'Add a doctor' : 'Edit doctor'}</h2>
+                  <button onClick={closeDoctorModal} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} color={C.muted} /></button>
+                </div>
+
+                {/* Form fields */}
+                {[
+                  { key: 'name',      label: 'Name *',       placeholder: 'Dr. Sarah Chen' },
+                  { key: 'specialty', label: 'Specialty',    placeholder: 'Cardiologist' },
+                  { key: 'phone',     label: 'Phone',        placeholder: '(555) 000-0000' },
+                  { key: 'address',   label: 'Address',      placeholder: '123 Main St, Atlanta, GA' },
+                  { key: 'notes',     label: 'Notes',        placeholder: 'Any additional info…' },
+                ].map(({ key, label, placeholder }) => (
+                  <div key={key} style={{ marginBottom: 14 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>{label}</p>
+                    <input
+                      value={doctorBuf[key]}
+                      onChange={e => setDoctorBuf(b => ({ ...b, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                      style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box', background: '#faf9f7' }}
+                    />
+                  </div>
+                ))}
+
+                {/* Recipient */}
+                {recipients.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>For</p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button onClick={() => setDoctorBuf(b => ({ ...b, recipientId: '' }))} style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${!doctorBuf.recipientId ? C.rose : C.border}`, background: !doctorBuf.recipientId ? C.roseLight : '#fff', color: !doctorBuf.recipientId ? C.roseDark : C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Anyone</button>
+                      {recipients.map(r => {
+                        const active = doctorBuf.recipientId === r.id;
+                        const col = rColor(r.id);
+                        return (
+                          <button key={r.id} onClick={() => setDoctorBuf(b => ({ ...b, recipientId: r.id }))} style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${active ? col : C.border}`, background: active ? col + '18' : '#fff', color: active ? col : C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                            {r.nickname || r.name.split(' ')[0]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={closeDoctorModal} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={saveDoctorModal} disabled={!doctorBuf.name.trim()} style={{ flex: 2, background: doctorBuf.name.trim() ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 12, padding: '11px 0', fontWeight: 700, fontSize: 14, cursor: doctorBuf.name.trim() ? 'pointer' : 'default', transition: 'background 0.2s' }}>
+                    {doctorModal === 'add' ? 'Add doctor' : 'Save changes'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
       {/* ── Documents ─────────────────────────────────────────────────────────── */}
       {sub === 'documents' && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 0 32px', gap: 12 }}>
+          <p style={{ fontSize: 40 }}>📂</p>
+          <p style={{ fontFamily: serif, fontSize: 22, fontWeight: 700, color: C.text }}>Coming soon!</p>
+          <p style={{ fontSize: 14, color: C.mutedLight, textAlign: 'center', maxWidth: 300, lineHeight: 1.6 }}>Document storage is on its way. You'll be able to upload and organize records, insurance cards, and legal docs here.</p>
+        </div>
+      )}
+      {false && (
         <>
           {/* Hidden file input */}
           <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg,.pdf" style={{ display: 'none' }} onChange={handleUpload} />
@@ -544,14 +652,14 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
               {/* Upload drop zone */}
               {filteredDocs.length > 0 && (
                 <button onClick={() => fileInput.current?.click()} disabled={uploading}
-                  style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 14, padding: 14, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <Plus size={15} /> Upload another document
+                  style={{ width: '100%', border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '10px 18px', background: C.roseLight, color: C.roseDark, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <Plus size={14} /> Upload another document
                 </button>
               )}
             </div>
           )}
         </>
-      )}
+      )}{/* end hidden documents block */}
 
       <style>{`
         [data-drag-item] { user-select: none; }

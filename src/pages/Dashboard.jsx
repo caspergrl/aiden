@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   collection, doc, getDocs, addDoc, updateDoc,
   deleteDoc, setDoc, writeBatch,
@@ -21,8 +21,9 @@ import {
 
 export default function Dashboard() {
   const { user, profile } = useAuth();
-  const [searchParams] = useSearchParams();
-  const [active, setActive] = useState(() => searchParams.get('section') || 'home');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const active = location.pathname.slice(1) || 'home';
   const [dataLoading, setDataLoading] = useState(true);
 
   const [recipients,   setRecipients]   = useState([]);
@@ -144,6 +145,12 @@ export default function Dashboard() {
       await deleteDoc(doc(db, 'users', user.uid, 'doctors', id));
     } catch (e) { fsError('deleteDoctor', e); }
   }
+  async function updateDoctor(id, changes) {
+    setDoctors(prev => prev.map(d => d.id === id ? { ...d, ...changes } : d));
+    try {
+      await updateDoc(doc(db, 'users', user.uid, 'doctors', id), changes);
+    } catch (e) { fsError('updateDoctor', e); }
+  }
 
   // ── Appointments ──────────────────────────────────────────────────────────────
   async function addAppointment(data) {
@@ -198,7 +205,7 @@ export default function Dashboard() {
 
   if (dataLoading) {
     return (
-      <DashboardLayout active={active} setActive={setActive}>
+      <DashboardLayout active={active}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
           <div style={{ width: 36, height: 36, border: '3px solid #ebe2d8', borderTopColor: '#c85c55', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -210,7 +217,7 @@ export default function Dashboard() {
   function renderContent() {
     switch (active) {
       case 'home':
-        return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={setActive} onAddRecipient={addRecipient} onUpdateAppointment={updateAppointment} onDeleteAppointment={deleteAppointment} />;
+        return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={(section) => navigate('/' + section)} onAddRecipient={addRecipient} onUpdateAppointment={updateAppointment} onDeleteAppointment={deleteAppointment} />;
       case 'care':
         return (
           <Care
@@ -228,7 +235,7 @@ export default function Dashboard() {
         );
       case 'calendar':
         return <CalendarView appointments={appointments} recipients={recipients} onAddAppointment={addAppointment} onUpdateAppointment={updateAppointment} onDeleteAppointment={deleteAppointment} />;
-      case 'list':
+      case 'todo':
         return (
           <MyList
             logistics={logistics}
@@ -236,6 +243,9 @@ export default function Dashboard() {
             onUpdateLogistic={updateLogistic}
             onAddLogistic={addLogistic}
             doctors={doctors}
+            onAddDoctor={addDoctor}
+            onUpdateDoctor={updateDoctor}
+            onDeleteDoctor={deleteDoctor}
             recipients={recipients}
           />
         );
@@ -249,7 +259,7 @@ export default function Dashboard() {
   }
 
   return (
-    <DashboardLayout active={active} setActive={setActive}>
+    <DashboardLayout active={active}>
       {renderContent()}
       {saveError && (
         <div style={{

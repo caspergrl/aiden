@@ -9,11 +9,11 @@ import Logo from './Logo';
 
 // Nav items — keep in sync with /shared/nav.config.js
 const NAV_ITEMS = [
-  { label: 'Home',       section: null,       path: '/' },
-  { label: 'Care',       section: 'care',     path: '/dashboard?section=care' },
-  { label: 'Calendar',   section: 'calendar', path: '/dashboard?section=calendar' },
-  { label: 'To Do',      section: 'list',     path: '/dashboard?section=list' },
-  { label: 'Ask Aiden',  section: 'chat',     path: '/dashboard?section=chat' },
+  { label: 'Home',       path: '/'          },
+  { label: 'Care',       path: '/care'      },
+  { label: 'Calendar',   path: '/calendar'  },
+  { label: 'To Do',      path: '/todo'      },
+  { label: 'Ask Aiden',  path: '/chat'      },
 ];
 
 function UserAvatar({ user, onSignOut }) {
@@ -89,13 +89,12 @@ export default function Navbar() {
   useEffect(() => { setOpen(false); }, [location]);
 
   function isActive(item) {
-    if (item.path === '/') return location.pathname === '/';
-    const section = new URLSearchParams(location.search).get('section') || 'home';
-    return location.pathname === '/dashboard' && section === (item.section || 'home');
+    if (item.path === '/') return location.pathname === '/' || location.pathname === '/home';
+    return location.pathname === item.path;
   }
 
   const linkTarget = (item) =>
-    item.section && !user ? `/login?redirect=${encodeURIComponent(item.path)}` : item.path;
+    item.path !== '/' && !user ? `/login?redirect=${encodeURIComponent(item.path)}` : item.path;
 
   const navLinkStyle = (item) => ({
     fontSize: 14, fontWeight: 600,

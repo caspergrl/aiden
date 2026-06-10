@@ -57,13 +57,13 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 28 }}>
         <StatCard label="Care recipients" value={recipients.length} color={C.rose} onClick={() => onNavigate('care')} onAdd={() => setShowAddRecipient(true)} />
         <StatCard label="Upcoming appointments" value={appointments.length} color={C.primary} onClick={() => onNavigate('calendar')} onAdd={() => onNavigate('calendar')} />
-        <StatCard label="Checklist progress" value={`${pct}%`} color={C.sage} onClick={() => onNavigate('list')} />
-        <StatCard label="Items need attention" value={pending} color={pending > 0 ? C.coral : C.sage} onClick={() => onNavigate('list')} />
+        <StatCard label="Checklist progress" value={`${pct}%`} color={C.sage} onClick={() => onNavigate('todo')} />
+        <StatCard label="Items need attention" value={pending} color={pending > 0 ? C.coral : C.sage} onClick={() => onNavigate('todo')} />
       </div>
 
       {/* Alert */}
       {pending > 0 && (
-        <button onClick={() => onNavigate('list')} style={{ width: '100%', background: '#fdf6f5', border: `1px solid ${C.rose}40`, borderRadius: 16, padding: '14px 18px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer', textAlign: 'left' }}>
+        <button onClick={() => onNavigate('todo')} style={{ width: '100%', background: '#fdf6f5', border: `1px solid ${C.rose}40`, borderRadius: 16, padding: '14px 18px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer', textAlign: 'left' }}>
           <AlertCircle size={18} color={C.coral} style={{ flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: '#7a3a34' }}>{pending} logistics items need your attention</p>

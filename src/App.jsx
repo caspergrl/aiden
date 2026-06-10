@@ -73,10 +73,15 @@ export default function App() {
           <Route path="/faq"     element={<FAQ />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login"   element={<Login />} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/home"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/care"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/calendar"  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/todo"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/chat"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<Navigate to="/home" replace />} />
           <Route path="/account"   element={<ProtectedRoute><Account /></ProtectedRoute>} />
           <Route path="/admin"     element={<AdminRoute><Admin /></AdminRoute>} />
-          <Route path="*"        element={<Navigate to="/" replace />} />
+          <Route path="*"          element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

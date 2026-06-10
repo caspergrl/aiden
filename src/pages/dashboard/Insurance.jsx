@@ -87,8 +87,8 @@ export default function Insurance({ recipients }) {
             </button>
           );
         })}
-        <button style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 20, padding: 16, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <Plus size={15} /> Add insurance plan
+        <button style={{ width: '100%', border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '10px 18px', background: C.roseLight, color: C.roseDark, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Plus size={14} /> Add insurance plan
         </button>
       </div>
     </div>

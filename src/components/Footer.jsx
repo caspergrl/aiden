@@ -11,11 +11,11 @@ export default function Footer() {
   const navigate = useNavigate();
 
   const appLinks = [
-    { label: 'Home',      to: '/' },
-    { label: 'Care',      to: '/dashboard?section=care' },
-    { label: 'Calendar',  to: '/dashboard?section=calendar' },
-    { label: 'To Do',     to: '/dashboard?section=list' },
-    { label: 'Ask Aiden', to: '/dashboard?section=chat' },
+    { label: 'Home',      to: '/home'     },
+    { label: 'Care',      to: '/care'     },
+    { label: 'Calendar',  to: '/calendar' },
+    { label: 'To Do',     to: '/todo'     },
+    { label: 'Ask Aiden', to: '/chat'     },
   ];
 
   const supportLinks = [

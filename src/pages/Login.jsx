@@ -33,7 +33,7 @@ export default function Login() {
   const [error, setError]         = useState('');
   const [resetSent, setResetSent] = useState(false);
 
-  useEffect(() => { if (user) navigate('/dashboard', { replace: true }); }, [user]);
+  useEffect(() => { if (user) navigate('/home', { replace: true }); }, [user]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -50,7 +50,7 @@ export default function Login() {
           role: 'user', status: 'active', createdAt: serverTimestamp(),
         });
       }
-      navigate('/dashboard');
+      navigate('/home');
     } catch (e) {
       setError(ERR[e.code] || 'Something went wrong. Please try again.');
     }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Heart, Users, Settings, LogOut, Menu, X } from 'lucide-react';
 import { auth } from '../../firebase';
@@ -9,13 +9,13 @@ import { C, serif, shadowSm } from '../../theme';
 // Nav — keep in sync with /shared/nav.config.js
 const NAV = [
   { id: 'home',     label: 'Home',       Icon: Home },
-  { id: 'care',     label: 'Care',        Icon: Users },
-  { id: 'calendar', label: 'Calendar',    Icon: CalendarDays },
-  { id: 'list',     label: 'To Do',       Icon: ClipboardList },
-  { id: 'chat',     label: 'Ask Aiden',   Icon: MessageCircle },
+  { id: 'care',     label: 'Care',       Icon: Users },
+  { id: 'calendar', label: 'Calendar',   Icon: CalendarDays },
+  { id: 'todo',     label: 'To Do',      Icon: ClipboardList },
+  { id: 'chat',     label: 'Ask Aiden',  Icon: MessageCircle },
 ];
 
-export default function DashboardLayout({ active, setActive, children }) {
+export default function DashboardLayout({ active, children }) {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -23,7 +23,7 @@ export default function DashboardLayout({ active, setActive, children }) {
   function NavItem({ id, label, Icon }) {
     const isActive = active === id;
     return (
-      <button onClick={() => { setActive(id); setMobileOpen(false); }} style={{
+      <button onClick={() => { navigate('/' + id); setMobileOpen(false); }} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 12,
         padding: '11px 16px', borderRadius: 14, border: 'none', cursor: 'pointer',
         background: isActive ? C.rose : 'transparent',
