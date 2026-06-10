@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Heart, Users, Settings, LogOut, Menu, X } from 'lucide-react';
+import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X } from 'lucide-react';
 import { auth } from '../../firebase';
 import { useAuth } from '../../App';
 import { C, serif, shadowSm } from '../../theme';
+import Logo from '../../components/Logo';
 
 // Nav — keep in sync with /shared/nav.config.js
 const NAV = [
@@ -41,9 +42,8 @@ export default function DashboardLayout({ active, children }) {
   const sidebar = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px 12px' }}>
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 6px', marginBottom: 32 }}>
-        <Heart size={18} color={C.rose} fill={C.rose} />
-        <span style={{ fontFamily: serif, fontSize: 22, color: C.text, letterSpacing: -0.5 }}>aiden</span>
+      <div style={{ padding: '0 6px', marginBottom: 32 }}>
+        <Logo width={80} />
       </div>
 
       {/* Nav items */}
@@ -78,10 +78,7 @@ export default function DashboardLayout({ active, children }) {
 
       {/* Mobile header */}
       <div style={{ display: 'none', position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#fff', borderBottom: `1px solid ${C.border}`, zIndex: 50, alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }} className="mobile-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Heart size={16} color={C.rose} fill={C.rose} />
-          <span style={{ fontFamily: serif, fontSize: 20, color: C.text }}>aiden</span>
-        </div>
+        <Logo width={72} />
         <button onClick={() => setMobileOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
           {mobileOpen ? <X size={22} color={C.text} /> : <Menu size={22} color={C.text} />}
         </button>
