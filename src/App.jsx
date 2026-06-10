@@ -639,6 +639,13 @@ function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
 
 // ─── HOME TAB ──────────────────────────────────────────────────────────────────
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent, notificationRole, reminderMethods, onOpenSettings, onUpdateAppt, onDeleteAppt }) {
   const pending = logistics.filter(l => !l.completed).length;
 
@@ -684,7 +691,7 @@ function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, sh
           </span>
         </button>
       </div>
-      <h1 style={{ fontSize: 26, fontWeight: 600, color: C.text, marginBottom: 20, fontFamily: serif, letterSpacing: -0.5, lineHeight: 1.25 }}>Good morning,<br /><em>Holly.</em></h1>
+      <h1 style={{ fontSize: 26, fontWeight: 600, color: C.text, marginBottom: 20, fontFamily: serif, letterSpacing: -0.5, lineHeight: 1.25 }}>{getGreeting()},<br /><em>Holly.</em></h1>
 
       {showMsg ? <DailyMessageCard onHide={() => setShowMsg(false)} /> : <ShowMessageBtn onShow={() => setShowMsg(true)} />}
 
