@@ -11,6 +11,12 @@ function fmtDate(d) {
   const dt = new Date(d + 'T00:00:00');
   return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
 }
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 function todayStr() {
   return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
@@ -34,7 +40,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
       {/* Greeting */}
       <p style={{ fontSize: 13, color: C.mutedLight, marginBottom: 4 }}>{todayStr()}</p>
       <h1 style={{ fontFamily: serif, fontSize: 32, color: C.text, marginBottom: 24, letterSpacing: -0.5 }}>
-        Good morning 👋
+        {getGreeting()} 👋
       </h1>
 
       {/* Daily message */}
