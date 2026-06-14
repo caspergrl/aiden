@@ -793,7 +793,7 @@ function RecipientsPage({ recipients, onSelect, onBack, onAdd, onDelete }) {
                   {r.age ? `Age ${r.age}` : ""}{r.age && r.conditions?.length ? " · " : ""}{r.conditions?.[0] ?? ""}{r.conditions?.length > 1 ? ` +${r.conditions.length - 1}` : ""}
                 </p>
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
-                  {(r.insurancePlans ?? []).map(p => INSURANCE_INFO[p] ? <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color} /> : null)}
+                  {(r.insurancePlans ?? []).map(p => INSURANCE_INFO[p] ? <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color} /> : <Pill key={p} label={`🛡️ ${p}`} color={C.muted} />)}
                   {(Array.isArray(r.mobility) ? r.mobility : (r.mobility ? [r.mobility] : [])).map(m => (
                     m === 'bedridden' ? <Pill key={m} label="🛏 Bedridden" color={C.muted} /> :
                     m === 'wheelchair' ? <Pill key={m} label="♿ Wheelchair" color={C.muted} /> :
@@ -868,6 +868,102 @@ function SaveCancelRow({ onSave, onCancel, col }) {
   );
 }
 
+// ─── Mobile Insurance Modal ─────────────────────────────────────────────────────
+function MobileInsuranceModal({ recipient, onClose, onSave }) {
+  const predefined = Object.keys(INSURANCE_INFO);
+  const [checkedIds, setCheckedIds] = useState(
+    (recipient.insurancePlans || []).filter(p => predefined.includes(p))
+  );
+  const [customPlans, setCustomPlans] = useState(
+    (recipient.insurancePlans || []).filter(p => !predefined.includes(p))
+  );
+  const [customInput, setCustomInput] = useState('');
+
+  function togglePredefined(key) {
+    setCheckedIds(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]);
+  }
+  function addCustom() {
+    const name = customInput.trim();
+    if (name && !customPlans.includes(name)) setCustomPlans(prev => [...prev, name]);
+    setCustomInput('');
+  }
+  function removeCustom(name) { setCustomPlans(prev => prev.filter(x => x !== name)); }
+  function handleSave() {
+    onSave({ ...recipient, insurancePlans: [...checkedIds, ...customPlans] });
+    onClose();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(38,32,26,0.5)" }} onClick={onClose} />
+      <div style={{ position: "relative", background: C.card, borderRadius: "22px 22px 0 0", padding: "22px 18px 36px", zIndex: 1, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <p style={{ fontSize: 18, fontWeight: 600, color: C.text, fontFamily: serif }}>Insurance Plans</p>
+          <button onClick={onClose} style={{ background: C.bg, border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <X size={15} color={C.muted} />
+          </button>
+        </div>
+        <p style={{ fontSize: 13, color: C.muted, marginBottom: 18, fontFamily: sans }}>Select plans or add a custom plan for {recipient.nickname || recipient.name.split(' ')[0]}.</p>
+
+        {/* Predefined plans */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          {Object.entries(INSURANCE_INFO).map(([key, info]) => {
+            const active = checkedIds.includes(key);
+            return (
+              <button key={key} onClick={() => togglePredefined(key)}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: active ? info.bg : C.bg, border: `2px solid ${active ? info.color : C.border}`, borderRadius: 16, cursor: "pointer", textAlign: "left", width: "100%", transition: "all 0.15s" }}>
+                <span style={{ fontSize: 20, flexShrink: 0 }}>{info.emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans }}>{info.name}</p>
+                  <p style={{ fontSize: 11, color: C.muted, fontFamily: sans }}>{info.parts[0].name}</p>
+                </div>
+                <div style={{ width: 20, height: 20, borderRadius: "50%", background: active ? info.color : "transparent", border: `2px solid ${active ? info.color : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {active && <Check size={11} color="#fff" />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Custom plans */}
+        <div style={{ borderTop: `1px solid ${C.bg}`, paddingTop: 16 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 0.8, textTransform: "uppercase", fontFamily: sans, marginBottom: 10 }}>Custom plans</p>
+          {customPlans.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
+              {customPlans.map(name => (
+                <span key={name} style={{ display: "flex", alignItems: "center", gap: 5, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 12, fontWeight: 600, color: C.text, fontFamily: sans }}>
+                  🛡️ {name}
+                  <button onClick={() => removeCustom(name)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", color: C.muted }}>
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={customInput}
+              onChange={e => setCustomInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") addCustom(); }}
+              placeholder="Type any plan name…"
+              style={{ flex: 1, border: `1.5px solid ${C.border}`, borderRadius: 12, padding: "9px 12px", fontSize: 14, color: C.text, fontFamily: sans, outline: "none", background: "#fff" }}
+            />
+            <button onClick={addCustom} disabled={!customInput.trim()}
+              style={{ background: customInput.trim() ? C.rose : C.border, color: "#fff", border: "none", borderRadius: 12, padding: "9px 14px", fontWeight: 700, fontFamily: sans, cursor: customInput.trim() ? "pointer" : "default", fontSize: 13, flexShrink: 0 }}>
+              Add
+            </button>
+          </div>
+        </div>
+
+        <button onClick={handleSave}
+          style={{ width: "100%", marginTop: 20, background: `linear-gradient(135deg, ${C.rose}, #7a3a3a)`, border: "none", borderRadius: 16, padding: "14px 0", color: "#fff", fontSize: 15, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>
+          Save Plans
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments, medSchedules = [], onSaveMedSchedule, onDeleteMedSchedule, onLogMedication }) {
   const [tab, setTab] = useState("overview");
   const [data, setData] = useState({ ...r });
@@ -881,6 +977,7 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
   const [showWeeklyCareSetup, setShowWeeklyCareSetup] = useState(false);
   const [weeklyCareSelection, setWeeklyCareSelection] = useState(['Wash hair', 'Change bedding', 'Trim nails']);
   const [weeklyCareCustom, setWeeklyCareCustom] = useState('');
+  const [showInsuranceModal, setShowInsuranceModal] = useState(false);
 
   // Normalise mobility to always be an array
   const mobilityArr = Array.isArray(data.mobility) ? data.mobility : (data.mobility ? [data.mobility] : []);
@@ -949,6 +1046,14 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
 
   return (
     <div>
+      {/* ── Manage Insurance Modal ──────────────────────────────────────────── */}
+      {showInsuranceModal && (
+        <MobileInsuranceModal
+          recipient={data}
+          onClose={() => setShowInsuranceModal(false)}
+          onSave={updated => { save({ insurancePlans: updated.insurancePlans }); }}
+        />
+      )}
       <div style={{ background: profileGrad, padding: "16px 18px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <BackBtn onBack={onBack} />
@@ -1372,6 +1477,31 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
                     onCancel={() => setEditSection(null)} />
                 </div>
               )}
+            </Card>
+
+            {/* Insurance Plans */}
+            <Card style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <SectionLabel>Insurance Plans</SectionLabel>
+                <button onClick={() => setShowInsuranceModal(true)} style={{ background: "none", border: "none", color: col, fontSize: 12, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3, marginTop: -12 }}>
+                  <Pencil size={12} /> Manage
+                </button>
+              </div>
+              {(data.insurancePlans ?? []).length === 0
+                ? <p style={{ fontSize: 13, color: C.mutedLight, fontFamily: sans }}>No plans added — tap Manage to add insurance.</p>
+                : (data.insurancePlans ?? []).map((key, idx) => {
+                    const info = INSURANCE_INFO[key];
+                    const isLast = idx === data.insurancePlans.length - 1;
+                    return (
+                      <div key={key} style={{ ...rowStyle(isLast), alignItems: "center" }}>
+                        <span style={{ fontSize: 18, marginRight: 10 }}>{info ? info.emoji : "🛡️"}</span>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans }}>{info ? info.name : key}</p>
+                          <p style={{ fontSize: 12, color: info ? info.color : C.muted, fontFamily: sans, fontWeight: 600 }}>{info ? info.parts[0].name : "Custom plan"}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
             </Card>
 
             {/* Upcoming Appointments */}
@@ -2677,8 +2807,35 @@ function InsuranceTab({ recipients }) {
   const allPlans = [...new Set(recipients.flatMap(r => r.insurancePlans))];
 
   if (sel) {
-    const info = INSURANCE_INFO[sel];
+    const info    = INSURANCE_INFO[sel];
     const covered = recipients.filter(r => r.insurancePlans.includes(sel));
+
+    // ── Custom plan detail ──────────────────────────────────────────────────────
+    if (!info) {
+      return (
+        <div>
+          <div style={{ background: "#f4f4f8", padding: "16px 18px 0" }}>
+            <BackBtn onBack={() => setSel(null)} label="All Insurance" />
+            <div style={{ display: "flex", gap: 14, alignItems: "center", paddingBottom: 18 }}>
+              <span style={{ fontSize: 40 }}>🛡️</span>
+              <div>
+                <h2 style={{ fontSize: 20, fontWeight: 600, fontFamily: serif, color: C.text }}>{sel}</h2>
+                <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                  {covered.map(r => <span key={r.id} style={{ background: rColor(r.id) + "18", color: rColor(r.id), borderRadius: 20, padding: "3px 10px", fontSize: 11, fontFamily: sans, fontWeight: 600 }}>{r.nickname}</span>)}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ padding: "18px 18px" }}>
+            <Card>
+              <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, fontFamily: sans }}>This is a custom insurance plan. Contact your insurance provider directly for coverage details.</p>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Predefined plan detail ──────────────────────────────────────────────────
     return (
       <div>
         <div style={{ background: `linear-gradient(148deg, ${info.bg}, #f7f2ea)`, padding: "16px 18px 0" }}>
@@ -2724,13 +2881,17 @@ function InsuranceTab({ recipients }) {
       <h2 style={{ fontSize: 24, fontWeight: 600, fontFamily: serif, color: C.text, marginBottom: 4 }}>Insurance</h2>
       <p style={{ fontSize: 13, color: C.muted, marginBottom: 22, fontFamily: sans }}>Coverage explained in plain language</p>
       {allPlans.map(planId => {
-        const info = INSURANCE_INFO[planId];
+        const info    = INSURANCE_INFO[planId];
         const covered = recipients.filter(r => r.insurancePlans.includes(planId));
+        const color   = info ? info.color : "#7a7a8c";
+        const bg      = info ? info.bg    : "#f4f4f8";
+        const emoji   = info ? info.emoji : "🛡️";
+        const name    = info ? info.name  : planId;
         return (
           <button key={planId} onClick={() => setSel(planId)} style={{ width: "100%", background: C.card, border: "none", borderRadius: 22, padding: "16px 18px", textAlign: "left", cursor: "pointer", marginBottom: 12, display: "flex", alignItems: "center", gap: 14, boxShadow: CARD_SHADOW }}>
-            <div style={{ width: 52, height: 52, background: info.bg, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>{info.emoji}</div>
+            <div style={{ width: 52, height: 52, background: bg, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>{emoji}</div>
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 15, fontWeight: 600, color: C.text, fontFamily: serif }}>{info.name}</p>
+              <p style={{ fontSize: 15, fontWeight: 600, color: C.text, fontFamily: serif }}>{name}</p>
               <div style={{ display: "flex", gap: 5, marginTop: 5, flexWrap: "wrap" }}>
                 {covered.map(r => <span key={r.id} style={{ background: rColor(r.id) + "14", color: rColor(r.id), borderRadius: 20, padding: "2px 8px", fontSize: 10, fontFamily: sans, fontWeight: 600 }}>{r.nickname}</span>)}
               </div>
@@ -2739,9 +2900,9 @@ function InsuranceTab({ recipients }) {
           </button>
         );
       })}
-      <button style={{ width: "100%", border: `1.5px solid ${C.rose}`, borderRadius: 22, padding: 14, background: "none", color: C.rose, fontSize: 13, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-        <Plus size={15} /> Add insurance plan
-      </button>
+      {allPlans.length === 0 && (
+        <p style={{ fontSize: 13, color: C.mutedLight, textAlign: "center", padding: "20px 0", fontFamily: sans }}>No insurance plans added yet. Go to a care recipient's profile to add plans.</p>
+      )}
     </div>
   );
 }
@@ -3003,7 +3164,7 @@ function CareTab({ recipients, onSelect, onAdd, onDelete }) {
                 {r.age ? `Age ${r.age}` : ""}{r.age && r.conditions?.length ? " · " : ""}{r.conditions?.[0] ?? ""}{r.conditions?.length > 1 ? ` +${r.conditions.length - 1}` : ""}
               </p>
               <div style={{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center" }}>
-                {(r.insurancePlans ?? []).map(p => INSURANCE_INFO[p] ? <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color}/> : null)}
+                {(r.insurancePlans ?? []).map(p => INSURANCE_INFO[p] ? <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color}/> : <Pill key={p} label={`🛡️ ${p}`} color={C.muted}/>)}
                 {(Array.isArray(r.mobility) ? r.mobility : (r.mobility ? [r.mobility] : [])).map(m => (
                   m === 'bedridden' ? <Pill key={m} label="🛏 Bedridden" color={C.muted}/> :
                   m === 'wheelchair' ? <Pill key={m} label="♿ Wheelchair" color={C.muted}/> :
