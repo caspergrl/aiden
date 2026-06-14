@@ -2133,6 +2133,21 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, onAddDoc
   const [doneOpen, setDoneOpen] = useState(false);
   const [restoreId, setRestoreId] = useState(null);
 
+  // ── Inline edit state ────────────────────────────────────────────────────────
+  const [editingId, setEditingId] = useState(null);
+  const [editBuf, setEditBuf]     = useState({ title: '', note: '', recipientId: null });
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setEditBuf({ title: item.title || '', note: item.note || '', recipientId: item.recipientId ?? null });
+  }
+  function cancelEdit() { setEditingId(null); }
+  function saveEdit(id) {
+    if (!editBuf.title.trim()) return;
+    onUpdateLogistic(id, { title: editBuf.title.trim(), note: editBuf.note.trim(), recipientId: editBuf.recipientId ?? null });
+    setEditingId(null);
+  }
+
   // ── Doctor modal state ───────────────────────────────────────────────────────
   const BLANK_DR = { name: "", specialty: "", phone: "", address: "", notes: "", recipientId: "" };
   const [doctorModal, setDoctorModal] = useState(null); // null | 'add' | doctor-object
@@ -2288,17 +2303,57 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, onAddDoc
 
             {/* Incomplete items */}
             {incomplete.map(item => {
+              const isEditing = editingId === item.id;
               const recip = item.recipientId ? recipients.find(r => r.id === item.recipientId) : null;
               return (
-                <div key={item.id} style={{ background: C.card, borderRadius: 18, padding: "13px 16px", marginBottom: 8, boxShadow: CARD_SHADOW_SM, display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <button onClick={() => handleToggle(item)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0, marginTop: 1 }}>
-                    <Square size={19} color={C.border} />
-                  </button>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: C.text, fontFamily: sans }}>{item.title}</p>
-                    {item.note && <p style={{ fontSize: 11, color: C.muted, marginTop: 3, fontFamily: sans }}>{item.note}</p>}
-                  </div>
-                  {recip && <MiniAvatar r={recip} size={24} />}
+                <div key={item.id} style={{ background: C.card, borderRadius: 18, padding: "13px 16px", marginBottom: 8, boxShadow: isEditing ? `0 0 0 2px ${C.rose}` : CARD_SHADOW_SM, display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  {!isEditing && (
+                    <button onClick={() => handleToggle(item)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0, marginTop: 1 }}>
+                      <Square size={19} color={C.border} />
+                    </button>
+                  )}
+                  {isEditing ? (
+                    <div style={{ flex: 1 }}>
+                      <input
+                        autoFocus
+                        value={editBuf.title}
+                        onChange={e => setEditBuf(b => ({ ...b, title: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(item.id); if (e.key === 'Escape') cancelEdit(); }}
+                        style={{ width: "100%", border: "none", borderBottom: `1px solid ${C.border}`, outline: "none", fontSize: 13, fontWeight: 600, color: C.text, background: "none", fontFamily: sans, marginBottom: 8, paddingBottom: 4 }}
+                      />
+                      <input
+                        value={editBuf.note}
+                        onChange={e => setEditBuf(b => ({ ...b, note: e.target.value }))}
+                        placeholder="Add a note…"
+                        onKeyDown={e => { if (e.key === 'Escape') cancelEdit(); }}
+                        style={{ width: "100%", border: "none", borderBottom: `1px solid ${C.border}`, outline: "none", fontSize: 11, color: C.muted, background: "none", fontFamily: sans, marginBottom: 10, paddingBottom: 4 }}
+                      />
+                      {recipients.length > 0 && (
+                        <select value={editBuf.recipientId ?? ""} onChange={e => setEditBuf(b => ({ ...b, recipientId: e.target.value || null }))}
+                          style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 10px", fontSize: 12, color: editBuf.recipientId ? C.text : C.mutedLight, background: C.bg, fontFamily: sans, marginBottom: 10, outline: "none" }}>
+                          <option value="">For (optional)</option>
+                          {recipients.map(r => <option key={r.id} value={r.id}>{r.nickname || r.name.split(" ")[0]}</option>)}
+                        </select>
+                      )}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => saveEdit(item.id)} style={{ flex: 1, background: `linear-gradient(135deg, ${C.rose}, ${C.roseDark})`, color: "white", border: "none", borderRadius: 10, padding: "9px", fontWeight: 600, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Save</button>
+                        <button onClick={cancelEdit} style={{ flex: 1, background: C.bg, color: C.muted, border: "none", borderRadius: 10, padding: "9px", fontWeight: 500, fontFamily: sans, cursor: "pointer", fontSize: 13 }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: C.text, fontFamily: sans }}>{item.title}</p>
+                      {item.note && <p style={{ fontSize: 11, color: C.muted, marginTop: 3, fontFamily: sans }}>{item.note}</p>}
+                    </div>
+                  )}
+                  {!isEditing && (
+                    <>
+                      {recip && <MiniAvatar r={recip} size={24} />}
+                      <button onClick={() => startEdit(item)} style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", flexShrink: 0, color: C.mutedLight }} title="Edit">
+                        <Pencil size={14} color={C.mutedLight} />
+                      </button>
+                    </>
+                  )}
                 </div>
               );
             })}
