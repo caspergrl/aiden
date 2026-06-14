@@ -134,9 +134,12 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
                 <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{r.name}</p>
                 <p style={{ fontSize: 12, color: C.muted }}>Age {r.age} · {r.conditions[0]}{r.conditions.length > 1 ? ` +${r.conditions.length - 1}` : ''}</p>
                 <div style={{ display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
-                  {r.insurancePlans.map(p => (
-                    <span key={p} style={{ background: INSURANCE_INFO[p].color + '18', color: INSURANCE_INFO[p].color, borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>{INSURANCE_INFO[p].shortName}</span>
-                  ))}
+                  {r.insurancePlans.map(p => {
+                    const info = INSURANCE_INFO[p];
+                    return info
+                      ? <span key={p} style={{ background: info.color + '18', color: info.color, borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>{info.shortName}</span>
+                      : <span key={p} style={{ background: '#e0e0e020', color: '#888', borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>🛡️ {p}</span>;
+                  })}
                 </div>
               </div>
             </div>

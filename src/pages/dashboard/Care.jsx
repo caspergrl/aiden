@@ -481,17 +481,40 @@ function AddDoctorModal({ recipientId, onClose, onAdd }) {
 
 // ─── Manage Insurance Modal ─────────────────────────────────────────────────────
 function ManageInsuranceModal({ recipient, onClose, onSave }) {
-  const [plans, setPlans] = useState([...recipient.insurancePlans]);
-  function toggle(key) { setPlans(p => p.includes(key) ? p.filter(x => x !== key) : [...p, key]); }
+  const predefined = Object.keys(INSURANCE_INFO);
+  const [checkedIds, setCheckedIds] = useState(
+    (recipient.insurancePlans || []).filter(p => predefined.includes(p))
+  );
+  const [customPlans, setCustomPlans] = useState(
+    (recipient.insurancePlans || []).filter(p => !predefined.includes(p))
+  );
+  const [customInput, setCustomInput] = useState('');
+
+  function togglePredefined(key) {
+    setCheckedIds(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]);
+  }
+  function addCustom() {
+    const name = customInput.trim();
+    if (name && !customPlans.includes(name)) setCustomPlans(prev => [...prev, name]);
+    setCustomInput('');
+  }
+  function removeCustom(name) { setCustomPlans(prev => prev.filter(x => x !== name)); }
+  function handleSave() {
+    onSave({ ...recipient, insurancePlans: [...checkedIds, ...customPlans] });
+    onClose();
+  }
+
   return (
     <ModalWrap onClose={onClose} maxWidth={460}>
       <ModalHeader title="Insurance plans" onClose={onClose} />
-      <p style={{ fontSize: 13, color: C.muted, marginBottom: 20, marginTop: -16 }}>Select all plans that apply to {recipient.nickname}.</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <p style={{ fontSize: 13, color: C.muted, marginBottom: 20, marginTop: -16 }}>Select plans or add a custom plan for {recipient.nickname}.</p>
+
+      {/* Predefined plans */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
         {Object.entries(INSURANCE_INFO).map(([key, info]) => {
-          const active = plans.includes(key);
+          const active = checkedIds.includes(key);
           return (
-            <button key={key} onClick={() => toggle(key)}
+            <button key={key} onClick={() => togglePredefined(key)}
               style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: active ? info.bg : '#fafafa', border: `2px solid ${active ? info.color : C.border}`, borderRadius: 14, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', width: '100%' }}>
               <span style={{ fontSize: 22, flexShrink: 0 }}>{info.emoji}</span>
               <div style={{ flex: 1 }}>
@@ -505,7 +528,38 @@ function ManageInsuranceModal({ recipient, onClose, onSave }) {
           );
         })}
       </div>
-      <ModalActions onConfirm={() => { onSave({ ...recipient, insurancePlans: plans }); onClose(); }} confirmLabel="Save" onClose={onClose} />
+
+      {/* Custom plans */}
+      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 18 }}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: C.muted, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 }}>Custom plans</p>
+        {customPlans.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            {customPlans.map(name => (
+              <span key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: C.text }}>
+                🛡️ {name}
+                <button onClick={() => removeCustom(name)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: C.muted }}>
+                  <X size={13} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={customInput}
+            onChange={e => setCustomInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addCustom(); }}
+            placeholder="Type any plan name…"
+            style={{ flex: 1, border: `1px solid ${C.border}`, borderRadius: 10, padding: '9px 14px', fontSize: 14, color: C.text, outline: 'none', background: '#fff' }}
+          />
+          <button onClick={addCustom} disabled={!customInput.trim()}
+            style={{ background: customInput.trim() ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', fontWeight: 700, cursor: customInput.trim() ? 'pointer' : 'default', fontSize: 13, transition: 'background 0.15s' }}>
+            Add
+          </button>
+        </div>
+      </div>
+
+      <ModalActions onConfirm={handleSave} confirmLabel="Save" onClose={onClose} />
     </ModalWrap>
   );
 }
@@ -631,9 +685,12 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
             <h2 style={{ fontFamily: serif, fontSize: 26, color: C.text, marginBottom: 4 }}>{r.name}</h2>
             <p style={{ fontSize: 13, color: C.muted }}>Age {r.age}{r.email ? ` · ${r.email}` : ''}{r.phone ? ` · ${r.phone}` : ''}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-              {(r.insurancePlans || []).map(p => (
-                <span key={p} style={{ background: INSURANCE_INFO[p].color + '18', color: INSURANCE_INFO[p].color, borderRadius: 12, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>{INSURANCE_INFO[p].shortName}</span>
-              ))}
+              {(r.insurancePlans || []).map(p => {
+                const info = INSURANCE_INFO[p];
+                return info
+                  ? <span key={p} style={{ background: info.color + '18', color: info.color, borderRadius: 12, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>{info.shortName}</span>
+                  : <span key={p} style={{ background: '#e0e0e020', color: C.muted, borderRadius: 12, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>🛡️ {p}</span>;
+              })}
             </div>
           </div>
         </div>
@@ -713,16 +770,26 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
             </div>
             {(r.insurancePlans || []).length === 0
               ? <p style={{ fontSize: 13, color: C.mutedLight }}>No plans added yet — click Manage to add insurance.</p>
-              : (r.insurancePlans || []).map(key => {
+              : (r.insurancePlans || []).map((key, idx) => {
                 const info = INSURANCE_INFO[key];
-                return (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: r.insurancePlans.indexOf(key) < r.insurancePlans.length - 1 ? `1px solid ${C.bgWarm}` : 'none' }}>
+                const isLast = idx === r.insurancePlans.length - 1;
+                return info ? (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: !isLast ? `1px solid ${C.bgWarm}` : 'none' }}>
                     <span style={{ fontSize: 18 }}>{info.emoji}</span>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{info.name}</p>
                       <p style={{ fontSize: 12, color: info.color, fontWeight: 600 }}>{info.parts[0].name}</p>
                     </div>
                     <span style={{ background: info.color + '18', color: info.color, borderRadius: 10, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>{info.shortName}</span>
+                  </div>
+                ) : (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: !isLast ? `1px solid ${C.bgWarm}` : 'none' }}>
+                    <span style={{ fontSize: 18 }}>🛡️</span>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{key}</p>
+                      <p style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Custom plan</p>
+                    </div>
+                    <span style={{ background: '#e0e0e020', color: C.muted, borderRadius: 10, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>Custom</span>
                   </div>
                 );
               })}
