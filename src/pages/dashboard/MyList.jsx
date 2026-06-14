@@ -99,6 +99,21 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
   const [doneOpen, setDoneOpen]   = useState(false);
   const [restoreId, setRestoreId] = useState(null);
 
+  // ── Inline edit state ─────────────────────────────────────────────────────────
+  const [editingId, setEditingId] = useState(null);
+  const [editBuf, setEditBuf]     = useState({ title: '', note: '', recipientId: null });
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setEditBuf({ title: item.title || '', note: item.note || '', recipientId: item.recipientId ?? null });
+  }
+  function cancelEdit() { setEditingId(null); }
+  function saveEdit(id) {
+    if (!editBuf.title.trim()) return;
+    onUpdateLogistic(id, { title: editBuf.title.trim(), note: editBuf.note.trim(), recipientId: editBuf.recipientId ?? null });
+    setEditingId(null);
+  }
+
   // ── Recipient filter ──────────────────────────────────────────────────────────
   const [filterRecipId, setFilterRecipId] = useState(null);
 
@@ -323,23 +338,61 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
               </p>
             )}
             {incomplete.map(item => {
+              const isEditing = editingId === item.id;
               const recip = item.recipientId ? recipients.find(r => r.id === item.recipientId) : null;
               return (
-                <div key={item.id} data-drag-item draggable
-                  onDragStart={e => onDragStart(e, item.id)} onDragOver={e => onDragOver(e, item.id)}
+                <div key={item.id} data-drag-item draggable={!isEditing}
+                  onDragStart={e => !isEditing && onDragStart(e, item.id)} onDragOver={e => onDragOver(e, item.id)}
                   onDrop={e => onDrop(e, item.id)} onDragEnd={onDragEnd}
-                  style={{ background: '#fff', borderRadius: 14, padding: '14px 18px', border: `1px solid ${C.border}`, borderTop: dragOverId === item.id ? `2px solid ${C.roseDark}` : `1px solid ${C.border}`, display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'default', transition: 'border-color 0.12s' }}>
-                  <div style={{ flexShrink: 0, marginTop: 2, cursor: 'grab', color: C.border, padding: '0 2px' }}>
-                    <GripVertical size={16} />
-                  </div>
-                  <button onClick={() => handleToggle(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, marginTop: 1 }}>
-                    <Square size={20} color={C.border} />
-                  </button>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{item.title}</p>
-                    {item.note && <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{item.note}</p>}
-                  </div>
-                  {recip && <RecipAvatar r={recip} size={26} />}
+                  style={{ background: '#fff', borderRadius: 14, padding: '14px 18px', border: isEditing ? `2px solid ${C.roseDark}` : `1px solid ${C.border}`, borderTop: !isEditing && dragOverId === item.id ? `2px solid ${C.roseDark}` : undefined, display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'default', transition: 'border-color 0.12s' }}>
+                  {!isEditing && (
+                    <div style={{ flexShrink: 0, marginTop: 2, cursor: 'grab', color: C.border, padding: '0 2px' }}>
+                      <GripVertical size={16} />
+                    </div>
+                  )}
+                  {!isEditing && (
+                    <button onClick={() => handleToggle(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, marginTop: 1 }}>
+                      <Square size={20} color={C.border} />
+                    </button>
+                  )}
+                  {isEditing ? (
+                    <div style={{ flex: 1 }}>
+                      <input
+                        autoFocus
+                        value={editBuf.title}
+                        onChange={e => setEditBuf(b => ({ ...b, title: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(item.id); if (e.key === 'Escape') cancelEdit(); }}
+                        style={{ width: '100%', border: 'none', borderBottom: `1px solid ${C.border}`, outline: 'none', fontSize: 14, fontWeight: 600, color: C.text, background: 'none', marginBottom: 8, paddingBottom: 4 }}
+                      />
+                      <input
+                        value={editBuf.note}
+                        onChange={e => setEditBuf(b => ({ ...b, note: e.target.value }))}
+                        placeholder="Add a note…"
+                        onKeyDown={e => { if (e.key === 'Escape') cancelEdit(); }}
+                        style={{ width: '100%', border: 'none', borderBottom: `1px solid ${C.border}`, outline: 'none', fontSize: 12, color: C.muted, background: 'none', marginBottom: 10, paddingBottom: 4 }}
+                      />
+                      {recipients.length > 0 && (
+                        <RecipSelect recipients={recipients} value={editBuf.recipientId} onChange={v => setEditBuf(b => ({ ...b, recipientId: v }))} label="For (optional)" />
+                      )}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                        <button onClick={() => saveEdit(item.id)} style={{ background: C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '7px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Save</button>
+                        <button onClick={cancelEdit} style={{ background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{item.title}</p>
+                      {item.note && <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{item.note}</p>}
+                    </div>
+                  )}
+                  {!isEditing && (
+                    <>
+                      {recip && <RecipAvatar r={recip} size={26} />}
+                      <button onClick={() => startEdit(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', flexShrink: 0, color: C.muted, opacity: 0.6 }} title="Edit">
+                        <Pencil size={14} />
+                      </button>
+                    </>
+                  )}
                 </div>
               );
             })}
