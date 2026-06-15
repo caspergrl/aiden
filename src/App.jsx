@@ -14,7 +14,7 @@ import {
   CheckSquare, Square, Send, Clock, FileText, Image as ImageIcon,
   AlertCircle, Bell, Check, Info, ExternalLink, Eye, EyeOff, User,
   Scale, ArrowRightLeft, Users, RotateCcw, Download, Upload,
-  Camera, Pencil, Trash2, X,
+  Camera, Pencil, Trash2, X, BookMarked, Link2, Share2, Mail, MessageSquare, Search,
 } from "lucide-react";
 
 // ─── PALETTE ── imported from @shared/theme ────────────────────────────────────
@@ -2800,6 +2800,370 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, onAddDoc
   );
 }
 
+// ─── RESOURCES TAB ─────────────────────────────────────────────────────────────
+
+const RESOURCE_CATEGORIES = ['Medical', 'Legal', 'Caregiver Support', 'Financial', 'Community', 'Other'];
+const RESOURCE_CAT_COLORS = {
+  Medical:             { bg: '#e8f2fb', color: '#4a7aaa' },
+  Legal:               { bg: '#ede8f8', color: '#7a5aaa' },
+  'Caregiver Support': { bg: '#fdf0f0', color: C.rose },
+  Financial:           { bg: '#e8f4ec', color: '#4a8a5a' },
+  Community:           { bg: '#fef5e4', color: '#a07030' },
+  Other:               { bg: '#f0f0f4', color: '#7a7a8c' },
+};
+
+function normalizeUrl(u) {
+  if (!u) return u;
+  return /^https?:\/\//i.test(u.trim()) ? u.trim() : `https://${u.trim()}`;
+}
+function isEmailAddr(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim()); }
+function fmtPhoneNum(s) { return s.replace(/\D/g, ''); }
+
+// Mobile resource add/edit sheet
+function MobileResourceSheet({ initial, onClose, onSave }) {
+  const [form, setForm] = useState({
+    title:       initial?.title       || '',
+    url:         initial?.url         || '',
+    description: initial?.description || '',
+    category:    initial?.category    || '',
+  });
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  function handleSave() {
+    if (!form.title.trim() || !form.url.trim()) return;
+    onSave({ ...form, url: normalizeUrl(form.url) });
+    onClose();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(38,32,26,0.5)" }} onClick={onClose} />
+      <div style={{ position: "relative", background: C.card, borderRadius: "22px 22px 0 0", padding: "22px 18px 36px", zIndex: 1, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <p style={{ fontSize: 18, fontWeight: 600, color: C.text, fontFamily: serif }}>{initial ? 'Edit link' : 'Add resource link'}</p>
+          <button onClick={onClose} style={{ background: C.bg, border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <X size={15} color={C.muted} />
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {[
+            { key: 'title', label: 'Title', placeholder: 'e.g. Medicare Plan Finder', req: true },
+            { key: 'url',   label: 'URL',   placeholder: 'https://example.com',       req: true },
+          ].map(({ key, label, placeholder, req }) => (
+            <div key={key}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 0.6, textTransform: "uppercase", fontFamily: sans, marginBottom: 6 }}>{label}{req && ' *'}</p>
+              <input
+                value={form[key]}
+                onChange={e => set(key, e.target.value)}
+                placeholder={placeholder}
+                style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 12, padding: "10px 14px", fontSize: 14, color: C.text, fontFamily: sans, outline: "none", background: "#fff", boxSizing: "border-box" }}
+              />
+            </div>
+          ))}
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 0.6, textTransform: "uppercase", fontFamily: sans, marginBottom: 6 }}>Description</p>
+            <textarea
+              value={form.description}
+              onChange={e => set('description', e.target.value)}
+              placeholder="Optional — what is this link for?"
+              rows={3}
+              style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 12, padding: "10px 14px", fontSize: 14, color: C.text, fontFamily: sans, outline: "none", background: "#fff", boxSizing: "border-box", resize: "vertical" }}
+            />
+          </div>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 0.6, textTransform: "uppercase", fontFamily: sans, marginBottom: 8 }}>Category</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {RESOURCE_CATEGORIES.map(c => (
+                <button key={c} onClick={() => set('category', form.category === c ? '' : c)}
+                  style={{ padding: "5px 14px", borderRadius: 20, border: `1.5px solid ${form.category === c ? C.rose : C.border}`, background: form.category === c ? '#fdf0f0' : C.bg, color: form.category === c ? C.rose : C.muted, fontSize: 12, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <button onClick={handleSave} disabled={!form.title.trim() || !form.url.trim()}
+          style={{ width: "100%", marginTop: 22, background: form.title.trim() && form.url.trim() ? `linear-gradient(135deg, ${C.rose}, #7a3a3a)` : C.border, border: "none", borderRadius: 16, padding: "14px 0", color: "#fff", fontSize: 15, fontWeight: 700, fontFamily: sans, cursor: form.title.trim() && form.url.trim() ? "pointer" : "default" }}>
+          {initial ? 'Save changes' : 'Add link'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Mobile share sheet
+function MobileShareSheet({ resource, recipients, onClose }) {
+  const [method, setMethod]           = useState('sms');
+  const [selRecip, setSelRecip]       = useState([]);
+  const [customInput, setCustomInput] = useState('');
+  const [customList, setCustomList]   = useState([]);
+  const [sent, setSent]               = useState(false);
+
+  const eligibleRecips = recipients.filter(r => method === 'sms' ? r.phone : r.email);
+
+  function toggleRecip(id) {
+    setSelRecip(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  }
+  function addCustom() {
+    const val = customInput.trim();
+    if (!val || customList.find(c => c.contact === val)) { setCustomInput(''); return; }
+    const detectedMethod = isEmailAddr(val) ? 'email' : 'sms';
+    setCustomList(p => [...p, { contact: val, method: detectedMethod }]);
+    setCustomInput('');
+  }
+  function removeCustom(contact) { setCustomList(p => p.filter(c => c.contact !== contact)); }
+
+  function share() {
+    const body = `${resource.title}\n${resource.url}${resource.description ? `\n\n${resource.description}` : ''}`;
+    const encoded = encodeURIComponent(body);
+
+    const smsTargets = [
+      ...selRecip.filter(id => recipients.find(x => x.id === id)?.phone).map(id => recipients.find(x => x.id === id).phone),
+      ...customList.filter(c => c.method === 'sms').map(c => c.contact),
+    ];
+    const emailTargets = [
+      ...selRecip.filter(id => recipients.find(x => x.id === id)?.email).map(id => recipients.find(x => x.id === id).email),
+      ...customList.filter(c => c.method === 'email').map(c => c.contact),
+    ];
+
+    if (emailTargets.length) {
+      const subj = encodeURIComponent(`Resource: ${resource.title}`);
+      const emailBody = encodeURIComponent(`Hi,\n\nI wanted to share this resource:\n\n${resource.title}\n${resource.url}${resource.description ? `\n\n${resource.description}` : ''}\n\nSent via Aiden`);
+      window.open(`mailto:${emailTargets.join(',')}?subject=${subj}&body=${emailBody}`);
+    }
+    smsTargets.forEach((phone, i) => {
+      setTimeout(() => window.open(`sms:${fmtPhoneNum(phone)}?body=${encoded}`), i * 300);
+    });
+    setSent(true);
+    setTimeout(onClose, 1400);
+  }
+
+  const hasTargets = selRecip.length > 0 || customList.length > 0;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(38,32,26,0.5)" }} onClick={onClose} />
+      <div style={{ position: "relative", background: C.card, borderRadius: "22px 22px 0 0", padding: "22px 18px 36px", zIndex: 1, maxHeight: "92vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+          <div>
+            <p style={{ fontSize: 18, fontWeight: 600, color: C.text, fontFamily: serif, marginBottom: 2 }}>Share link</p>
+            <p style={{ fontSize: 13, color: C.muted, fontFamily: sans }}>{resource.title}</p>
+          </div>
+          <button onClick={onClose} style={{ background: C.bg, border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+            <X size={15} color={C.muted} />
+          </button>
+        </div>
+
+        {/* Link preview */}
+        <div style={{ background: C.bg, borderRadius: 12, padding: "10px 12px", marginBottom: 18, display: "flex", gap: 8, alignItems: "center" }}>
+          <Link2 size={13} color={C.rose} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: C.text, fontFamily: sans, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{resource.url}</span>
+        </div>
+
+        {/* Method toggle */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+          {[{ id: 'sms', Icon: MessageSquare, label: 'SMS' }, { id: 'email', Icon: Mail, label: 'Email' }].map(({ id, Icon, label }) => (
+            <button key={id} onClick={() => { setMethod(id); setSelRecip([]); }}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", borderRadius: 12, border: `2px solid ${method === id ? C.rose : C.border}`, background: method === id ? '#fdf0f0' : "#fff", color: method === id ? C.rose : C.muted, fontSize: 13, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>
+              <Icon size={14} /> {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Recipient chips */}
+        {eligibleRecips.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 0.6, textTransform: "uppercase", fontFamily: sans, marginBottom: 10 }}>Care recipients</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {eligibleRecips.map(r => {
+                const active = selRecip.includes(r.id);
+                return (
+                  <button key={r.id} onClick={() => toggleRecip(r.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 20, border: `1.5px solid ${active ? C.rose : C.border}`, background: active ? '#fdf0f0' : C.bg, color: active ? C.rose : C.text, fontSize: 13, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}>
+                    {active && <Check size={11} />}
+                    <span>{r.nickname || r.name.split(' ')[0]}</span>
+                    <span style={{ fontSize: 11, color: C.muted }}>{method === 'sms' ? r.phone : r.email}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Custom contact */}
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 0.6, textTransform: "uppercase", fontFamily: sans, marginBottom: 10 }}>Add a contact</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={customInput}
+              onChange={e => setCustomInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") addCustom(); }}
+              placeholder={method === 'sms' ? 'Phone number' : 'Email address'}
+              style={{ flex: 1, border: `1.5px solid ${C.border}`, borderRadius: 12, padding: "9px 12px", fontSize: 14, color: C.text, fontFamily: sans, outline: "none", background: "#fff" }}
+            />
+            <button onClick={addCustom} disabled={!customInput.trim()}
+              style={{ background: customInput.trim() ? C.rose : C.border, color: "#fff", border: "none", borderRadius: 12, padding: "9px 14px", fontWeight: 700, fontFamily: sans, cursor: customInput.trim() ? "pointer" : "default", fontSize: 13, flexShrink: 0 }}>
+              Add
+            </button>
+          </div>
+          {customList.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 10 }}>
+              {customList.map(({ contact, method: m }) => (
+                <span key={contact} style={{ display: "flex", alignItems: "center", gap: 5, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 12, fontWeight: 600, color: C.text, fontFamily: sans }}>
+                  {m === 'email' ? <Mail size={11} color={C.muted} /> : <MessageSquare size={11} color={C.muted} />}
+                  {contact}
+                  <button onClick={() => removeCustom(contact)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}>
+                    <X size={11} color={C.muted} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {sent ? (
+          <div style={{ textAlign: "center", padding: "14px 0", fontSize: 15, fontWeight: 700, color: "#4a8a5a", fontFamily: sans }}>
+            ✓ Opened in your {method === 'email' ? 'email app' : 'messages app'}
+          </div>
+        ) : (
+          <button onClick={share} disabled={!hasTargets}
+            style={{ width: "100%", background: hasTargets ? `linear-gradient(135deg, ${C.rose}, #7a3a3a)` : C.border, border: "none", borderRadius: 16, padding: "14px 0", color: "#fff", fontSize: 15, fontWeight: 700, fontFamily: sans, cursor: hasTargets ? "pointer" : "default" }}>
+            Share link
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ResourcesTab({ resources, onAdd, onUpdate, onDelete, recipients }) {
+  const [showAdd, setShowAdd]       = useState(false);
+  const [editItem, setEditItem]     = useState(null);
+  const [shareItem, setShareItem]   = useState(null);
+  const [search, setSearch]         = useState('');
+  const [confirmDel, setConfirmDel] = useState(null);
+
+  const filtered = resources.filter(r => {
+    const q = search.toLowerCase();
+    return !q || r.title.toLowerCase().includes(q) || r.url.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q);
+  });
+
+  return (
+    <div style={{ padding: "20px 18px", paddingBottom: 80 }}>
+      {showAdd && (
+        <MobileResourceSheet
+          onClose={() => setShowAdd(false)}
+          onSave={data => { onAdd({ ...data, createdAt: new Date().toISOString() }); setShowAdd(false); }}
+        />
+      )}
+      {editItem && (
+        <MobileResourceSheet
+          initial={editItem}
+          onClose={() => setEditItem(null)}
+          onSave={data => { onUpdate(editItem.id, data); setEditItem(null); }}
+        />
+      )}
+      {shareItem && (
+        <MobileShareSheet resource={shareItem} recipients={recipients} onClose={() => setShareItem(null)} />
+      )}
+
+      <h2 style={{ fontSize: 24, fontWeight: 600, fontFamily: serif, color: C.text, marginBottom: 4 }}>Resources</h2>
+      <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, marginBottom: 18 }}>Save and share helpful links</p>
+
+      {/* Search */}
+      <div style={{ position: "relative", marginBottom: 16 }}>
+        <Search size={14} color={C.mutedLight} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search resources…"
+          style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 14, padding: "10px 14px 10px 36px", fontSize: 14, color: C.text, fontFamily: sans, outline: "none", background: "#fff", boxSizing: "border-box" }} />
+      </div>
+
+      {/* Resource cards */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: "44px 20px" }}>
+            <BookMarked size={32} color={C.border} style={{ marginBottom: 12 }} />
+            <p style={{ fontSize: 15, fontWeight: 600, color: C.text, fontFamily: serif, marginBottom: 6 }}>
+              {resources.length === 0 ? 'No links saved yet' : 'No results found'}
+            </p>
+            <p style={{ fontSize: 13, color: C.muted, fontFamily: sans }}>
+              {resources.length === 0 ? 'Tap + below to add your first resource link.' : 'Try a different search term.'}
+            </p>
+          </div>
+        )}
+
+        {filtered.map(res => {
+          const catStyle = res.category ? (RESOURCE_CAT_COLORS[res.category] || RESOURCE_CAT_COLORS.Other) : null;
+          const isConfirming = confirmDel === res.id;
+          return (
+            <div key={res.id} style={{ background: C.card, borderRadius: 22, padding: "16px 16px", boxShadow: CARD_SHADOW }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div style={{ width: 42, height: 42, borderRadius: 14, background: catStyle ? catStyle.bg : C.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Link2 size={16} color={catStyle ? catStyle.color : C.muted} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+                    <p style={{ fontSize: 15, fontWeight: 600, color: C.text, fontFamily: serif }}>{res.title}</p>
+                    {res.category && catStyle && (
+                      <span style={{ background: catStyle.bg, color: catStyle.color, borderRadius: 10, padding: "1px 8px", fontSize: 10, fontWeight: 700, fontFamily: sans }}>{res.category}</span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: 12, color: C.rose, fontFamily: sans, marginBottom: res.description ? 4 : 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{res.url}</p>
+                  {res.description && (
+                    <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, lineHeight: 1.5 }}>{res.description}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Action row */}
+              <div style={{ display: "flex", gap: 8, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.bg}` }}>
+                {isConfirming ? (
+                  <>
+                    <button onClick={() => { onDelete(res.id); setConfirmDel(null); }}
+                      style={{ flex: 1, padding: "8px 0", borderRadius: 12, background: "#fdf0f0", border: `1px solid ${C.rose}30`, color: C.rose, fontSize: 13, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>
+                      Remove
+                    </button>
+                    <button onClick={() => setConfirmDel(null)}
+                      style={{ flex: 1, padding: "8px 0", borderRadius: 12, background: C.bg, border: "none", color: C.muted, fontSize: 13, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => setShareItem(res)}
+                      style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", borderRadius: 12, background: `linear-gradient(135deg, ${C.rose}, #7a3a3a)`, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>
+                      <Share2 size={13} /> Share
+                    </button>
+                    <button onClick={() => window.open(res.url, '_blank')}
+                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "9px 0", borderRadius: 12, background: C.bg, border: "none", color: C.muted, fontSize: 13, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}>
+                      <ExternalLink size={13} /> Open
+                    </button>
+                    <button onClick={() => setEditItem(res)}
+                      style={{ width: 38, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 12, background: C.bg, border: "none", color: C.muted, cursor: "pointer" }}>
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => setConfirmDel(res.id)}
+                      style={{ width: 38, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 12, background: C.bg, border: "none", color: C.muted, cursor: "pointer" }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* FAB */}
+      <button onClick={() => setShowAdd(true)}
+        style={{ position: "fixed", bottom: 90, right: 20, width: 52, height: 52, borderRadius: "50%", background: `linear-gradient(135deg, ${C.rose}, #7a3a3a)`, border: "none", boxShadow: "0 4px 16px rgba(200,92,85,0.4)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 50 }}>
+        <Plus size={22} color="#fff" />
+      </button>
+    </div>
+  );
+}
+
 // ─── INSURANCE TAB ─────────────────────────────────────────────────────────────
 
 function InsuranceTab({ recipients }) {
@@ -3233,11 +3597,12 @@ function CareTab({ recipients, onSelect, onAdd, onDelete }) {
 
 // Nav — keep in sync with /shared/nav.config.js
 const NAV = [
-  { id: "home",     Icon: Home,          label: "Home"      },
-  { id: "care",     Icon: Users,         label: "Care"      },
-  { id: "calendar", Icon: CalendarDays,  label: "Calendar"  },
-  { id: "todo",     Icon: ClipboardList, label: "To Do"     },
-  { id: "chat",     Icon: MessageCircle, label: "Ask Aiden" },
+  { id: "home",      Icon: Home,          label: "Home"      },
+  { id: "care",      Icon: Users,         label: "Care"      },
+  { id: "calendar",  Icon: CalendarDays,  label: "Calendar"  },
+  { id: "todo",      Icon: ClipboardList, label: "To Do"     },
+  { id: "resources", Icon: BookMarked,    label: "Resources" },
+  { id: "chat",      Icon: MessageCircle, label: "Ask Aiden" },
 ];
 
 export default function AidenApp() {
@@ -3250,6 +3615,7 @@ export default function AidenApp() {
   const [addEventDefaultDate, setAddEventDefaultDate] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [logistics, setLogistics] = useState([]);
+  const [resources, setResources] = useState([]);
   const [showMsg, setShowMsg] = useState(true);
   const [medSchedules, setMedSchedules] = useState([]);
   const [notificationRole, setNotificationRole]     = useState('caretaker');
@@ -3325,12 +3691,13 @@ export default function AidenApp() {
       setNotificationPhone(userData.notificationPhone || '');
       setReminderMethods(userData.reminderMethods?.length ? userData.reminderMethods : ['email']);
 
-      const [recSnap, apptSnap, logSnap, docSnap, medSchedSnap] = await Promise.all([
+      const [recSnap, apptSnap, logSnap, docSnap, medSchedSnap, resSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'recipients')),
         getDocs(collection(db, 'users', uid, 'appointments')),
         getDocs(collection(db, 'users', uid, 'logistics')),
         getDocs(collection(db, 'users', uid, 'doctors')),
         getDocs(collection(db, 'users', uid, 'medicationSchedules')),
+        getDocs(collection(db, 'users', uid, 'resources')),
       ]);
 
       setRecipients(recSnap.docs.map(d => ({ ...d.data(), id: d.id })));
@@ -3338,6 +3705,7 @@ export default function AidenApp() {
       setLogistics(logSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setDoctors(docSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setMedSchedules(medSchedSnap.docs.map(d => ({ ...d.data(), id: d.id })));
+      setResources(resSnap.docs.map(d => ({ ...d.data(), id: d.id })));
     } catch (e) {
       console.error('Error loading data:', e);
     }
@@ -3510,6 +3878,35 @@ export default function AidenApp() {
     }
   }
 
+  // ── Resources ────────────────────────────────────────────────────────────────
+  async function addResource(data) {
+    const tempId = `temp_${Date.now()}`;
+    setResources(prev => [...prev, { ...data, id: tempId }]);
+    if (user) {
+      try {
+        const ref = await addDoc(collection(db, 'users', user.uid, 'resources'), data);
+        setResources(prev => prev.map(r => r.id === tempId ? { ...r, id: ref.id } : r));
+      } catch (e) {
+        console.error('Error adding resource:', e);
+        setResources(prev => prev.filter(r => r.id !== tempId));
+      }
+    }
+  }
+  async function updateResource(id, data) {
+    setResources(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
+    if (user) {
+      try { await updateDoc(doc(db, 'users', user.uid, 'resources', id), data); }
+      catch (e) { console.error('Error updating resource:', e); }
+    }
+  }
+  async function deleteResource(id) {
+    setResources(prev => prev.filter(r => r.id !== id));
+    if (user) {
+      try { await deleteDoc(doc(db, 'users', user.uid, 'resources', id)); }
+      catch (e) { console.error('Error deleting resource:', e); }
+    }
+  }
+
   // ── Auth loading screens ─────────────────────────────────────────────────────
   const SplashScreen = ({ subtitle }) => (
     <>
@@ -3576,6 +3973,7 @@ export default function AidenApp() {
     if (tab === "home") return <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => { setSelRecipient(r); setTab("care"); }} onGoToList={() => setTab("todo")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} reminderMethods={reminderMethods} onOpenSettings={() => setShowSettings(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={(date) => { setAddEventDefaultDate(date || null); setShowAddEvent(true); }} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "todo")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} onAddDoctor={addDoctor} onUpdateDoctor={updateDoctor} onDeleteDoctor={deleteDoctor} recipients={recipients} user={user} />;
+    if (tab === "resources") return <ResourcesTab resources={resources} onAdd={addResource} onUpdate={updateResource} onDelete={deleteResource} recipients={recipients} />;
     if (tab === "chat")      return <ChatTab messages={chatMessages} setMessages={setChatMessages} />;
   }
 
