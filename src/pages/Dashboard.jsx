@@ -11,6 +11,7 @@ import Care        from './dashboard/Care';
 import CalendarView from './dashboard/CalendarView';
 import MyList      from './dashboard/MyList';
 import Insurance   from './dashboard/Insurance';
+import Resources   from './dashboard/Resources';
 import Chat        from './dashboard/Chat';
 import { useAuth } from '../App';
 
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const [doctors,      setDoctors]      = useState([]);
   const [saveError,    setSaveError]    = useState(null);
   const [logistics,    setLogistics]    = useState([]);
+  const [resources,    setResources]    = useState([]);
   const [chatMessages, setChatMessages] = useState([{
     role: 'assistant',
     text: `Hi${profile?.name ? ` ${profile.name.split(' ')[0]}` : ''}! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for your loved ones — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍`,
@@ -74,16 +76,18 @@ export default function Dashboard() {
       const checkSnap = await getDocs(collection(db, 'users', uid, 'recipients'));
       if (checkSnap.empty && INITIAL_RECIPIENTS.length > 0) await seedUserData(uid);
 
-      const [recSnap, apptSnap, logSnap, docSnap] = await Promise.all([
+      const [recSnap, apptSnap, logSnap, docSnap, resSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'recipients')),
         getDocs(collection(db, 'users', uid, 'appointments')),
         getDocs(collection(db, 'users', uid, 'logistics')),
         getDocs(collection(db, 'users', uid, 'doctors')),
+        getDocs(collection(db, 'users', uid, 'resources')),
       ]);
       setRecipients(recSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setAppointments(apptSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setLogistics(logSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setDoctors(docSnap.docs.map(d => ({ ...d.data(), id: d.id })));
+      setResources(resSnap.docs.map(d => ({ ...d.data(), id: d.id })));
     } catch (e) {
       console.error('Failed to load data:', e);
     }
@@ -203,6 +207,31 @@ export default function Dashboard() {
     } catch (e) { fsError('updateLogistic', e); }
   }
 
+  // ── Resources ──────────────────────────────────────────────────────────────────
+  async function addResource(data) {
+    const tempId = `temp_${Date.now()}`;
+    setResources(prev => [...prev, { ...data, id: tempId }]);
+    try {
+      const ref = await addDoc(collection(db, 'users', user.uid, 'resources'), data);
+      setResources(prev => prev.map(r => r.id === tempId ? { ...r, id: ref.id } : r));
+    } catch (e) {
+      fsError('addResource', e);
+      setResources(prev => prev.filter(r => r.id !== tempId));
+    }
+  }
+  async function updateResource(id, data) {
+    setResources(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
+    try {
+      await updateDoc(doc(db, 'users', user.uid, 'resources', id), data);
+    } catch (e) { fsError('updateResource', e); }
+  }
+  async function deleteResource(id) {
+    setResources(prev => prev.filter(r => r.id !== id));
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'resources', id));
+    } catch (e) { fsError('deleteResource', e); }
+  }
+
   if (dataLoading) {
     return (
       <DashboardLayout active={active}>
@@ -251,6 +280,8 @@ export default function Dashboard() {
         );
       case 'insurance':
         return <Insurance recipients={recipients} />;
+      case 'resources':
+        return <Resources resources={resources} onAdd={addResource} onUpdate={updateResource} onDelete={deleteResource} recipients={recipients} />;
       case 'chat':
         return <Chat messages={chatMessages} setMessages={setChatMessages} />;
       default:

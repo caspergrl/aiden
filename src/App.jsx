@@ -77,6 +77,7 @@ export default function App() {
           <Route path="/care"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/calendar"  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/todo"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/resources" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/chat"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/dashboard" element={<Navigate to="/home" replace />} />
           <Route path="/account"   element={<ProtectedRoute><Account /></ProtectedRoute>} />

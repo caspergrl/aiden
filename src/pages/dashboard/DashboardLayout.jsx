@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X } from 'lucide-react';
+import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked } from 'lucide-react';
 import { auth } from '../../firebase';
 import { useAuth } from '../../App';
 import { C, serif, shadowSm } from '../../theme';
@@ -9,11 +9,12 @@ import Logo from '../../components/Logo';
 
 // Nav — keep in sync with /shared/nav.config.js
 const NAV = [
-  { id: 'home',     label: 'Home',       Icon: Home },
-  { id: 'care',     label: 'Care',       Icon: Users },
-  { id: 'calendar', label: 'Calendar',   Icon: CalendarDays },
-  { id: 'todo',     label: 'To Do',      Icon: ClipboardList },
-  { id: 'chat',     label: 'Ask Aiden',  Icon: MessageCircle },
+  { id: 'home',      label: 'Home',       Icon: Home },
+  { id: 'care',      label: 'Care',       Icon: Users },
+  { id: 'calendar',  label: 'Calendar',   Icon: CalendarDays },
+  { id: 'todo',      label: 'To Do',      Icon: ClipboardList },
+  { id: 'resources', label: 'Resources',  Icon: BookMarked },
+  { id: 'chat',      label: 'Ask Aiden',  Icon: MessageCircle },
 ];
 
 export default function DashboardLayout({ active, children }) {
