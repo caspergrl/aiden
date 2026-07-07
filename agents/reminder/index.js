@@ -237,83 +237,104 @@ async function processUser(uid, todayStr, tomorrowStr, now) {
 }
 
 // ── Claude email generation ────────────────────────────────────────────────────
+// HIPAA NOTE: Only anonymised counts are sent to Anthropic (Claude).
+// All PHI (recipient names, appointment titles, medication names, doctor names,
+// locations, clinical notes) is rendered LOCALLY and never leaves this server.
 async function generateEmail(ctx, notificationRole = 'caretaker') {
-  const lines = [];
+  const isCaretaker = notificationRole !== 'observer';
+  const roleDesc = isCaretaker
+    ? 'hands-on caregiver who directly gives medications and attends appointments'
+    : 'family member who stays informed but does not directly provide care';
+
+  // Only counts go to Anthropic — zero PHI
+  const countSummary = [
+    ctx.todayAppointments.length > 0 &&
+      `${ctx.todayAppointments.length} appointment${ctx.todayAppointments.length > 1 ? 's' : ''} today`,
+    ctx.tomorrowAppointments.length > 0 &&
+      `${ctx.tomorrowAppointments.length} appointment${ctx.tomorrowAppointments.length > 1 ? 's' : ''} tomorrow`,
+    ctx.medicationReminders.length > 0 &&
+      `${ctx.medicationReminders.length} medication schedule${ctx.medicationReminders.length > 1 ? 's' : ''} to track`,
+  ].filter(Boolean).join(', ');
+
+  const introPrompt = `You are Aiden, a warm caregiving companion app. Write a 2-sentence warm opening for a daily reminder email.
+Caregiver's first name: ${ctx.caregiverName}. Today: ${ctx.currentDate}. They have: ${countSummary}.
+They are a ${roleDesc}. Write ONLY the opening — no lists, no clinical details. End with a colon to introduce the summary below.`;
+
+  const closingPrompt = `Write one warm, genuine, brief encouraging sentence to close a caregiving daily reminder email. Tone: ${roleDesc}. No quotes, no markdown, no generic platitudes.`;
+
+  // Run both Claude calls in parallel — neither receives any PHI
+  const [introRes, closingRes] = await Promise.all([
+    anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 120,
+      messages: [{ role: 'user', content: introPrompt }],
+    }),
+    anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 80,
+      messages: [{ role: 'user', content: closingPrompt }],
+    }),
+  ]);
+
+  const intro = introRes.content[0].text.trim();
+  const closing = closingRes.content[0].text.trim();
+
+  // Build PHI detail sections LOCALLY — never sent to Anthropic
+  const sections = [];
 
   if (ctx.todayAppointments.length > 0) {
-    lines.push('TODAY\'S APPOINTMENTS:');
+    const lines = ["TODAY'S APPOINTMENTS"];
     ctx.todayAppointments.forEach(a => {
-      let s = `  - ${a.recipientName}: ${a.title} at ${a.time}`;
-      if (a.location) s += ` @ ${a.location}`;
-      if (a.doctor) s += ` with ${a.doctor}`;
-      lines.push(s);
+      let s = `${a.recipientName}: ${a.title} at ${a.time}`;
+      if (a.location) s += ` — ${a.location}`;
+      if (a.doctor) s += ` (${a.doctor})`;
+      lines.push(`• ${s}`);
     });
+    sections.push(lines.join('\n'));
   }
 
   if (ctx.tomorrowAppointments.length > 0) {
-    lines.push('\nTOMORROW\'S APPOINTMENTS:');
+    const lines = ["TOMORROW'S APPOINTMENTS"];
     ctx.tomorrowAppointments.forEach(a => {
-      let s = `  - ${a.recipientName}: ${a.title} at ${a.time}`;
-      if (a.location) s += ` @ ${a.location}`;
-      if (a.doctor) s += ` with ${a.doctor}`;
-      lines.push(s);
+      let s = `${a.recipientName}: ${a.title} at ${a.time}`;
+      if (a.location) s += ` — ${a.location}`;
+      if (a.doctor) s += ` (${a.doctor})`;
+      lines.push(`• ${s}`);
     });
+    sections.push(lines.join('\n'));
   }
 
   if (ctx.medicationReminders.length > 0) {
-    lines.push('\nMEDICATION REMINDERS:');
+    const lines = ['MEDICATIONS'];
     ctx.medicationReminders.forEach(m => {
-      let s = `  - ${m.medication} for ${m.recipientName}`;
-      if (m.scheduledTimes.length > 0) s += ` (scheduled: ${m.scheduledTimes.join(', ')})`;
-      if (m.lastGiven) s += ` — last given ${m.lastGiven}`;
-      else s += ` — not yet logged today`;
-      if (m.lastNote) s += ` (note: ${m.lastNote})`;
-      lines.push(s);
+      let s = isCaretaker
+        ? `Give ${m.medication} to ${m.recipientName}`
+        : `${m.medication} for ${m.recipientName}`;
+      if (m.scheduledTimes.length > 0) s += ` — scheduled ${m.scheduledTimes.join(', ')}`;
+      if (m.lastGiven) s += ` (last given ${m.lastGiven})`;
+      else if (isCaretaker) s += ' — not yet logged today';
+      if (m.lastNote) s += ` · note: ${m.lastNote}`;
+      lines.push(`• ${s}`);
     });
+    sections.push(lines.join('\n'));
   }
 
-  const isCaretaker = notificationRole !== 'observer';
+  const subject = buildSubject(ctx);
+  const body = `${intro}\n\n${sections.join('\n\n')}\n\n${closing}`;
 
-  const roleGuidance = isCaretaker
-    ? `- This person is the CARETAKER — they physically give medications and attend appointments
-- For medications: use actionable language ("it's time to give", "Metformin is due")
-- Mention when each medication was last given if the data shows it (e.g. "you gave Metformin to Mom last night at 8:02 PM")
-- For appointments today: make it feel urgent and prep-oriented ("Mom's cardiology is at 10 AM today — don't forget to leave early")
-- Tone: warm partner-in-care, like a helpful reminder from someone who cares`
-    : `- This person is an OBSERVER — they stay informed but do not give medications or attend appointments themselves
-- For medications: use informational language ("Metformin is scheduled for", "is due to be given")
-- If medication was recently logged, say who likely gave it and when ("Metformin was given to Mom last night at 8:02 PM")
-- For appointments: frame as FYI ("Mom has a cardiology appointment today at 10 AM with Dr. Lee")
-- Tone: warm update, like a caring family member being kept in the loop — no urgency or action items`;
+  return { subject, body };
+}
 
-  const prompt = `You are Aiden, a warm and supportive caregiving companion app.
-Write a brief reminder email to a caregiver. Today is ${ctx.currentDate}.
-
-${lines.join('\n')}
-
-Guidelines:
-- Address them by first name: ${ctx.caregiverName}
-- Warm but not saccharine — matter-of-fact with genuine care
-${roleGuidance}
-- For appointments tomorrow: frame as upcoming (not urgent)
-- Keep it under 160 words
-- End with ONE brief encouraging sentence — something real, not generic
-- No markdown, no bullet points in the email — natural paragraphs
-
-Respond with valid JSON only:
-{ "subject": "...", "body": "paragraph1\\n\\nparagraph2\\n\\nparagraph3" }`;
-
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 600,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  const raw = response.content[0].text.trim();
-  const match = raw.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('Claude did not return valid JSON');
-
-  return JSON.parse(match[0]);
+// ── Subject line (built locally — no PHI sent to AI) ──────────────────────────
+function buildSubject(ctx) {
+  const parts = [];
+  if (ctx.todayAppointments.length > 0)
+    parts.push(`${ctx.todayAppointments.length} appointment${ctx.todayAppointments.length > 1 ? 's' : ''} today`);
+  if (ctx.medicationReminders.length > 0)
+    parts.push(`${ctx.medicationReminders.length} med${ctx.medicationReminders.length > 1 ? 's' : ''}`);
+  if (ctx.tomorrowAppointments.length > 0)
+    parts.push(`${ctx.tomorrowAppointments.length} tomorrow`);
+  return `Aiden reminder: ${parts.join(' · ')} — ${ctx.currentDate}`;
 }
 
 // ── SMS body (plain text, ≤320 chars) ─────────────────────────────────────────
@@ -332,10 +353,20 @@ function buildSmsBody(body, subject) {
 
 // ── HTML email template ────────────────────────────────────────────────────────
 function buildEmailHtml(body) {
+  // Render section headers (ALL-CAPS lines) in bold; bullet lines as-is
+  function renderPara(p) {
+    return p.split('\n').map(line => {
+      if (line === line.toUpperCase() && line.trim().length > 0 && !line.startsWith('•')) {
+        return `<strong style="font-size:11px;letter-spacing:0.6px;color:#7a6a60;">${line}</strong>`;
+      }
+      return line.replace(/^•\s*/, '<span style="color:#c85c55;">•</span> ');
+    }).join('<br>');
+  }
+
   const paras = body
     .split('\n\n')
     .filter(Boolean)
-    .map(p => `<p style="margin:0 0 18px 0;line-height:1.85;">${p.replace(/\n/g, '<br>')}</p>`)
+    .map(p => `<p style="margin:0 0 18px 0;line-height:1.85;">${renderPara(p)}</p>`)
     .join('');
 
   return `<!DOCTYPE html>

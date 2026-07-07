@@ -10,7 +10,7 @@ const firebaseConfig = {
   storageBucket: "aiden-12acb.firebasestorage.app",
   messagingSenderId: "90168103816",
   appId: "1:90168103816:web:8d15ea56231852b413203d",
-  measurementId: "G-QDP5W8SPCT"
+  // measurementId removed — Google Analytics not used and sends data to Google servers
 };
 
 const app = initializeApp(firebaseConfig);
