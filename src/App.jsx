@@ -14,7 +14,7 @@ import {
   CheckSquare, Square, Send, Clock, FileText, Image as ImageIcon,
   AlertCircle, Bell, Check, Info, ExternalLink, Eye, EyeOff, User,
   Scale, ArrowRightLeft, Users, RotateCcw, Download, Upload,
-  Camera, Pencil, Trash2, X, BookMarked, Link2, Share2, Mail, MessageSquare, Search,
+  Camera, Pencil, Trash2, X, BookMarked, Link2, Share2, Mail, MessageSquare, Search, Copy,
 } from "lucide-react";
 
 // ─── PALETTE ── imported from @shared/theme ────────────────────────────────────
@@ -55,52 +55,13 @@ const DAILY_MESSAGES = [
   "You are doing sacred work. The love you give quietly sustains someone else's whole world.",
 ];
 
-const INITIAL_RECIPIENTS = [
-  {
-    id: 1, name: "Margaret Chen", nickname: "Mom", age: 78,
-    email: "margaret.chen@email.com", phone: "(555) 123-4567",
-    relationship: "Parent", photo: null,
-    conditions: ["Type 2 Diabetes", "Mild Cognitive Impairment", "Hypertension"],
-    medications: ["Metformin", "Lisinopril", "Donepezil"],
-    insurancePlans: ["medicare", "humana"],
-    notes: "Prefers morning appointments. Gets anxious in new environments. Enjoys crossword puzzles and classical music. Needs transportation assistance.",
-    importantNumbers: [
-      { label: "Dr. Kim's office", number: "(555) 200-1000" },
-      { label: "CVS Pharmacy", number: "(555) 500-3000" },
-      { label: "City Medical Center", number: "(555) 300-0000" },
-      { label: "Medicare helpline", number: "1-800-633-4227" },
-    ],
-  },
-  {
-    id: 2, name: "Thomas Chen", nickname: "Tommy", age: 45,
-    email: "tommy.chen@email.com", phone: "(555) 987-6543",
-    relationship: "Sibling", photo: null,
-    conditions: ["Down Syndrome", "Hypothyroidism"],
-    medications: ["Levothyroxine"],
-    insurancePlans: ["medicaid", "bcbs"],
-    notes: "Follows routines well. Enjoys music therapy. Day program Tuesdays & Thursdays at Sunrise Center. Loves baseball and cooking shows.",
-    importantNumbers: [
-      { label: "Sunrise Day Program", number: "(555) 400-2000" },
-      { label: "Dr. Park's office", number: "(555) 200-4000" },
-      { label: "Medicaid helpline", number: "1-877-267-2323" },
-    ],
-  },
-];
+// Demo seed data removed — new users start with a blank workspace.
+// No PHI is pre-populated; users add their own care recipients and data.
+const INITIAL_RECIPIENTS = [];
 
-const INITIAL_APPOINTMENTS = [
-  { id: 1, recipientId: 1, title: "Cardiology Follow-up", date: "2026-03-28", time: "10:00 AM", location: "City Medical Center, Suite 302", doctor: "Dr. Robert Lee" },
-  { id: 2, recipientId: 2, title: "Day Program – Music Therapy", date: "2026-03-26", time: "10:00 AM", location: "Sunrise Day Program", doctor: "" },
-  { id: 3, recipientId: 1, title: "Annual Physical", date: "2026-04-05", time: "9:00 AM", location: "Primary Care Associates", doctor: "Dr. Sarah Kim" },
-  { id: 4, recipientId: 2, title: "Neurologist Check-in", date: "2026-04-02", time: "2:30 PM", location: "Neurology Specialists", doctor: "Dr. James Park" },
-  { id: 5, recipientId: 1, title: "Memory Care Assessment", date: "2026-04-15", time: "11:00 AM", location: "Cognitive Health Institute", doctor: "Dr. Angela Torres" },
-];
+const INITIAL_APPOINTMENTS = [];
 
-const INITIAL_DOCTORS = [
-  { id: 1, recipientId: 1, name: "Dr. Sarah Kim", specialty: "Primary Care", phone: "(555) 200-1000", address: "123 Main St, Suite 1", notes: "Primary physician" },
-  { id: 2, recipientId: 1, name: "Dr. Robert Lee", specialty: "Cardiology", phone: "(555) 200-2000", address: "City Medical Center, Suite 302", notes: "" },
-  { id: 3, recipientId: 1, name: "Dr. Angela Torres", specialty: "Neurology / Memory Care", phone: "(555) 200-3000", address: "Cognitive Health Institute", notes: "Specializes in dementia care" },
-  { id: 4, recipientId: 2, name: "Dr. James Park", specialty: "Developmental Medicine", phone: "(555) 200-4000", address: "Neurology Specialists, Bldg B", notes: "Great with Tommy" },
-];
+const INITIAL_DOCTORS = [];
 
 const INITIAL_LOGISTICS = [
   { id: 1, title: "Will (ensure it's notarized)", completed: true, note: "Notarized March 2025", partnerLink: "trust-will" },
@@ -163,8 +124,15 @@ const SUGGESTIONS = [
 
 function getDaysInMonth(m, y) { return new Date(y, m + 1, 0).getDate(); }
 function getFirstDay(m, y) { return new Date(y, m, 1).getDay(); }
-function rColor(id) { return id === 1 ? C.rose : C.blue; }
-function rLightColor(id) { return id === 1 ? C.roseLight : C.blueLight; }
+const RECIPIENT_PALETTE = ['#c07878','#5f9e9a','#9b87b8','#c49050','#7a9e72','#7a8abf'];
+function rColor(id) {
+  if (id == null) return RECIPIENT_PALETTE[0];
+  const s = String(id);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return RECIPIENT_PALETTE[h % RECIPIENT_PALETTE.length];
+}
+function rLightColor(id) { return rColor(id) + '22'; }
 function initials(name) { return name.split(" ").map(n => n[0]).join("").slice(0, 2); }
 
 const FI = 'https://cdn-icons-png.flaticon.com/512';
@@ -199,6 +167,10 @@ function from24h(t) {
   if (h === 0) h = 12;
   return `${h}:${String(m).padStart(2,'0')} ${period}`;
 }
+function t24ToH(t) { const h = parseInt((t||'10:00').split(':')[0]); return String(h===0?12:h>12?h-12:h); }
+function t24ToM(t) { return (t||'10:00').split(':')[1]||'00'; }
+function t24ToP(t) { return parseInt((t||'10:00').split(':')[0])>=12?'PM':'AM'; }
+function hmpTo24(h,m,p) { let n=parseInt(h); if(p==='AM'&&n===12)n=0; if(p==='PM'&&n!==12)n+=12; return `${String(n).padStart(2,'0')}:${m}`; }
 function fmtLongDate(ds) {
   return new Date(ds + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
@@ -272,6 +244,105 @@ function ShowMessageBtn({ onShow }) {
 
 // ─── PROFILE SHEET ────────────────────────────────────────────────────────────
 
+function LegalDocSheet({ title, onClose, children }) {
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:500, display:"flex", flexDirection:"column" }}>
+      <div style={{ position:"absolute", inset:0, background:"rgba(38,32,26,0.45)" }} onClick={onClose}/>
+      <div style={{ position:"relative", background:"#fff", flex:1, marginTop:60, borderRadius:"22px 22px 0 0", display:"flex", flexDirection:"column", zIndex:1 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"20px 20px 16px", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+          <h3 style={{ fontSize:18, fontWeight:700, fontFamily:serif, color:C.text, margin:0 }}>{title}</h3>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}><X size={18} color={C.muted}/></button>
+        </div>
+        <div style={{ flex:1, overflowY:"auto", padding:"20px 20px 48px" }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const legalP  = { fontSize:14, color:"#4a4038", lineHeight:1.85, marginBottom:14, fontFamily:sans };
+const legalH2 = { fontSize:16, fontWeight:700, color:C.text, fontFamily:serif, marginBottom:10, marginTop:28 };
+const legalUl = { fontSize:14, color:"#4a4038", lineHeight:1.85, paddingLeft:20, marginBottom:14, fontFamily:sans };
+
+function PrivacyPolicyContent() {
+  return (
+    <>
+      <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, marginBottom:20 }}>Effective date: July 5, 2026</p>
+      <p style={legalP}>Aiden Caregiving, LLC ("we," "our," or "us") is committed to protecting the privacy of the caregivers and families who use our platform. This Privacy Policy explains what information we collect, how we use it, and the choices you have regarding your data.</p>
+      <p style={{ ...legalH2 }}>1. Information We Collect</p>
+      <p style={legalP}><strong>Account information.</strong> When you create an account, we collect your name, email address, and a hashed password.</p>
+      <p style={legalP}><strong>Care recipient information.</strong> You may choose to enter information about the people you care for, including their name, age, medical conditions, medications, insurance plans, doctors, and care notes. This information is provided voluntarily and stored securely in your account.</p>
+      <p style={legalP}><strong>Appointment and scheduling data.</strong> We store appointments, reminders, and calendar events you create within Aiden.</p>
+      <p style={legalP}><strong>AI assistant conversations.</strong> When you use Ask Aiden, your messages and generated responses are associated with your account.</p>
+      <p style={legalP}><strong>Usage data.</strong> We collect standard technical information — device type, OS, IP address, and actions taken — to improve the service and diagnose issues.</p>
+      <p style={{ ...legalH2 }}>2. How We Use Your Information</p>
+      <ul style={legalUl}>
+        <li>Provide, maintain, and improve the Aiden platform</li>
+        <li>Personalise your experience based on your care recipients</li>
+        <li>Send appointment reminders and notifications you have requested</li>
+        <li>Power the Ask Aiden AI assistant</li>
+        <li>Respond to support requests and communicate about your account</li>
+        <li>Detect and prevent fraud and security incidents</li>
+      </ul>
+      <p style={legalP}>We do not use your health information to serve you advertisements.</p>
+      <p style={{ ...legalH2 }}>3. Data Storage and Security</p>
+      <p style={legalP}>All data is stored using Firebase (Google Cloud Platform), which maintains SOC 2 Type II and ISO 27001 compliance. Data is encrypted at rest and in transit. Access within our systems is restricted to authorised personnel.</p>
+      <p style={{ ...legalH2 }}>4. Information Sharing</p>
+      <p style={legalP}><strong>We do not sell your personal information.</strong> We share data only with trusted service providers who process it on our behalf, when required by law, or in a business transfer (with advance notice to you).</p>
+      <p style={{ ...legalH2 }}>5. Health Information</p>
+      <p style={legalP}>Aiden is a personal organisation tool, not a HIPAA covered entity. Health information you enter is stored as general user data. Always consult qualified professionals for medical decisions.</p>
+      <p style={{ ...legalH2 }}>6. Your Rights</p>
+      <ul style={legalUl}>
+        <li><strong>Access and correction:</strong> Update your info at any time in account settings.</li>
+        <li><strong>Deletion:</strong> Delete your account and all associated data at any time. Deletion is permanent and irreversible.</li>
+        <li><strong>Data portability:</strong> Request an export by contacting privacy@aiden.care.</li>
+      </ul>
+      <p style={{ ...legalH2 }}>7. Data Retention</p>
+      <p style={legalP}>We retain your data while your account is active. Deleted accounts are purged within 30 days.</p>
+      <p style={{ ...legalH2 }}>8. Children's Privacy</p>
+      <p style={legalP}>Aiden is not intended for anyone under 13. We do not knowingly collect data from children.</p>
+      <p style={{ ...legalH2 }}>9. Contact</p>
+      <p style={legalP}>Questions? Contact <strong>Aiden Caregiving, LLC</strong> at <strong>privacy@aiden.care</strong></p>
+    </>
+  );
+}
+
+function TermsContent() {
+  return (
+    <>
+      <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, marginBottom:20 }}>Effective date: July 5, 2026</p>
+      <p style={legalP}>By creating an account or using Aiden, you agree to these Terms of Service. Please read them carefully.</p>
+      <p style={{ ...legalH2 }}>1. About Aiden</p>
+      <p style={legalP}>Aiden is a caregiving organisation and coordination platform operated by Aiden Caregiving, LLC ("we," "our," or "us"). It is not a medical provider, health plan, financial advisor, or legal services firm. Nothing in Aiden constitutes medical, legal, or financial advice.</p>
+      <p style={{ ...legalH2 }}>2. Eligibility</p>
+      <p style={legalP}>You must be at least 18 years old to use Aiden. By using the service you confirm you have the legal capacity to enter into these Terms.</p>
+      <p style={{ ...legalH2 }}>3. Your Account</p>
+      <p style={legalP}>You are responsible for maintaining the confidentiality of your login credentials and all activity under your account. Notify us immediately of any unauthorised access at support@aiden.care.</p>
+      <p style={{ ...legalH2 }}>4. Information You Enter</p>
+      <p style={legalP}>You retain ownership of all data you enter into Aiden. By entering it, you grant us a limited licence to store and process it solely to provide the service. You are responsible for the accuracy of the information you enter.</p>
+      <p style={{ ...legalH2 }}>5. Permitted Use</p>
+      <p style={legalP}>You may use Aiden only for lawful caregiving coordination. You agree not to attempt to access other users' data, reverse-engineer the platform, introduce malware, or use automated scraping tools.</p>
+      <p style={{ ...legalH2 }}>6. Ask Aiden AI Assistant</p>
+      <p style={legalP}>Ask Aiden provides general information to support caregiving decisions — it is not a substitute for professional advice. AI responses may be inaccurate or incomplete. Never delay seeking emergency medical care based on an AI response.</p>
+      <p style={{ ...legalH2 }}>7. Subscriptions</p>
+      <p style={legalP}>Aiden offers a free tier and optional paid plans. Paid subscriptions are billed monthly or annually and are non-refundable except as required by law. You may cancel at any time from account settings.</p>
+      <p style={{ ...legalH2 }}>8. Intellectual Property</p>
+      <p style={legalP}>Aiden and all its content — design, logo, software, and written content — are owned by us. You may not copy, modify, or distribute our content without written consent.</p>
+      <p style={{ ...legalH2 }}>9. Disclaimers</p>
+      <p style={legalP}>Aiden is provided "as is" without warranties of any kind. We do not warrant that the service will be uninterrupted or error-free.</p>
+      <p style={{ ...legalH2 }}>10. Limitation of Liability</p>
+      <p style={legalP}>To the extent permitted by law, Aiden Caregiving, LLC shall not be liable for indirect, incidental, or consequential damages. Our total liability shall not exceed the greater of the amount you paid us in the past 12 months or $50.</p>
+      <p style={{ ...legalH2 }}>11. Termination</p>
+      <p style={legalP}>You may delete your account at any time. We may suspend access if we believe you have violated these Terms.</p>
+      <p style={{ ...legalH2 }}>12. Governing Law</p>
+      <p style={legalP}>These Terms are governed by the laws of the State of California. Disputes are resolved by binding arbitration under AAA rules in San Francisco, CA.</p>
+      <p style={{ ...legalH2 }}>13. Contact</p>
+      <p style={legalP}>Questions? Contact <strong>Aiden Caregiving, LLC</strong> at <strong>legal@aiden.care</strong></p>
+    </>
+  );
+}
+
 function ProfileSheet({ user, onClose, onSignOut, onRefresh }) {
   const [editingName, setEditingName] = useState(false);
   const [nameBuf, setNameBuf]         = useState(user?.displayName || '');
@@ -279,6 +350,8 @@ function ProfileSheet({ user, onClose, onSignOut, onRefresh }) {
   const [error, setError]             = useState('');
   const [success, setSuccess]         = useState('');
   const [resetSent, setResetSent]     = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms]     = useState(false);
 
   const initial = (user?.displayName?.[0] || user?.email?.[0] || '?').toUpperCase();
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'Account';
@@ -389,7 +462,16 @@ function ProfileSheet({ user, onClose, onSignOut, onRefresh }) {
         >
           <LogOut size={15} /> Sign out
         </button>
+
+        {/* Legal links */}
+        <div style={{ display:"flex", justifyContent:"center", gap:24, marginTop:20 }}>
+          <button onClick={() => setShowPrivacy(true)} style={{ background:"none", border:"none", color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:"pointer", padding:0 }}>Privacy Policy</button>
+          <button onClick={() => setShowTerms(true)}   style={{ background:"none", border:"none", color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:"pointer", padding:0 }}>Terms of Service</button>
+        </div>
       </div>
+
+      {showPrivacy && <LegalDocSheet title="Privacy Policy"   onClose={() => setShowPrivacy(false)}><PrivacyPolicyContent /></LegalDocSheet>}
+      {showTerms   && <LegalDocSheet title="Terms of Service" onClose={() => setShowTerms(false)}><TermsContent /></LegalDocSheet>}
     </div>
   );
 }
@@ -490,6 +572,66 @@ function NotificationSettingsSheet({ role, phone, reminderMethods, onSave, onClo
   );
 }
 
+// ─── APPOINTMENT SHARE SHEET ──────────────────────────────────────────────────
+function ApptShareSheet({ appt, recipients, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const r = recipients.find(rec => rec.id === appt.recipientId);
+
+  function buildShareText() {
+    return [
+      appt.title,
+      `📅 ${fmtLongDate(appt.date)} · ${appt.time}`,
+      appt.location ? `📍 ${cleanLocation(appt.location)}` : null,
+      r         ? `For: ${r.name}` : null,
+      appt.notes ? `\n${appt.notes}` : null,
+      '\nSent via Aiden',
+    ].filter(Boolean).join('\n');
+  }
+
+  const shareText = buildShareText();
+
+  function handleCopy() {
+    navigator.clipboard?.writeText(shareText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.42)' }} />
+      <div style={{ position: 'relative', background: '#fff', borderRadius: '20px 20px 0 0', padding: '24px 20px 44px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <p style={{ fontFamily: serif, fontSize: 18, fontWeight: 700, color: C.text }}>Share event details</p>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={20} /></button>
+        </div>
+
+        {/* Preview */}
+        <div style={{ background: '#f7f5f2', borderRadius: 14, padding: '14px 16px', marginBottom: 20 }}>
+          <p style={{ fontSize: 13, color: C.text, fontFamily: sans, lineHeight: 1.75, whiteSpace: 'pre-wrap', margin: 0 }}>{shareText}</p>
+        </div>
+
+        {/* Options */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <a href={`mailto:?subject=${encodeURIComponent(appt.title)}&body=${encodeURIComponent(shareText)}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#eef3fb', borderRadius: 14, textDecoration: 'none', color: C.text, fontFamily: sans, fontSize: 15, fontWeight: 600 }}>
+            <Mail size={20} color={C.primary} /> Share via email
+          </a>
+          <a href={`sms:?&body=${encodeURIComponent(shareText)}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#eef6f1', borderRadius: 14, textDecoration: 'none', color: C.text, fontFamily: sans, fontSize: 15, fontWeight: 600 }}>
+            <MessageSquare size={20} color={C.sage} /> Share via text
+          </a>
+          <button onClick={handleCopy}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: copied ? '#eef6f1' : '#f7f5f2', border: 'none', borderRadius: 14, cursor: 'pointer', fontFamily: sans, fontSize: 15, fontWeight: 600, color: copied ? C.sage : C.text }}>
+            {copied ? <Check size={20} color={C.sage} /> : <Copy size={20} color={C.muted} />}
+            {copied ? 'Copied!' : 'Copy to clipboard'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── APPOINTMENT SHEET ────────────────────────────────────────────────────────
 
 // Strip legacy "— type address manually" artifact from saved locations
@@ -500,6 +642,7 @@ function cleanLocation(loc) {
 function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
   const [mode, setMode] = useState('view'); // 'view' | 'edit'
   const [buf, setBuf] = useState({ ...appt });
+  const [showShareSheet, setShowShareSheet] = useState(false);
 
   const r   = recipients.find(rec => rec.id === appt.recipientId);
   const col = r ? rColor(r.id) : C.muted;
@@ -521,6 +664,7 @@ function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:300, display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+      {showShareSheet && <ApptShareSheet appt={appt} recipients={recipients} onClose={() => setShowShareSheet(false)} />}
       <div style={{ position:"absolute", inset:0, background:"rgba(38,32,26,0.45)" }} onClick={onClose}/>
       <div style={{ position:"relative", background:C.card, borderRadius:"22px 22px 0 0", padding:"24px 20px 44px", zIndex:1, maxHeight:"88vh", overflowY:"auto" }}>
 
@@ -561,6 +705,9 @@ function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
               <button onClick={() => { setBuf({ ...appt, _time24: to24h(appt.time) }); setMode('edit'); }} style={{ flex:1, background:C.roseLight, color:C.roseDark, border:"none", borderRadius:14, padding:"12px 0", fontSize:14, fontWeight:700, fontFamily:sans, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
                 <Pencil size={14}/> Edit
               </button>
+              <button onClick={() => setShowShareSheet(true)} style={{ flex:1, background:"#eef3fb", color:C.primaryDark, border:"none", borderRadius:14, padding:"12px 0", fontSize:14, fontWeight:700, fontFamily:sans, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                <Share2 size={14}/> Share
+              </button>
               <button onClick={() => { onDelete(appt.id); onClose(); }} style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:14, padding:"12px 16px", color:C.muted, fontFamily:sans, fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:5 }}>
                 <Trash2 size={14}/> Delete
               </button>
@@ -599,14 +746,25 @@ function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
                 <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Title</p>
                 <input value={buf.title||''} onChange={e=>setBuf(b=>({...b,title:e.target.value}))} style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:14, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
               </div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 <div>
                   <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Date</p>
                   <input type="date" value={buf.date||''} onChange={e=>setBuf(b=>({...b,date:e.target.value}))} style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:13, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
                 </div>
                 <div>
                   <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Time</p>
-                  <input type="time" value={buf._time24||to24h(buf.time)||''} onChange={e=>setBuf(b=>({...b,_time24:e.target.value}))} style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:13, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
+                  <div style={{ display:"flex", gap:6 }}>
+                    <select value={t24ToH(buf._time24||to24h(buf.time)||'10:00')} onChange={e=>setBuf(b=>{const cur=b._time24||to24h(b.time)||'10:00';return{...b,_time24:hmpTo24(e.target.value,t24ToM(cur),t24ToP(cur))}})} style={{ flex:1, background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 6px", fontSize:13, fontFamily:sans, color:C.text, outline:"none" }}>
+                      {['1','2','3','4','5','6','7','8','9','10','11','12'].map(h=><option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <select value={t24ToM(buf._time24||to24h(buf.time)||'10:00')} onChange={e=>setBuf(b=>{const cur=b._time24||to24h(b.time)||'10:00';return{...b,_time24:hmpTo24(t24ToH(cur),e.target.value,t24ToP(cur))}})} style={{ flex:1, background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 6px", fontSize:13, fontFamily:sans, color:C.text, outline:"none" }}>
+                      {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m=><option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <select value={t24ToP(buf._time24||to24h(buf.time)||'10:00')} onChange={e=>setBuf(b=>{const cur=b._time24||to24h(b.time)||'10:00';return{...b,_time24:hmpTo24(t24ToH(cur),t24ToM(cur),e.target.value)}})} style={{ flex:"0 0 70px", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 4px", fontSize:13, fontFamily:sans, color:C.text, outline:"none" }}>
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
                 </div>
               </div>
               <div>
@@ -646,24 +804,25 @@ function getGreeting() {
   return 'Good evening';
 }
 
+// Converts an appointment {date, time} to a ms timestamp for comparisons
+function apptMs(a) {
+  const [y, mo, d] = (a.date || '').split('-').map(Number);
+  if (!y) return Infinity;
+  const t = a.time || '12:00 AM';
+  const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return new Date(y, mo - 1, d, 23, 59).getTime();
+  let h = parseInt(match[1]);
+  const min = parseInt(match[2]);
+  const ampm = match[3].toUpperCase();
+  if (ampm === 'PM' && h !== 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return new Date(y, mo - 1, d, h, min).getTime();
+}
+
 function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent, notificationRole, reminderMethods, onOpenSettings, onUpdateAppt, onDeleteAppt }) {
   const pending = logistics.filter(l => !l.completed).length;
 
   // Parse appointment date+time to ms using local time
-  function apptMs(a) {
-    const [y, mo, d] = (a.date || '').split('-').map(Number);
-    if (!y) return Infinity;
-    const t = a.time || '12:00 AM';
-    const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-    if (!match) return new Date(y, mo - 1, d, 23, 59).getTime();
-    let h = parseInt(match[1]);
-    const min = parseInt(match[2]);
-    const ampm = match[3].toUpperCase();
-    if (ampm === 'PM' && h !== 12) h += 12;
-    if (ampm === 'AM' && h === 12) h = 0;
-    return new Date(y, mo - 1, d, h, min).getTime();
-  }
-
   // Only show appointments that haven't occurred yet (user's local time), soonest first
   const now = Date.now();
   const sorted = [...appointments]
@@ -964,7 +1123,57 @@ function MobileInsuranceModal({ recipient, onClose, onSave }) {
   );
 }
 
-function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments, medSchedules = [], onSaveMedSchedule, onDeleteMedSchedule, onLogMedication }) {
+// ─── CARE CHANGES ─────────────────────────────────────────────────────────────
+const CHANGE_TYPES = [
+  { id: 'health',     label: 'Health',     emoji: '🩺', color: '#7a9dc2', hint: 'Lab results, condition change, doctor report' },
+  { id: 'location',   label: 'Location',   emoji: '📍', color: '#a08ac0', hint: 'Hospital, facility, home transition' },
+  { id: 'medication', label: 'Medication', emoji: '💊', color: '#7daa94', hint: 'New meds, dosage change, side effects' },
+  { id: 'other',      label: 'Other',      emoji: '📝', color: '#b8ada6', hint: 'Any other notable change' },
+];
+
+function MobileCareChangeSheet({ recipientId, onClose, onAdd }) {
+  const today = new Date().toISOString().split('T')[0];
+  const [type, setType]       = useState('health');
+  const [title, setTitle]     = useState('');
+  const [details, setDetails] = useState('');
+  const [date, setDate]       = useState(today);
+  const ct = CHANGE_TYPES.find(c => c.id === type);
+  const inpStyle = { width: '100%', background: '#f7f5f2', border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 14px', fontSize: 14, fontFamily: sans, color: C.text, outline: 'none', boxSizing: 'border-box' };
+  const placeholder = ct?.id === 'health' ? 'e.g. A1C improved to 6.8' : ct?.id === 'location' ? 'e.g. Moved to Sunrise Assisted Living' : ct?.id === 'medication' ? 'e.g. Started Lisinopril 10mg' : 'e.g. Notable update…';
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} />
+      <div style={{ position: 'relative', background: '#fff', borderRadius: '20px 20px 0 0', padding: '24px 20px 40px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <p style={{ fontFamily: serif, fontSize: 18, fontWeight: 700, color: C.text }}>Log a change</p>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={20} /></button>
+        </div>
+        <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>Type of change</p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+          {CHANGE_TYPES.map(t => (
+            <button key={t.id} onClick={() => setType(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 20, border: `2px solid ${type === t.id ? t.color : C.border}`, background: type === t.id ? t.color + '18' : '#fff', color: type === t.id ? t.color : C.muted, fontSize: 13, fontWeight: 600, fontFamily: sans, cursor: 'pointer' }}>
+              <span>{t.emoji}</span> {t.label}
+            </button>
+          ))}
+        </div>
+        {ct && <p style={{ fontSize: 12, color: C.mutedLight, fontFamily: sans, marginBottom: 18 }}>{ct.hint}</p>}
+        <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8, fontFamily: sans }}>Summary</p>
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder={placeholder} style={{ ...inpStyle, marginBottom: 16 }} />
+        <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8, fontFamily: sans }}>Date</p>
+        <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...inpStyle, marginBottom: 16, fontSize: 13 }} />
+        <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8, fontFamily: sans }}>Details (optional)</p>
+        <textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="Any additional context…" rows={3} style={{ ...inpStyle, resize: 'none', lineHeight: 1.6, marginBottom: 20 }} />
+        <button onClick={() => { if (!title.trim()) return; onAdd({ recipientId, type, title: title.trim(), details: details.trim(), date, createdAt: new Date().toISOString() }); onClose(); }}
+          disabled={!title.trim()}
+          style={{ width: '100%', background: title.trim() ? `linear-gradient(135deg, ${C.rose}, ${C.roseDark})` : C.border, color: '#fff', border: 'none', borderRadius: 14, padding: '14px 0', fontSize: 15, fontWeight: 700, fontFamily: sans, cursor: title.trim() ? 'pointer' : 'default' }}>
+          Save change
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments, medSchedules = [], onSaveMedSchedule, onDeleteMedSchedule, onLogMedication, careChanges = [], onAddCareChange, onDeleteCareChange }) {
   const [tab, setTab] = useState("overview");
   const [data, setData] = useState({ ...r });
   const [editSection, setEditSection] = useState(null);
@@ -978,6 +1187,7 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
   const [weeklyCareSelection, setWeeklyCareSelection] = useState(['Wash hair', 'Change bedding', 'Trim nails']);
   const [weeklyCareCustom, setWeeklyCareCustom] = useState('');
   const [showInsuranceModal, setShowInsuranceModal] = useState(false);
+  const [showChangeSheet, setShowChangeSheet]       = useState(false);
 
   // Normalise mobility to always be an array
   const mobilityArr = Array.isArray(data.mobility) ? data.mobility : (data.mobility ? [data.mobility] : []);
@@ -1002,7 +1212,12 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
 
   const col = rColor(data.id);
   const myDoctors = doctors.filter(d => d.recipientId === data.id);
-  const myAppts = appointments.filter(a => a.recipientId === data.id);
+  const now = Date.now();
+  const myAppts = appointments
+    .filter(a => a.recipientId === data.id)
+    .sort((a, b) => apptMs(a) - apptMs(b));
+  const upcomingAppts = myAppts.filter(a => apptMs(a) >= now);
+  const previousAppts = myAppts.filter(a => apptMs(a) < now).reverse();
   const profileGrad = data.id === 1
     ? "linear-gradient(148deg, #ede0dc 0%, #e0d4ec 100%)"
     : "linear-gradient(148deg, #d8e4f2 0%, #d4d8f0 100%)";
@@ -1112,7 +1327,7 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
         </div>
 
         <div style={{ display: "flex", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
-          {["overview", "guidance", "notes"].map(t => (
+          {["overview", "guidance", "changes", "notes"].map(t => (
             <button key={t} onClick={() => { setTab(t); setEditSection(null); }} style={{ flex: 1, padding: "11px 4px", background: "none", border: "none", fontWeight: tab === t ? 700 : 400, fontSize: 12, color: tab === t ? C.text : C.muted, fontFamily: sans, cursor: "pointer", borderBottom: tab === t ? `2px solid ${col}` : "2px solid transparent", textTransform: "capitalize" }}>
               {t}
             </button>
@@ -1504,21 +1719,37 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
                   })}
             </Card>
 
-            {/* Upcoming Appointments */}
+            {/* Appointments */}
             <Card>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <SectionLabel>Upcoming Appointments</SectionLabel>
                 <button style={{ background: "none", border: "none", color: col, fontSize: 12, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3, marginTop: -12 }}><Plus size={12} /> Add</button>
               </div>
-              {myAppts.slice(0, 3).map((a, i) => (
-                <div key={a.id} style={rowStyle(i === Math.min(myAppts.length, 3) - 1)}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans }}>{a.title}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><Clock size={11} color={C.mutedLight} /><span style={{ fontSize: 12, color: C.muted, fontFamily: sans }}>{a.date} · {a.time}</span></div>
-                    {a.doctor && <p style={{ fontSize: 11, color: col, fontFamily: sans, marginTop: 2 }}>{a.doctor}</p>}
+              {upcomingAppts.length === 0
+                ? <p style={{ fontSize: 13, color: C.mutedLight, fontFamily: sans }}>No upcoming appointments.</p>
+                : upcomingAppts.slice(0, 3).map((a, i) => (
+                  <div key={a.id} style={rowStyle(i === Math.min(upcomingAppts.length, 3) - 1)}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans }}>{a.title}</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><Clock size={11} color={C.mutedLight} /><span style={{ fontSize: 12, color: C.muted, fontFamily: sans }}>{a.date} · {a.time}</span></div>
+                      {a.doctor && <p style={{ fontSize: 11, color: col, fontFamily: sans, marginTop: 2 }}>{a.doctor}</p>}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              {previousAppts.length > 0 && (
+                <>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase", marginTop: 16, marginBottom: 8 }}>Previous</p>
+                  {previousAppts.slice(0, 3).map((a, i) => (
+                    <div key={a.id} style={rowStyle(i === Math.min(previousAppts.length, 3) - 1)}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: C.muted, fontFamily: sans }}>{a.title}</p>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><Clock size={11} color={C.mutedLight} /><span style={{ fontSize: 12, color: C.mutedLight, fontFamily: sans }}>{a.date} · {a.time}</span></div>
+                        {a.doctor && <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans, marginTop: 2 }}>{a.doctor}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </Card>
           </>
         )}
@@ -1541,6 +1772,55 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
                 ))}
               </Card>
             ) : null)}
+          </>
+        )}
+
+        {/* ── CHANGES ──────────────────────────────────────────────────── */}
+        {tab === "changes" && (
+          <>
+            {showChangeSheet && (
+              <MobileCareChangeSheet
+                recipientId={data.id}
+                onClose={() => setShowChangeSheet(false)}
+                onAdd={d => { onAddCareChange(d); setShowChangeSheet(false); }}
+              />
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, flex: 1 }}>Health, location, medication & other updates.</p>
+              <button onClick={() => setShowChangeSheet(true)} style={{ display: 'flex', alignItems: 'center', gap: 5, background: `${col}18`, border: `1px solid ${col}30`, borderRadius: 12, padding: '8px 14px', fontSize: 13, fontWeight: 700, color: col, fontFamily: sans, cursor: 'pointer', flexShrink: 0 }}>
+                <Plus size={13} /> Log change
+              </button>
+            </div>
+            {careChanges.filter(c => c.recipientId === data.id).length === 0
+              ? (
+                <Card><p style={{ fontSize: 13, color: C.mutedLight, textAlign: 'center', padding: '12px 0', fontFamily: sans }}>No changes logged yet — tap "Log" to record an update.</p></Card>
+              )
+              : careChanges
+                  .filter(c => c.recipientId === data.id)
+                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                  .map(c => {
+                    const ct = CHANGE_TYPES.find(t => t.id === c.type) || CHANGE_TYPES[3];
+                    const fmtDate = d => { const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+                    return (
+                      <Card key={c.id} style={{ marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                          <div style={{ display: 'flex', gap: 10, flex: 1, minWidth: 0, alignItems: 'flex-start' }}>
+                            <div style={{ width: 34, height: 34, borderRadius: '50%', background: ct.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>{ct.emoji}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
+                                <span style={{ background: ct.color + '18', color: ct.color, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700, fontFamily: sans }}>{ct.label}</span>
+                                <span style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{fmtDate(c.date)}</span>
+                              </div>
+                              <p style={{ fontSize: 14, fontWeight: 700, color: C.text, fontFamily: sans, marginBottom: c.details ? 4 : 0 }}>{c.title}</p>
+                              {c.details && <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, lineHeight: 1.5 }}>{c.details}</p>}
+                            </div>
+                          </div>
+                          <button onClick={() => onDeleteCareChange(c.id)} style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: C.mutedLight, padding: 4 }}><Trash2 size={14} /></button>
+                        </div>
+                      </Card>
+                    );
+                  })
+            }
           </>
         )}
 
@@ -1642,39 +1922,6 @@ const EVENT_TYPES = [
 
 const CAL_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-// Address autocomplete via Nominatim (OpenStreetMap) — no API key required
-
-const US_STATES = {
-  Alabama:'AL', Alaska:'AK', Arizona:'AZ', Arkansas:'AR', California:'CA',
-  Colorado:'CO', Connecticut:'CT', Delaware:'DE', Florida:'FL', Georgia:'GA',
-  Hawaii:'HI', Idaho:'ID', Illinois:'IL', Indiana:'IN', Iowa:'IA', Kansas:'KS',
-  Kentucky:'KY', Louisiana:'LA', Maine:'ME', Maryland:'MD', Massachusetts:'MA',
-  Michigan:'MI', Minnesota:'MN', Mississippi:'MS', Missouri:'MO', Montana:'MT',
-  Nebraska:'NE', Nevada:'NV', 'New Hampshire':'NH', 'New Jersey':'NJ',
-  'New Mexico':'NM', 'New York':'NY', 'North Carolina':'NC', 'North Dakota':'ND',
-  Ohio:'OH', Oklahoma:'OK', Oregon:'OR', Pennsylvania:'PA', 'Rhode Island':'RI',
-  'South Carolina':'SC', 'South Dakota':'SD', Tennessee:'TN', Texas:'TX',
-  Utah:'UT', Vermont:'VT', Virginia:'VA', Washington:'WA', 'West Virginia':'WV',
-  Wisconsin:'WI', Wyoming:'WY', 'District of Columbia':'DC',
-};
-
-function formatNominatimAddress(r) {
-  const a = r.address || {};
-  if (a.country_code !== 'us') return r.display_name;
-
-  const name     = a.amenity || a.building || a.shop || '';
-  const street   = [a.house_number, a.road].filter(Boolean).join(' ');
-  const city     = a.city || a.town || a.village || a.hamlet || a.suburb || '';
-  const stateAbbr = US_STATES[a.state] || a.state || '';
-  const zip      = a.postcode ? a.postcode.split('-')[0] : ''; // trim ZIP+4
-
-  // "460 Yanoo Trace Jasper, GA. 30143"
-  const streetCity = [street, city].filter(Boolean).join(' ');
-  const stateZip   = [stateAbbr ? stateAbbr + '.' : '', zip].filter(Boolean).join(' ');
-  const line       = [streetCity, stateZip].filter(Boolean).join(', ');
-
-  return name ? `${name}, ${line}` : line;
-}
 
 function AddEventScreen({ onBack, onSave, recipients, reminderMethods = ['email'], defaultDate }) {
   const now = new Date();
@@ -1686,12 +1933,9 @@ function AddEventScreen({ onBack, onSave, recipients, reminderMethods = ['email'
   const [time24, setTime24]           = useState("10:00");
   const [locMode, setLocMode]         = useState("inperson"); // 'inperson' | 'video'
   const [location, setLocation]       = useState("");
-  const [addressQuery, setAddressQuery] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
   const [suite, setSuite]             = useState("");
   const [reminders, setReminders]     = useState(true);
   const [notes, setNotes]             = useState("");
-  const searchTimeout = useRef(null);
 
   // Auto-fill title when type is picked (if title is still the previous auto-fill or empty)
   const [autoTitle, setAutoTitle] = useState(true);
@@ -1702,49 +1946,6 @@ function AddEventScreen({ onBack, onSave, recipients, reminderMethods = ['email'
   function handleTitleChange(v) {
     setTitle(v);
     setAutoTitle(false); // user has customised — stop auto-filling
-  }
-
-  async function fetchSuggestions(query) {
-    if (!query || query.length < 2) { setSuggestions([]); return; }
-    try {
-      // Derive country code from browser locale (e.g. "en-US" → "us")
-      const locale = navigator.language || navigator.languages?.[0] || '';
-      const cc = locale.includes('-') ? locale.split('-').pop().toLowerCase() : null;
-      const headers = { 'Accept-Language': 'en', 'User-Agent': 'AidenCareApp/1.0 (caregiving companion)' };
-      const base = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}`;
-
-      // Run local (country-prioritized) and global searches in parallel
-      const [localRes, globalRes] = await Promise.all([
-        cc ? fetch(`${base}&countrycodes=${cc}&limit=4`, { headers }) : Promise.resolve(null),
-        fetch(`${base}&limit=4`, { headers }),
-      ]);
-      const localJson  = localRes  ? await localRes.json()  : [];
-      const globalJson = await globalRes.json();
-
-      // Merge: local results first, then fill with global (deduplicated)
-      const seen = new Set();
-      const merged = [];
-      for (const r of [...localJson, ...globalJson]) {
-        if (!seen.has(r.place_id)) {
-          seen.add(r.place_id);
-          merged.push({ place_id: String(r.place_id), description: formatNominatimAddress(r) });
-        }
-      }
-      setSuggestions(merged.slice(0, 6));
-    } catch { setSuggestions([]); }
-  }
-
-  function handleAddressInput(val) {
-    setAddressQuery(val);
-    setLocation(val); // keep typed value as fallback
-    clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => fetchSuggestions(val), 400);
-  }
-
-  function selectSuggestion(s) {
-    setLocation(s.description);
-    setAddressQuery(s.description);
-    setSuggestions([]);
   }
 
   function handleSave() {
@@ -1848,9 +2049,20 @@ function AddEventScreen({ onBack, onSave, recipients, reminderMethods = ['email'
         {/* ── Date & Time ── */}
         <div style={{ marginBottom: 24 }}>
           {fieldLabel("Date & Time")}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...inputStyle, fontSize: 13 }} />
-            <input type="time" value={time24} onChange={e => setTime24(e.target.value)} style={{ ...inputStyle, fontSize: 13 }} />
+            <div style={{ display: "flex", gap: 6 }}>
+              <select value={t24ToH(time24)} onChange={e => setTime24(hmpTo24(e.target.value, t24ToM(time24), t24ToP(time24)))} style={{ flex: 1, background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 6px", fontSize: 14, fontFamily: sans, color: C.text, outline: "none" }}>
+                {['1','2','3','4','5','6','7','8','9','10','11','12'].map(h => <option key={h} value={h}>{h}</option>)}
+              </select>
+              <select value={t24ToM(time24)} onChange={e => setTime24(hmpTo24(t24ToH(time24), e.target.value, t24ToP(time24)))} style={{ flex: 1, background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 6px", fontSize: 14, fontFamily: sans, color: C.text, outline: "none" }}>
+                {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <select value={t24ToP(time24)} onChange={e => setTime24(hmpTo24(t24ToH(time24), t24ToM(time24), e.target.value))} style={{ flex: "0 0 72px", background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 4px", fontSize: 14, fontFamily: sans, color: C.text, outline: "none" }}>
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -1859,7 +2071,7 @@ function AddEventScreen({ onBack, onSave, recipients, reminderMethods = ['email'
           {fieldLabel("Location")}
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
             {[{ id: "inperson", label: "📍 In person" }, { id: "video", label: "📹 Video call" }].map(m => (
-              <button key={m.id} onClick={() => { setLocMode(m.id); setLocation(""); setAddressQuery(""); setSuite(""); setSuggestions([]); }} style={{ flex: 1, padding: "9px 0", borderRadius: 12, border: `2px solid ${locMode === m.id ? C.rose : C.border}`, background: locMode === m.id ? C.roseLight : "white", color: locMode === m.id ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <button key={m.id} onClick={() => { setLocMode(m.id); setLocation(""); setSuite(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 12, border: `2px solid ${locMode === m.id ? C.rose : C.border}`, background: locMode === m.id ? C.roseLight : "white", color: locMode === m.id ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                 {m.label}
               </button>
             ))}
@@ -1867,38 +2079,13 @@ function AddEventScreen({ onBack, onSave, recipients, reminderMethods = ['email'
 
           {locMode === "inperson" ? (
             <>
-              {/* Address with Google autocomplete */}
-              <div style={{ position: "relative", marginBottom: 8 }}>
-                <input
-                  value={addressQuery}
-                  onChange={e => handleAddressInput(e.target.value)}
-                  placeholder="Search address or place name…"
-                  style={inputStyle}
-                  autoComplete="off"
-                />
-                {suggestions.length > 0 && (
-                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", borderRadius: 14, boxShadow: CARD_SHADOW, zIndex: 30, overflow: "hidden", border: `1px solid ${C.border}` }}>
-                    {suggestions.map((s, i) => {
-                      const parts = s.description.split(', ');
-                      const primary = parts.slice(0, 2).join(', ');
-                      const secondary = parts.slice(2, 5).join(', ');
-                      return (
-                        <button key={s.place_id} onClick={() => selectSuggestion(s)} style={{ width: "100%", padding: "11px 14px", background: "none", border: "none", borderBottom: i < suggestions.length - 1 ? `1px solid ${C.border}` : "none", textAlign: "left", cursor: "pointer", fontFamily: sans, display: "flex", alignItems: "flex-start", gap: 8 }}>
-                          <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>📍</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: 13, color: C.text, margin: 0, fontWeight: 600 }}>{primary}</p>
-                            {secondary && <p style={{ fontSize: 11, color: C.muted, margin: 0, marginTop: 2 }}>{secondary}</p>}
-                          </div>
-                        </button>
-                      );
-                    })}
-                    <button onClick={() => setSuggestions([])} style={{ width: "100%", padding: "9px 14px", background: C.bg, border: "none", textAlign: "left", cursor: "pointer", fontFamily: sans, fontSize: 12, color: C.mutedLight, fontStyle: "italic" }}>
-                      Not listed — use address as typed
-                    </button>
-                  </div>
-                )}
-              </div>
-              {/* Suite / Unit */}
+              <input
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                placeholder="Clinic name or address"
+                style={{ ...inputStyle, marginBottom: 8 }}
+                autoComplete="off"
+              />
               <input
                 value={suite}
                 onChange={e => setSuite(e.target.value)}
@@ -1975,13 +2162,18 @@ function CalendarTab({ appointments, recipients, onShowAddEvent, onUpdateAppt, o
 
   const isCurrentMonth = month === now.getMonth() && year === now.getFullYear();
 
+  const nowMs = Date.now();
+
   const selectedAppts = selected
     ? appointments.filter(a => a.date === selected).sort((a,b) => a.time.localeCompare(b.time))
     : [];
+  const upcomingDay = selectedAppts.filter(a => apptMs(a) >= nowMs);
+  const pastDay     = selectedAppts.filter(a => apptMs(a) <  nowMs).reverse();
 
   const monthAppts = appointments
-    .filter(a => { const [y,m] = a.date.split('-').map(Number); return m-1===month && y===year; })
-    .sort((a,b) => (b.date+b.time).localeCompare(a.date+a.time));
+    .filter(a => { const [y,m] = a.date.split('-').map(Number); return m-1===month && y===year; });
+  const upcomingMonth = monthAppts.filter(a => apptMs(a) >= nowMs).sort((a,b) => apptMs(a)-apptMs(b));
+  const pastMonth     = monthAppts.filter(a => apptMs(a) <  nowMs).sort((a,b) => apptMs(b)-apptMs(a));
 
   function fmtDayHeading(ds) {
     const d = new Date(ds + 'T12:00:00');
@@ -2045,12 +2237,12 @@ function CalendarTab({ appointments, recipients, onShowAddEvent, onUpdateAppt, o
   }
 
   // ── Appointment card ───────────────────────────────────────────────────────
-  function ApptCard({ a, showDate }) {
+  function ApptCard({ a, showDate, isPast }) {
     const r    = recipients.find(rec => rec.id === a.recipientId);
     const col  = r ? rColor(r.id) : C.muted;
     const icon = apptTypeIcon(a.type, a.title);
     return (
-      <button onClick={() => setActiveAppt(a)} style={{ background:C.card, borderRadius:18, padding:14, marginBottom:10, boxShadow:CARD_SHADOW_SM, borderLeft:`3px solid ${col}`, width:"100%", border:"none", borderLeftWidth:3, borderLeftStyle:"solid", borderLeftColor:col, cursor:"pointer", textAlign:"left" }}>
+      <button onClick={() => setActiveAppt(a)} style={{ background:C.card, borderRadius:18, padding:14, marginBottom:10, boxShadow:CARD_SHADOW_SM, width:"100%", border:"none", borderLeftWidth:3, borderLeftStyle:"solid", borderLeftColor: isPast ? col+'80' : col, cursor:"pointer", textAlign:"left", opacity: isPast ? 0.6 : 1 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <img src={icon} alt="" style={{ width:20, height:20, opacity:0.8, flexShrink:0 }} />
           <div style={{ flex:1, minWidth:0 }}>
@@ -2096,7 +2288,7 @@ function CalendarTab({ appointments, recipients, onShowAddEvent, onUpdateAppt, o
           </div>
         </div>
 
-        {selectedAppts.length === 0 ? (
+        {upcomingDay.length === 0 && pastDay.length === 0 ? (
           <div style={{ textAlign:"center", padding:"32px 0" }}>
             <p style={{ fontSize:32, marginBottom:8 }}>🗓</p>
             <p style={{ fontSize:14, color:C.mutedLight, fontFamily:sans, marginBottom:16 }}>Nothing scheduled</p>
@@ -2105,7 +2297,20 @@ function CalendarTab({ appointments, recipients, onShowAddEvent, onUpdateAppt, o
             </button>
           </div>
         ) : (
-          selectedAppts.map(a => <ApptCard key={a.id} a={a} showDate={false}/>)
+          <>
+            {upcomingDay.length > 0 && (
+              <>
+                <p style={{ fontSize:10, fontWeight:800, color:C.roseDark, letterSpacing:1, textTransform:"uppercase", fontFamily:sans, marginBottom:8 }}>Upcoming</p>
+                {upcomingDay.map(a => <ApptCard key={a.id} a={a} showDate={false} isPast={false}/>)}
+              </>
+            )}
+            {pastDay.length > 0 && (
+              <>
+                <p style={{ fontSize:10, fontWeight:800, color:C.mutedLight, letterSpacing:1, textTransform:"uppercase", fontFamily:sans, marginBottom:8, marginTop: upcomingDay.length > 0 ? 16 : 0 }}>Past</p>
+                {pastDay.map(a => <ApptCard key={a.id} a={a} showDate={false} isPast={true}/>)}
+              </>
+            )}
+          </>
         )}
       </div>
     );
@@ -2123,9 +2328,24 @@ function CalendarTab({ appointments, recipients, onShowAddEvent, onUpdateAppt, o
             <p style={{ fontSize:10, fontWeight:700, color:C.mutedLight, letterSpacing:1, textTransform:"uppercase", fontFamily:sans, marginBottom:12 }}>
               {FULL_MONTHS[month]}
             </p>
-            {monthAppts.length === 0
+            {upcomingMonth.length === 0 && pastMonth.length === 0
               ? <p style={{ fontSize:13, color:C.mutedLight, fontFamily:sans }}>No appointments this month</p>
-              : monthAppts.map(a => <ApptCard key={a.id} a={a} showDate={true}/>)
+              : (
+                <>
+                  {upcomingMonth.length > 0 && (
+                    <>
+                      <p style={{ fontSize:10, fontWeight:800, color:C.roseDark, letterSpacing:1, textTransform:"uppercase", fontFamily:sans, marginBottom:8 }}>Upcoming</p>
+                      {upcomingMonth.map(a => <ApptCard key={a.id} a={a} showDate={true} isPast={false}/>)}
+                    </>
+                  )}
+                  {pastMonth.length > 0 && (
+                    <>
+                      <p style={{ fontSize:10, fontWeight:800, color:C.mutedLight, letterSpacing:1, textTransform:"uppercase", fontFamily:sans, marginBottom:8, marginTop: upcomingMonth.length > 0 ? 12 : 0 }}>Past</p>
+                      {pastMonth.map(a => <ApptCard key={a.id} a={a} showDate={true} isPast={true}/>)}
+                    </>
+                  )}
+                </>
+              )
             }
           </div>
         </div>
@@ -2175,9 +2395,24 @@ function CalendarTab({ appointments, recipients, onShowAddEvent, onUpdateAppt, o
             <Plus size={13}/> Add event
           </button>
         </div>
-        {monthAppts.length === 0
+        {upcomingMonth.length === 0 && pastMonth.length === 0
           ? <p style={{ textAlign:"center", color:C.mutedLight, fontFamily:sans, fontSize:13, padding:24 }}>No appointments this month</p>
-          : monthAppts.map(a => <ApptCard key={a.id} a={a} showDate={true}/>)
+          : (
+            <>
+              {upcomingMonth.length > 0 && (
+                <>
+                  <p style={{ fontSize:10, fontWeight:800, color:C.roseDark, letterSpacing:1, textTransform:"uppercase", fontFamily:sans, marginBottom:8 }}>Upcoming</p>
+                  {upcomingMonth.map(a => <ApptCard key={a.id} a={a} showDate={true} isPast={false}/>)}
+                </>
+              )}
+              {pastMonth.length > 0 && (
+                <>
+                  <p style={{ fontSize:10, fontWeight:800, color:C.mutedLight, letterSpacing:1, textTransform:"uppercase", fontFamily:sans, marginBottom:8, marginTop: upcomingMonth.length > 0 ? 12 : 0 }}>Past</p>
+                  {pastMonth.map(a => <ApptCard key={a.id} a={a} showDate={true} isPast={true}/>)}
+                </>
+              )}
+            </>
+          )
         }
       </div>
 
@@ -3618,13 +3853,14 @@ export default function AidenApp() {
   const [resources, setResources] = useState([]);
   const [showMsg, setShowMsg] = useState(true);
   const [medSchedules, setMedSchedules] = useState([]);
+  const [careChanges, setCareChanges]   = useState([]);
   const [notificationRole, setNotificationRole]     = useState('caretaker');
   const [notificationPhone, setNotificationPhone]   = useState('');
   const [reminderMethods, setReminderMethods]       = useState(['email']); // ['email'] | ['sms'] | ['email','sms']
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile]   = useState(false);
   const [chatMessages, setChatMessages] = useState([
-    { role: "assistant", text: "Hi Holly! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for Margaret and Thomas — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍" }
+    { role: "assistant", text: "Hi! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for your loved ones — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍" }
   ]);
 
   // ── Auth state ───────────────────────────────────────────────────────────────
@@ -3642,6 +3878,23 @@ export default function AidenApp() {
     );
     return () => { unsubscribe(); clearTimeout(timeout); };
   }, []);
+
+  // ── Session timeout: sign out after 30 min of inactivity ─────────────────
+  const idleTimerRef = useRef(null);
+  const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+  useEffect(() => {
+    function resetIdleTimer() {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => signOut(auth), IDLE_TIMEOUT_MS);
+    }
+    const events = ['touchstart', 'touchmove', 'mousedown', 'keydown'];
+    events.forEach(e => window.addEventListener(e, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+      clearTimeout(idleTimerRef.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!user) return;
@@ -3691,13 +3944,14 @@ export default function AidenApp() {
       setNotificationPhone(userData.notificationPhone || '');
       setReminderMethods(userData.reminderMethods?.length ? userData.reminderMethods : ['email']);
 
-      const [recSnap, apptSnap, logSnap, docSnap, medSchedSnap, resSnap] = await Promise.all([
+      const [recSnap, apptSnap, logSnap, docSnap, medSchedSnap, resSnap, chgSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'recipients')),
         getDocs(collection(db, 'users', uid, 'appointments')),
         getDocs(collection(db, 'users', uid, 'logistics')),
         getDocs(collection(db, 'users', uid, 'doctors')),
         getDocs(collection(db, 'users', uid, 'medicationSchedules')),
         getDocs(collection(db, 'users', uid, 'resources')),
+        getDocs(collection(db, 'users', uid, 'careChanges')),
       ]);
 
       setRecipients(recSnap.docs.map(d => ({ ...d.data(), id: d.id })));
@@ -3706,6 +3960,7 @@ export default function AidenApp() {
       setDoctors(docSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setMedSchedules(medSchedSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setResources(resSnap.docs.map(d => ({ ...d.data(), id: d.id })));
+      setCareChanges(chgSnap.docs.map(d => ({ ...d.data(), id: d.id })));
     } catch (e) {
       console.error('Error loading data:', e);
     }
@@ -3821,6 +4076,25 @@ export default function AidenApp() {
       } catch (e) { console.error('Error adding logistic:', e); }
     } else {
       setLogistics(prev => [...prev, item]);
+    }
+  }
+
+  // ── Care changes CRUD ────────────────────────────────────────────────────────
+  async function addCareChange(data) {
+    if (user) {
+      try {
+        const ref = await addDoc(collection(db, 'users', user.uid, 'careChanges'), data);
+        setCareChanges(prev => [{ ...data, id: ref.id }, ...prev]);
+      } catch (e) { console.error('Error adding care change:', e); }
+    } else {
+      setCareChanges(prev => [{ ...data, id: String(Date.now()) }, ...prev]);
+    }
+  }
+  async function deleteCareChange(id) {
+    setCareChanges(prev => prev.filter(c => c.id !== id));
+    if (user) {
+      try { await deleteDoc(doc(db, 'users', user.uid, 'careChanges', String(id))); }
+      catch (e) { console.error('Error deleting care change:', e); }
     }
   }
 
@@ -3966,7 +4240,7 @@ export default function AidenApp() {
 
     // Care tab — recipients list, profiles, and resources (insurance etc.)
     if (tab === "care" || showRecipients) {
-      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => { setSelRecipient(null); }} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} />;
+      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => { setSelRecipient(null); }} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} careChanges={careChanges} onAddCareChange={addCareChange} onDeleteCareChange={deleteCareChange} />;
       return <CareTab recipients={recipients} onSelect={r => setSelRecipient(r)} onAdd={addRecipient} onDelete={deleteRecipient} />;
     }
 
