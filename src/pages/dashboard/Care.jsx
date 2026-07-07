@@ -14,6 +14,19 @@ function rColor(id, recipients) {
   const idx = recipients ? recipients.findIndex(r => r.id === id) : 0;
   return COLORS[idx % COLORS.length];
 }
+function apptMs(a) {
+  const [y, mo, d] = (a.date || '').split('-').map(Number);
+  if (!y) return Infinity;
+  const t = a.time || '12:00 AM';
+  const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return new Date(y, mo - 1, d, 23, 59).getTime();
+  let h = parseInt(match[1]);
+  const min = parseInt(match[2]);
+  const ampm = match[3].toUpperCase();
+  if (ampm === 'PM' && h !== 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return new Date(y, mo - 1, d, h, min).getTime();
+}
 function initials(name) { return name.split(' ').map(n => n[0]).join('').slice(0, 2); }
 function fmt24(t) {
   if (!t) return '';
@@ -633,8 +646,215 @@ function DelBtn({ onClick }) {
   );
 }
 
+// ─── Care changes ───────────────────────────────────────────────────────────────
+const CHANGE_TYPES = [
+  { id: 'health',     label: 'Health',     emoji: '🩺', color: '#7a9dc2', hint: 'Lab results, condition change, doctor report' },
+  { id: 'location',   label: 'Location',   emoji: '📍', color: '#a08ac0', hint: 'Hospital, facility, home transition' },
+  { id: 'medication', label: 'Medication', emoji: '💊', color: '#7daa94', hint: 'New meds, dosage change, side effects' },
+  { id: 'other',      label: 'Other',      emoji: '📝', color: '#b8ada6', hint: 'Any other notable change' },
+];
+
+function buildAidenGuidance(change) {
+  const full = ((change.title || '') + ' ' + (change.details || '')).toLowerCase();
+  if (change.type === 'location') {
+    if (/assisted living|residential care|board and care/.test(full)) return {
+      headline: 'Understanding assisted living',
+      paragraphs: [
+        'Assisted living is designed for people who need help with daily activities — bathing, dressing, meals, and medication management — but don\'t yet need around-the-clock medical care. It can be a meaningful transition for both your loved one and you.',
+        'How it compares to other care settings:\n\n🏡 Assisted Living — Private or semi-private apartments with daily support, meals, and activities. Best for moderate daily living needs without complex nursing care.\n\n🏥 Skilled Nursing Facility (SNF) — 24/7 nursing care for serious medical needs or post-surgery recovery. More clinical than assisted living.\n\n🧠 Memory Care — A specialized unit (often inside an AL or SNF) for Alzheimer\'s and dementia. Secured environment, structured routines, staff trained in cognitive care.\n\n🏃 Short-Term Rehab — After a hospital stay, a rehab stay focuses on therapy and recovery before transitioning to permanent care.\n\n🏠 In-Home Care — If staying home is the goal: non-medical aides for daily tasks, or home health services for skilled nursing and therapy.',
+        'When touring facilities, ask:\n• Staff-to-resident ratio and staff turnover rate\n• What\'s included in the base cost vs. billed separately\n• What happens if care needs increase significantly — can they stay?\n• How do they handle memory or behavioral changes?\n• Can they provide a higher level of care on-site if needed?',
+        'Financially: Assisted living is generally not covered by Medicare (which only covers short-term skilled care). Medicaid may help in some states. Long-term care insurance often covers it. Costs typically range from $3,000–$7,000/month depending on location and level of care.',
+      ],
+    };
+    if (/skilled nursing|nursing home|snf|long.term care/.test(full)) return {
+      headline: 'Navigating skilled nursing care',
+      paragraphs: [
+        'Skilled nursing facilities (SNFs) provide round-the-clock medical and nursing care. They\'re the right fit when someone needs ongoing clinical monitoring, wound care, IV medications, or therapy that can\'t be managed at home or in assisted living.',
+        'SNFs compared to other options:\n\n🏥 Skilled Nursing Facility — 24/7 nursing staff, physician oversight, and therapy services (PT, OT, speech). Covers both short-term rehab and long-term care.\n\n🏡 Assisted Living — Lower medical intensity; best for daily living support without complex nursing needs.\n\n🏠 Home Health — For people who are homebound, Medicare can cover skilled nursing and therapy visits at home.\n\n🧠 Memory Care — If dementia is the primary driver, a dedicated memory care unit may be more appropriate.',
+        'Questions to ask:\n• What is your Medicare/state inspection rating? (Check Medicare Care Compare at medicare.gov)\n• What\'s the nurse-to-patient ratio during day and night shifts?\n• How are care plans created and how often are they reviewed?\n• What does discharge planning look like?\n• What activities and rehab programs do you offer?',
+        'Medicare covers SNF care after a qualifying 3-night inpatient hospital stay — up to 100 days (days 1–20 at 100%; days 21–100 with a daily copay). After day 100, you\'re responsible for the full cost unless Medicaid or a supplemental policy applies.',
+      ],
+    };
+    if (/memory care|dementia|alzheimer/.test(full)) return {
+      headline: 'What to know about memory care',
+      paragraphs: [
+        'Memory care communities are specifically designed for people living with Alzheimer\'s or other forms of dementia. They offer a higher level of supervision, a structured environment, and staff trained in cognitive and behavioral care — all within a secured setting.',
+        'What sets memory care apart:\n\n🔒 Secured environment — Prevents wandering, one of the leading safety risks for people with dementia.\n\n📋 Structured routine — Consistency reduces confusion and anxiety significantly.\n\n👩‍⚕️ Specialized staff — Trained in dementia-related behaviors, communication strategies, and de-escalation.\n\n🎨 Therapeutic activities — Music therapy, reminiscence activities, and sensory engagement tailored to cognitive abilities.',
+        'When comparing communities:\n• What dementia-specific training do all staff receive?\n• What\'s the ratio of staff to residents in evenings and overnight?\n• How do you manage behavioral changes or sundowning?\n• Is the facility licensed for memory care in your state?\n• Can you speak with families of current residents?',
+        'Resource: The Alzheimer\'s Association (alz.org) has a Community Resource Finder and a 24/7 helpline at 1-800-272-3900 that can help you navigate local options and access caregiver support.',
+      ],
+    };
+    if (/hospital/.test(full)) return {
+      headline: 'Navigating a hospital stay',
+      paragraphs: [
+        'Hospital stays can be stressful to navigate as a caregiver. Your most important role is to be a clear-eyed advocate and to ensure a safe, coordinated transition — whether that\'s back home, to a rehab facility, or to a higher level of care.',
+        'Key things to do during the stay:\n\n📋 Ask for a case manager or social worker — They can help coordinate discharge planning and connect you to community resources.\n\n🩺 Attend medical rounds when possible — This is when the team discusses the care plan. Ask questions directly while the full team is present.\n\n💊 Request a medication reconciliation — Make sure all current medications are on file and any new ones are clearly explained.\n\n🏠 Start discharge planning on Day 1 — Don\'t wait until the day of discharge to ask what comes next.',
+        'Admission status matters: Medicare requires 3 qualifying inpatient nights to cover a subsequent SNF stay. "Observation status" is technically outpatient and does not qualify — ask the doctor explicitly what status your loved one is admitted under.',
+        'At discharge: Confirm you have all prescriptions, follow-up appointments scheduled, and a written list of warning signs that should prompt a call to the doctor or a return to the ER.',
+      ],
+    };
+    if (/rehab|rehabilitation/.test(full)) return {
+      headline: 'Understanding short-term rehab',
+      paragraphs: [
+        'Short-term rehabilitation typically follows a hospitalization — a fall, surgery, stroke, or serious illness. The goal is to restore function through physical, occupational, and/or speech therapy before returning home or transitioning to a permanent care setting.',
+        'Types of rehab settings:\n\n🏥 Skilled Nursing Facility with rehab — The most common option. Combines PT, OT, and speech therapy with nursing care. Medicare covers this after a qualifying 3-night hospital stay.\n\n🏠 Home Health Rehab — Therapists come to the home for those who are homebound. Covered by Medicare when skilled care is needed.\n\n🏃 Inpatient Rehabilitation Facility (IRF) — More intensive, requiring 3+ hours of therapy daily. Appropriate after major strokes, brain injuries, or significant joint surgeries.',
+        'What to monitor during rehab:\n• Is therapy happening every day and are goals being met?\n• Is the team sharing a discharge plan and target date with you?\n• Are there signs of pain, depression, or poor sleep affecting progress?\n• What are the private-pay options if Medicare benefits run out before discharge goals are reached?',
+        'Tip: Ask the team to set written, measurable goals (e.g., "Walk 50 feet independently with walker by week 2"). This helps you track progress and advocate for an appropriate length of stay.',
+      ],
+    };
+    return {
+      headline: 'Navigating a change in living situation',
+      paragraphs: [
+        'A change in living situation is one of the most significant transitions in caregiving. Whether your loved one is moving to a care community or coming home, thoughtful planning and involving them in decisions as much as possible makes a meaningful difference.',
+        'Common care settings:\n\n🏠 Home with support — In-home aides for personal care, home health for skilled nursing or therapy, and adult day programs for structured daytime support.\n\n🏡 Assisted Living — Daily living support without intensive medical needs. Private apartments, meals, and activities.\n\n🏥 Skilled Nursing Facility — Complex, ongoing medical and nursing care available 24/7.\n\n🧠 Memory Care — Specialized dementia support in a secured, structured environment.\n\n🏘️ Continuing Care Retirement Community (CCRC) — Multiple care levels on one campus, allowing needs to evolve without relocation.',
+        'Questions for any facility or agency:\n• What is your inspection record and star rating?\n• What\'s included in the base fee — and what costs extra?\n• What happens when care needs increase significantly?\n• How do you communicate with families?\n• What is your philosophy around end-of-life care and comfort?',
+      ],
+    };
+  }
+  if (change.type === 'medication') return {
+    headline: 'Navigating a medication change',
+    paragraphs: [
+      'Medication changes — adding, stopping, or adjusting a dose — can have a real impact on your loved one\'s daily life. Being an informed caregiver means understanding what\'s changing and why, and knowing what to watch for.',
+      'Questions to ask the prescribing doctor or pharmacist:\n\n💊 Why is this change being made — what\'s the goal?\n⏱️ How long until we should see an effect, or know if it\'s working?\n⚠️ What side effects should I watch for, especially in the first few weeks?\n🔄 Does this interact with any other medications or supplements?\n🛑 Are there foods or activities to avoid while on this medication?',
+      'Day-to-day management:\n• Update the medication list immediately — bring a copy to every appointment and every ER visit.\n• Update any pill organizers before the next fill cycle.\n• Set a reminder if timing is critical for effectiveness.\n• Note any behavioral, physical, or cognitive changes in the days after starting.\n• Don\'t stop a medication abruptly without consulting the doctor, even if side effects appear.',
+      'Call the doctor right away if you notice: signs of an allergic reaction (rash, swelling, difficulty breathing), a significant new symptom shortly after starting, a fall or sudden change in alertness that may be medication-related, or no improvement after the expected timeframe.',
+    ],
+  };
+  if (change.type === 'health') return {
+    headline: 'Responding to a health change',
+    paragraphs: [
+      'Health changes — whether an improvement, a decline, a new diagnosis, or a finding from a recent test — are important to track carefully. Your observations as a caregiver are often the most valuable data point the medical team has.',
+      'What to do now:\n\n📝 Document what changed — When did it start? How often does it occur? What seems to trigger it or make it better? This information is invaluable at the next appointment.\n\n📞 Follow up with the care team — Even minor changes are worth a call. What looks like nothing can be an early signal worth catching.\n\n🔄 Review the current plan — Does this change affect medications, diet, activity level, or the schedule of follow-up appointments?',
+      'Questions to ask the doctor:\n• What does this change indicate about the current condition or its trajectory?\n• Does this affect the treatment plan or the goals of care?\n• What should I monitor at home — and at what point should I call you or go to the ER?\n• Are there specialists or additional tests that would be helpful right now?',
+      'Tip: Keep a simple health log — even a notes app on your phone — where you record key observations with dates. Over time, patterns emerge that are often invisible in a single appointment.',
+    ],
+  };
+  return {
+    headline: 'Getting the most from what you\'re tracking',
+    paragraphs: [
+      'Logging changes as they happen is one of the most valuable habits in caregiving. Over time, this record becomes a powerful tool for conversations with doctors, family members, and care teams.',
+      'Ways to make the most of your notes:\n\n📋 Share updates at every medical appointment — even things that seem minor to you can matter to the care team.\n\n👨‍👩‍👧 Keep family informed — A brief message when something changes prevents misunderstandings and keeps everyone aligned.\n\n📊 Look for patterns — Is the change happening at a certain time of day? After specific activities? During particular weather? Patterns can be clinically revealing.\n\n🧠 Trust your instincts — As the primary caregiver, you often notice things before anyone else. If something feels off, document it and bring it up.',
+      'If you\'re unsure what to do next with this update, you can explore it further in the Aiden chat. Ask specific questions about your loved one\'s situation and get thoughtful guidance tailored to what you\'re navigating.',
+    ],
+  };
+}
+
+function AddChangeModal({ recipientId, onClose, onAdd }) {
+  const today = new Date().toISOString().split('T')[0];
+  const [type, setType]               = useState('health');
+  const [title, setTitle]             = useState('');
+  const [details, setDetails]         = useState('');
+  const [date, setDate]               = useState(today);
+  const [step, setStep]               = useState('form'); // 'form' | 'saved' | 'guidance'
+  const [savedChange, setSavedChange] = useState(null);
+  const [guidance, setGuidance]       = useState(null);
+  const [loadingGuidance, setLoadingGuidance] = useState(false);
+
+  const ct = CHANGE_TYPES.find(c => c.id === type);
+  const placeholder = ct?.id === 'health' ? 'e.g. A1C improved to 6.8' : ct?.id === 'location' ? 'e.g. Moved to Sunrise Assisted Living' : ct?.id === 'medication' ? 'e.g. Started Lisinopril 10mg' : 'e.g. Notable update…';
+
+  function handleSave() {
+    if (!title.trim()) return;
+    const change = { recipientId, type, title: title.trim(), details: details.trim(), date, createdAt: new Date().toISOString() };
+    onAdd(change);
+    setSavedChange(change);
+    setStep('saved');
+  }
+
+  function handleGetGuidance() {
+    setStep('guidance');
+    setLoadingGuidance(true);
+    setTimeout(() => { setGuidance(buildAidenGuidance(savedChange)); setLoadingGuidance(false); }, 1200);
+  }
+
+  if (step === 'saved') {
+    const sc = CHANGE_TYPES.find(c => c.id === savedChange.type) || CHANGE_TYPES[3];
+    const fmtD = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return (
+      <ModalWrap onClose={onClose}>
+        <ModalHeader title="Change logged ✓" onClose={onClose} />
+        <div style={{ background: sc.color + '10', border: `1px solid ${sc.color}30`, borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 18 }}>{sc.emoji}</span>
+            <span style={{ background: sc.color + '18', color: sc.color, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>{sc.label}</span>
+            <span style={{ fontSize: 12, color: C.mutedLight }}>{fmtD(savedChange.date)}</span>
+          </div>
+          <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{savedChange.title}</p>
+          {savedChange.details && <p style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{savedChange.details}</p>}
+        </div>
+        <div style={{ background: 'linear-gradient(135deg, #e8eff8, #f0eaf8)', borderRadius: 16, padding: '20px 22px', marginBottom: 14 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>🤍 Want guidance navigating this?</p>
+          <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 16 }}>Aiden can share what to know and what questions to ask based on this specific change.</p>
+          <button onClick={handleGetGuidance} style={{ width: '100%', background: C.roseDark, color: '#fff', border: 'none', borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+            Get guidance from Aiden
+          </button>
+        </div>
+        <button onClick={onClose} style={{ width: '100%', background: 'none', border: 'none', color: C.mutedLight, fontSize: 14, cursor: 'pointer', padding: '8px 0' }}>Done</button>
+      </ModalWrap>
+    );
+  }
+
+  if (step === 'guidance') {
+    return (
+      <ModalWrap onClose={onClose} maxWidth={540}>
+        <style>{`@keyframes aidenFade { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }`}</style>
+        <ModalHeader title="Aiden's guidance" onClose={onClose} />
+        {loadingGuidance ? (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', padding: '16px 0 24px' }}>
+            <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg, #dde8f6, #f0dde6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🤍</div>
+            <div style={{ background: '#f5f5f5', borderRadius: '16px 16px 16px 4px', padding: '14px 18px', display: 'flex', gap: 6 }}>
+              {[0,1,2].map(j => <div key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: C.mutedLight, animation: 'pulse 1.2s infinite', animationDelay: `${j*0.2}s` }} />)}
+            </div>
+          </div>
+        ) : guidance && (
+          <div style={{ animation: 'aidenFade 0.35s ease' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #dde8f6, #f0dde6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🤍</div>
+              <p style={{ fontFamily: serif, fontSize: 17, color: C.text }}>{guidance.headline}</p>
+            </div>
+            {guidance.paragraphs.map((para, i) => (
+              <p key={i} style={{ fontSize: 13, color: C.text, lineHeight: 1.85, marginBottom: 16, whiteSpace: 'pre-wrap' }}>{para}</p>
+            ))}
+            <button onClick={onClose} style={{ width: '100%', marginTop: 8, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>Done</button>
+          </div>
+        )}
+      </ModalWrap>
+    );
+  }
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <ModalHeader title="Log a change" onClose={onClose} />
+      <div style={{ marginBottom: 18 }}>
+        <SectionLabel>Type of change</SectionLabel>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {CHANGE_TYPES.map(t => (
+            <button key={t.id} onClick={() => setType(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 20, border: `2px solid ${type === t.id ? t.color : C.border}`, background: type === t.id ? t.color + '18' : 'white', color: type === t.id ? t.color : C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              <span>{t.emoji}</span> {t.label}
+            </button>
+          ))}
+        </div>
+        {ct && <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 8 }}>{ct.hint}</p>}
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <SectionLabel>Summary</SectionLabel>
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder={placeholder} style={inp} />
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <SectionLabel>Date</SectionLabel>
+        <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...inp, fontSize: 13 }} />
+      </div>
+      <div style={{ marginBottom: 8 }}>
+        <SectionLabel>Details (optional)</SectionLabel>
+        <textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="Any additional context…" rows={3} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
+      </div>
+      <ModalActions onConfirm={handleSave} confirmLabel="Save change" onClose={onClose} />
+    </ModalWrap>
+  );
+}
+
 // ─── Recipient detail view ──────────────────────────────────────────────────────
-function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, onDeleteDoctor, appointments, onAddAppointment, onDeleteAppointment, recipients }) {
+function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, onDeleteDoctor, appointments, onAddAppointment, onDeleteAppointment, recipients, changes = [], onAddChange, onDeleteChange }) {
   const [tab, setTab]               = useState('overview');
   const [showEdit, setShowEdit]     = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -643,13 +863,18 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
   const [showAppt, setShowAppt]     = useState(false);
   const [showPhone, setShowPhone]   = useState(false);
   const [showAllAppts, setShowAllAppts] = useState(false);
+  const [showAddChange, setShowAddChange] = useState(false);
 
   const col       = rColor(r.id, recipients);
   const myDoctors = doctors.filter(d => d.recipientId === r.id);
-  const myAppts   = appointments
+  const now = Date.now();
+  const myAppts = appointments
     .filter(a => a.recipientId === r.id)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const visibleAppts = showAllAppts ? myAppts : myAppts.slice(0, 4);
+    .sort((a, b) => apptMs(a) - apptMs(b));
+  const upcomingAppts = myAppts.filter(a => apptMs(a) >= now);
+  const previousAppts = myAppts.filter(a => apptMs(a) < now).reverse();
+  const visibleUpcoming = showAllAppts ? upcomingAppts : upcomingAppts.slice(0, 4);
+  const visiblePrevious = showAllAppts ? previousAppts : previousAppts.slice(0, 2);
 
   return (
     <div style={{ maxWidth: 800 }}>
@@ -657,8 +882,9 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
       {showDelete   && <DeleteConfirmModal recipient={r} onClose={() => setShowDelete(false)} onDelete={() => { onDelete(r.id); onBack(); }} />}
       {showDoctor   && <AddDoctorModal recipientId={r.id} onClose={() => setShowDoctor(false)} onAdd={d => { onAddDoctor(d); setShowDoctor(false); }} />}
       {showInsurance && <ManageInsuranceModal recipient={r} onClose={() => setShowInsurance(false)} onSave={onEdit} />}
-      {showAppt     && <AddAppointmentModal recipientId={r.id} doctors={myDoctors} onClose={() => setShowAppt(false)} onAdd={a => { onAddAppointment(a); setShowAppt(false); }} />}
-      {showPhone    && <AddPhoneModal onClose={() => setShowPhone(false)} onAdd={n => onEdit({ ...r, importantNumbers: [...(r.importantNumbers || []), n] })} />}
+      {showAppt       && <AddAppointmentModal recipientId={r.id} doctors={myDoctors} onClose={() => setShowAppt(false)} onAdd={a => { onAddAppointment(a); setShowAppt(false); }} />}
+      {showPhone      && <AddPhoneModal onClose={() => setShowPhone(false)} onAdd={n => onEdit({ ...r, importantNumbers: [...(r.importantNumbers || []), n] })} />}
+      {showAddChange  && <AddChangeModal recipientId={r.id} onClose={() => setShowAddChange(false)} onAdd={d => onAddChange(d)} />}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div style={{ background: `linear-gradient(135deg, ${col}22, ${col}10)`, borderRadius: 20, padding: '24px 28px', marginBottom: 20, border: `1px solid ${col}30` }}>
@@ -696,7 +922,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
         </div>
 
         <div style={{ display: 'flex', marginTop: 20, borderTop: `1px solid ${col}20`, paddingTop: 14, gap: 4 }}>
-          {['overview', 'guidance', 'notes'].map(t => (
+          {['overview', 'guidance', 'changes', 'notes'].map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ padding: '7px 18px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: tab === t ? 700 : 500, color: tab === t ? '#fff' : C.muted, background: tab === t ? col : 'transparent', cursor: 'pointer', textTransform: 'capitalize' }}>{t}</button>
           ))}
         </div>
@@ -705,6 +931,13 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
       {/* ── Overview ─────────────────────────────────────────────────────── */}
       {tab === 'overview' && (
         <>
+          {/* Log a change quick action */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+            <button onClick={() => setShowAddChange(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: col + '12', border: `1px solid ${col}28`, borderRadius: 12, padding: '8px 16px', fontSize: 13, fontWeight: 700, color: col, cursor: 'pointer' }}>
+              <Plus size={13} /> Log a change
+            </button>
+          </div>
+
           {/* Conditions + Allergies */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
             <Card style={{ margin: 0 }}>
@@ -828,7 +1061,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
               ))}
           </Card>
 
-          {/* Upcoming Appointments */}
+          {/* Appointments */}
           <Card>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -839,19 +1072,35 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 <Plus size={12} /> Add appointment
               </button>
             </div>
-            {myAppts.length === 0
+            {upcomingAppts.length === 0 && previousAppts.length === 0
               ? <p style={{ fontSize: 13, color: C.mutedLight }}>No appointments yet — click Add appointment.</p>
-              : visibleAppts.map((a, i) => (
-                <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: i < visibleAppts.length - 1 ? `1px solid ${C.bgWarm}` : 'none' }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{a.title}</p>
-                    <p style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{a.date}{a.time ? ` · ${a.time}` : ''}</p>
-                    {a.doctor && <p style={{ fontSize: 12, color: col, fontWeight: 600, marginTop: 2 }}>{a.doctor}</p>}
-                    {a.location && <p style={{ fontSize: 12, color: C.mutedLight }}>{a.location}</p>}
-                  </div>
-                  <DelBtn onClick={() => onDeleteAppointment(a.id)} />
+              : null}
+            {visibleUpcoming.map((a, i) => (
+              <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: i < visibleUpcoming.length - 1 || previousAppts.length > 0 ? `1px solid ${C.border}` : 'none' }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{a.title}</p>
+                  <p style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{a.date}{a.time ? ` · ${a.time}` : ''}</p>
+                  {a.doctor && <p style={{ fontSize: 12, color: col, fontWeight: 600, marginTop: 2 }}>{a.doctor}</p>}
+                  {a.location && <p style={{ fontSize: 12, color: C.mutedLight }}>{a.location}</p>}
                 </div>
-              ))}
+                <DelBtn onClick={() => onDeleteAppointment(a.id)} />
+              </div>
+            ))}
+            {previousAppts.length > 0 && (
+              <>
+                <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginTop: upcomingAppts.length > 0 ? 16 : 0, marginBottom: 4 }}>Previous</p>
+                {visiblePrevious.map((a, i) => (
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: i < visiblePrevious.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: C.muted }}>{a.title}</p>
+                      <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 2 }}>{a.date}{a.time ? ` · ${a.time}` : ''}</p>
+                      {a.doctor && <p style={{ fontSize: 12, color: C.mutedLight, fontWeight: 600, marginTop: 2 }}>{a.doctor}</p>}
+                    </div>
+                    <DelBtn onClick={() => onDeleteAppointment(a.id)} />
+                  </div>
+                ))}
+              </>
+            )}
             {myAppts.length > 4 && (
               <button onClick={() => setShowAllAppts(v => !v)} style={{ marginTop: 10, background: 'none', border: 'none', color: col, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 {showAllAppts ? 'Show less ↑' : `Show all ${myAppts.length} appointments ↓`}
@@ -881,6 +1130,50 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 ))}
               </Card>
             ) : null)}
+        </>
+      )}
+
+      {/* ── Changes ──────────────────────────────────────────────────────── */}
+      {tab === 'changes' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <p style={{ fontSize: 13, color: C.muted }}>Track health, location, medication, and other updates for {r.nickname || r.name}.</p>
+            <button onClick={() => setShowAddChange(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: col + '18', border: `1px solid ${col}30`, borderRadius: 12, padding: '8px 16px', fontSize: 13, fontWeight: 700, color: col, cursor: 'pointer', flexShrink: 0 }}>
+              <Plus size={13} /> Log change
+            </button>
+          </div>
+          {changes.filter(c => c.recipientId === r.id).length === 0
+            ? (
+              <Card>
+                <p style={{ fontSize: 14, color: C.mutedLight, textAlign: 'center', padding: '16px 0' }}>No changes logged yet — click "Log change" to record an update.</p>
+              </Card>
+            )
+            : changes
+                .filter(c => c.recipientId === r.id)
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                .map(c => {
+                  const ct = CHANGE_TYPES.find(t => t.id === c.type) || CHANGE_TYPES[3];
+                  const fmtDate = d => { const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+                  return (
+                    <Card key={c.id} style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: '50%', background: ct.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{ct.emoji}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
+                              <span style={{ background: ct.color + '18', color: ct.color, borderRadius: 12, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>{ct.label}</span>
+                              <span style={{ fontSize: 12, color: C.mutedLight }}>{fmtDate(c.date)}</span>
+                            </div>
+                            <p style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: c.details ? 6 : 0 }}>{c.title}</p>
+                            {c.details && <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>{c.details}</p>}
+                          </div>
+                        </div>
+                        <DelBtn onClick={() => onDeleteChange(c.id)} />
+                      </div>
+                    </Card>
+                  );
+                })
+          }
         </>
       )}
 
@@ -927,6 +1220,7 @@ export default function Care({
   onAddRecipient, onUpdateRecipient, onDeleteRecipient,
   doctors, onAddDoctor, onDeleteDoctor,
   appointments, onAddAppointment, onDeleteAppointment,
+  changes = [], onAddChange, onDeleteChange,
 }) {
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -957,6 +1251,9 @@ export default function Care({
           onAddAppointment={onAddAppointment}
           onDeleteAppointment={onDeleteAppointment}
           recipients={recipients}
+          changes={changes}
+          onAddChange={onAddChange}
+          onDeleteChange={onDeleteChange}
         />
       </div>
     );

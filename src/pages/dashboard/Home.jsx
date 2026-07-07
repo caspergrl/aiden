@@ -11,6 +11,19 @@ function fmtDate(d) {
   const dt = new Date(d + 'T00:00:00');
   return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
 }
+function apptMs(a) {
+  const [y, mo, d] = (a.date || '').split('-').map(Number);
+  if (!y) return Infinity;
+  const t = a.time || '12:00 AM';
+  const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return new Date(y, mo - 1, d, 23, 59).getTime();
+  let h = parseInt(match[1]);
+  const min = parseInt(match[2]);
+  const ampm = match[3].toUpperCase();
+  if (ampm === 'PM' && h !== 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return new Date(y, mo - 1, d, h, min).getTime();
+}
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
@@ -27,7 +40,11 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
   const [showAddRecipient, setShowAddRecipient] = useState(false);
   const pending = logistics.filter(l => !l.completed).length;
   const pct = Math.round(((logistics.length - pending) / logistics.length) * 100);
-  const sorted = [...appointments].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 5);
+  const now = Date.now();
+  const sorted = [...appointments]
+    .filter(a => apptMs(a) >= now)
+    .sort((a, b) => apptMs(a) - apptMs(b))
+    .slice(0, 5);
 
   return (
     <div style={{ padding: 32, maxWidth: 900 }}>
@@ -58,14 +75,6 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
           <Eye size={14} /> Show today's message
         </button>
       )}
-
-      {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 28 }}>
-        <StatCard label="Care recipients" value={recipients.length} color={C.rose} onClick={() => onNavigate('care')} onAdd={() => setShowAddRecipient(true)} />
-        <StatCard label="Upcoming appointments" value={appointments.length} color={C.primary} onClick={() => onNavigate('calendar')} onAdd={() => onNavigate('calendar')} />
-        <StatCard label="Checklist progress" value={`${pct}%`} color={C.sage} onClick={() => onNavigate('todo')} />
-        <StatCard label="Items need attention" value={pending} color={pending > 0 ? C.coral : C.sage} onClick={() => onNavigate('todo')} />
-      </div>
 
       {/* Alert */}
       {pending > 0 && (

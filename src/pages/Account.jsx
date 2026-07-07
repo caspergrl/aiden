@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updatePassword, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { User, Shield, Trash2, Save, ArrowRight, Heart, Check } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { useAuth } from '../App';
@@ -47,10 +47,27 @@ export default function Account() {
     setResetSent(true); setResetting(false);
   }
 
+  // Delete all PHI subcollections before removing the user doc and auth record
+  async function deleteAllSubcollections(uid) {
+    const subcolls = [
+      'recipients', 'appointments', 'doctors',
+      'medicationSchedules', 'medicationLogs',
+      'logistics', 'resources',
+    ];
+    for (const sub of subcolls) {
+      const snap = await getDocs(collection(db, 'users', uid, sub));
+      if (snap.empty) continue;
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+
   async function handleDelete() {
     if (delConfirm !== user.email) return;
     setDeleting(true); setDelError('');
     try {
+      await deleteAllSubcollections(user.uid); // wipe all PHI subcollections first
       await deleteDoc(doc(db, 'users', user.uid));
       await deleteUser(user);
       navigate('/');

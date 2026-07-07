@@ -13,7 +13,7 @@ export const C = {
   blue:          '#8aaabf',
   blueLight:     '#e4eef6',
   bg:            '#ffffff',
-  bgWarm:        '#f5ede8',
+  bgWarm:        '#ffffff',
   card:          '#ffffff',
   border:        '#ebe2d8',
   text:          '#211810',
@@ -31,7 +31,7 @@ export const sans  = "'Inter', system-ui, sans-serif";
 export const FONTS_URL =
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Ledger&display=swap';
 
-export const GRAD        = 'linear-gradient(160deg, #f5ede8 0%, #ffffff 55%)';
+export const GRAD        = 'linear-gradient(160deg, #ffffff 0%, #ffffff 55%)';
 export const CARD_SHADOW    = '0 4px 28px rgba(140,60,40,0.10), 0 1px 6px rgba(140,60,40,0.05)';
 export const CARD_SHADOW_SM = '0 2px 14px rgba(140,60,40,0.08)';
 export const CARD_SHADOW_XS = '0 1px 6px rgba(140,60,40,0.06)';

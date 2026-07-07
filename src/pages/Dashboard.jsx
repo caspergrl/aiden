@@ -33,6 +33,7 @@ export default function Dashboard() {
   const [saveError,    setSaveError]    = useState(null);
   const [logistics,    setLogistics]    = useState([]);
   const [resources,    setResources]    = useState([]);
+  const [changes,      setChanges]      = useState([]);
   const [chatMessages, setChatMessages] = useState([{
     role: 'assistant',
     text: `Hi${profile?.name ? ` ${profile.name.split(' ')[0]}` : ''}! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for your loved ones — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍`,
@@ -76,18 +77,20 @@ export default function Dashboard() {
       const checkSnap = await getDocs(collection(db, 'users', uid, 'recipients'));
       if (checkSnap.empty && INITIAL_RECIPIENTS.length > 0) await seedUserData(uid);
 
-      const [recSnap, apptSnap, logSnap, docSnap, resSnap] = await Promise.all([
+      const [recSnap, apptSnap, logSnap, docSnap, resSnap, chgSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'recipients')),
         getDocs(collection(db, 'users', uid, 'appointments')),
         getDocs(collection(db, 'users', uid, 'logistics')),
         getDocs(collection(db, 'users', uid, 'doctors')),
         getDocs(collection(db, 'users', uid, 'resources')),
+        getDocs(collection(db, 'users', uid, 'careChanges')),
       ]);
       setRecipients(recSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setAppointments(apptSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setLogistics(logSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setDoctors(docSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setResources(resSnap.docs.map(d => ({ ...d.data(), id: d.id })));
+      setChanges(chgSnap.docs.map(d => ({ ...d.data(), id: d.id })));
     } catch (e) {
       console.error('Failed to load data:', e);
     }
@@ -183,6 +186,25 @@ export default function Dashboard() {
     } catch (e) { fsError('deleteAppointment', e); }
   }
 
+  // ── Care changes ─────────────────────────────────────────────────────────────
+  async function addChange(data) {
+    const tempId = `temp_${Date.now()}`;
+    setChanges(prev => [{ ...data, id: tempId }, ...prev]);
+    try {
+      const ref = await addDoc(collection(db, 'users', user.uid, 'careChanges'), data);
+      setChanges(prev => prev.map(c => c.id === tempId ? { ...c, id: ref.id } : c));
+    } catch (e) {
+      fsError('addChange', e);
+      setChanges(prev => prev.filter(c => c.id !== tempId));
+    }
+  }
+  async function deleteChange(id) {
+    setChanges(prev => prev.filter(c => c.id !== id));
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'careChanges', id));
+    } catch (e) { fsError('deleteChange', e); }
+  }
+
   // ── Logistics ─────────────────────────────────────────────────────────────────
   async function addLogistic(data) {
     const tempId = `temp_${Date.now()}`;
@@ -260,6 +282,9 @@ export default function Dashboard() {
             appointments={appointments}
             onAddAppointment={addAppointment}
             onDeleteAppointment={deleteAppointment}
+            changes={changes}
+            onAddChange={addChange}
+            onDeleteChange={deleteChange}
           />
         );
       case 'calendar':
