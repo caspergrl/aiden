@@ -19,8 +19,10 @@ export default function Footer() {
   ];
 
   const supportLinks = [
-    { label: 'FAQ',            to: '/faq' },
-    { label: 'Contact Aiden',  to: '/contact' },
+    { label: 'FAQ',             to: '/faq' },
+    { label: 'Contact Aiden',   to: '/contact' },
+    { label: 'Privacy Policy',  to: '/privacy' },
+    { label: 'Terms of Service', to: '/terms' },
   ];
 
   return (
@@ -74,9 +76,13 @@ export default function Footer() {
           </div>
         </div>
 
-        <div style={{ borderTop: '1px solid #3a3028', paddingTop: 24, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ borderTop: '1px solid #3a3028', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <p style={{ fontSize: 12 }}>© {new Date().getFullYear()} Aiden. All rights reserved.</p>
-          <p style={{ fontSize: 12 }}>Made with <Heart size={11} color={C.rose} fill={C.rose} style={{ display: 'inline', verticalAlign: 'middle' }} /> for caregivers</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+            <Link to="/privacy" style={{ fontSize: 12, color: '#b4aca2', textDecoration: 'none' }}>Privacy Policy</Link>
+            <Link to="/terms"   style={{ fontSize: 12, color: '#b4aca2', textDecoration: 'none' }}>Terms of Service</Link>
+            <p style={{ fontSize: 12, margin: 0 }}>Made with <Heart size={11} color={C.rose} fill={C.rose} style={{ display: 'inline', verticalAlign: 'middle' }} /> for caregivers</p>
+          </div>
         </div>
       </div>
     </footer>

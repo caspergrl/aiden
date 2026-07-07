@@ -125,7 +125,7 @@ export default function Navbar() {
 
         {/* Desktop nav */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 28 }} className="nav-desktop">
-          {NAV_ITEMS.map(item => (
+          {user && NAV_ITEMS.map(item => (
             <Link key={item.label} to={linkTarget(item)} style={navLinkStyle(item)}>{item.label}</Link>
           ))}
           {user && profile?.role === 'admin' && (
@@ -154,12 +154,12 @@ export default function Navbar() {
       {/* Mobile menu */}
       {open && (
         <div style={{ background: '#fff', borderTop: `1px solid ${C.border}`, padding: '12px 24px 24px', display: 'flex', flexDirection: 'column' }}>
-          {NAV_ITEMS.map(item => (
+          {user && NAV_ITEMS.map(item => (
             <Link key={item.label} to={linkTarget(item)} style={{ fontSize: 15, fontWeight: 600, color: isActive(item) ? C.roseDark : C.text, textDecoration: 'none', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>
               {item.label}
             </Link>
           ))}
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: user ? 16 : 0 }}>
             {user ? (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: `1px solid ${C.border}`, marginBottom: 4 }}>

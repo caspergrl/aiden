@@ -5,7 +5,14 @@ import { FULL_MONTHS, DAYS_OF_WEEK } from '../../data';
 import AppointmentModal from '../../components/AppointmentModal';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function rColor(id) { return id === 1 ? C.rose : C.primary; }
+const RECIPIENT_PALETTE = ['#c07878','#5f9e9a','#9b87b8','#c49050','#7a9e72','#7a8abf'];
+function rColor(id) {
+  if (id == null) return RECIPIENT_PALETTE[0];
+  const s = String(id);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return RECIPIENT_PALETTE[h % RECIPIENT_PALETTE.length];
+}
 function initials(name) { return name.split(' ').map(n => n[0]).join('').slice(0, 2); }
 function getDaysInMonth(m, y) { return new Date(y, m + 1, 0).getDate(); }
 function getFirstDay(m, y) { return new Date(y, m, 1).getDay(); }
@@ -20,6 +27,23 @@ function from24h(t) {
   if (h > 12) h -= 12;
   if (h === 0) h = 12;
   return `${h}:${String(m).padStart(2,'0')} ${period}`;
+}
+function t24ToH(t) { const h = parseInt((t||'10:00').split(':')[0]); return String(h===0?12:h>12?h-12:h); }
+function t24ToM(t) { return (t||'10:00').split(':')[1]||'00'; }
+function t24ToP(t) { return parseInt((t||'10:00').split(':')[0])>=12?'PM':'AM'; }
+function hmpTo24(h,m,p) { let n=parseInt(h); if(p==='AM'&&n===12)n=0; if(p==='PM'&&n!==12)n+=12; return `${String(n).padStart(2,'0')}:${m}`; }
+function apptMs(a) {
+  const [y, mo, d] = (a.date || '').split('-').map(Number);
+  if (!y) return Infinity;
+  const t = a.time || '12:00 AM';
+  const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return new Date(y, mo - 1, d, 23, 59).getTime();
+  let h = parseInt(match[1]);
+  const min = parseInt(match[2]);
+  const ampm = match[3].toUpperCase();
+  if (ampm === 'PM' && h !== 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return new Date(y, mo - 1, d, h, min).getTime();
 }
 
 const FI = 'https://cdn-icons-png.flaticon.com/512';
@@ -146,9 +170,20 @@ function AddAppointmentModal({ recipients, onSave, onClose }) {
           {/* Date & Time */}
           <div>
             <p style={labelStyle}>Date & Time</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...inputStyle, fontSize: 13 }} />
-              <input type="time" value={time24} onChange={e => setTime24(e.target.value)} style={{ ...inputStyle, fontSize: 13 }} />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <select value={t24ToH(time24)} onChange={e => setTime24(hmpTo24(e.target.value, t24ToM(time24), t24ToP(time24)))} style={{ flex: 1, background: '#f7f5f2', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 6px', fontSize: 13, fontFamily: sans, color: C.text, outline: 'none' }}>
+                  {['1','2','3','4','5','6','7','8','9','10','11','12'].map(h => <option key={h} value={h}>{h}</option>)}
+                </select>
+                <select value={t24ToM(time24)} onChange={e => setTime24(hmpTo24(t24ToH(time24), e.target.value, t24ToP(time24)))} style={{ flex: 1, background: '#f7f5f2', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 6px', fontSize: 13, fontFamily: sans, color: C.text, outline: 'none' }}>
+                  {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <select value={t24ToP(time24)} onChange={e => setTime24(hmpTo24(t24ToH(time24), t24ToM(time24), e.target.value))} style={{ flex: '0 0 72px', background: '#f7f5f2', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 4px', fontSize: 13, fontFamily: sans, color: C.text, outline: 'none' }}>
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -224,12 +259,15 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
   const prev = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const next = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
-  const visible = selected
+  const nowMs = Date.now();
+  const allVisible = selected
     ? appointments.filter(a => a.date === selected)
     : appointments.filter(a => {
         const [y, m] = a.date.split('-').map(Number);
         return m - 1 === month && y === year;
-      }).sort((a, b) => new Date(a.date + ' ' + a.time) - new Date(b.date + ' ' + b.time));
+      });
+  const upcoming = allVisible.filter(a => apptMs(a) >= nowMs).sort((a, b) => apptMs(a) - apptMs(b));
+  const past     = allVisible.filter(a => apptMs(a) <  nowMs).sort((a, b) => apptMs(b) - apptMs(a));
 
   return (
     <div style={{ padding: 32, maxWidth: 900 }}>
@@ -306,36 +344,77 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
             {selected && <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Show all</button>}
           </div>
           <div style={{ overflowY: 'auto', maxHeight: 480 }}>
-            {visible.length === 0 ? (
+            {upcoming.length === 0 && past.length === 0 ? (
               <div style={{ padding: 32, textAlign: 'center', color: C.mutedLight }}>
                 <p style={{ fontSize: 14 }}>No appointments {selected ? 'on this day' : 'this month'}</p>
                 <button onClick={() => setShowAdd(true)} style={{ marginTop: 12, background: C.roseLight, color: C.roseDark, border: 'none', borderRadius: 10, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   + Add one
                 </button>
               </div>
-            ) : visible.map((a, i) => {
-              const r   = recipients.find(rec => rec.id === a.recipientId);
-              const col = rColor(r?.id);
-              return (
-                <button key={a.id} onClick={() => setActiveAppt(a)} style={{ width: '100%', padding: '14px 20px', borderBottom: i < visible.length - 1 ? `1px solid ${C.border}` : 'none', borderLeft: `3px solid ${col}`, background: 'none', border: 'none', borderLeft: `3px solid ${col}`, borderBottom: i < visible.length - 1 ? `1px solid ${C.border}` : 'none', cursor: 'pointer', textAlign: 'left', display: 'block' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: C.text, flex: 1 }}>{a.title}</p>
-                    {r && <span style={{ background: col+'18', color: col, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>{r.nickname}</span>}
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                    <Clock size={11} color={C.mutedLight} />
-                    <span style={{ fontSize: 12, color: C.muted }}>{a.date} · {a.time}</span>
-                  </div>
-                  {a.location && (
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                      <MapPin size={11} color={C.mutedLight} />
-                      <span style={{ fontSize: 12, color: C.muted }}>{a.location}</span>
+            ) : (
+              <>
+                {upcoming.length > 0 && (
+                  <>
+                    <div style={{ padding: '7px 20px', background: C.bgWarm, borderBottom: `1px solid ${C.border}` }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: C.roseDark, letterSpacing: 1, textTransform: 'uppercase', fontFamily: sans }}>Upcoming</span>
                     </div>
-                  )}
-                  {a.doctor && <p style={{ fontSize: 12, color: col, fontWeight: 600, marginTop: 2 }}>{a.doctor}</p>}
-                </button>
-              );
-            })}
+                    {upcoming.map((a, i) => {
+                      const r = recipients.find(rec => rec.id === a.recipientId);
+                      const col = rColor(r?.id);
+                      return (
+                        <button key={a.id} onClick={() => setActiveAppt(a)} style={{ width: '100%', padding: '14px 20px', display: 'block', background: 'none', border: 'none', borderLeft: `3px solid ${col}`, borderBottom: i < upcoming.length - 1 ? `1px solid ${C.border}` : 'none', cursor: 'pointer', textAlign: 'left' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                            <p style={{ fontSize: 14, fontWeight: 700, color: C.text, flex: 1 }}>{a.title}</p>
+                            {r && <span style={{ background: col+'18', color: col, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>{r.nickname}</span>}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
+                            <Clock size={11} color={C.mutedLight} />
+                            <span style={{ fontSize: 12, color: C.muted }}>{a.date} · {a.time}</span>
+                          </div>
+                          {a.location && (
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
+                              <MapPin size={11} color={C.mutedLight} />
+                              <span style={{ fontSize: 12, color: C.muted }}>{a.location}</span>
+                            </div>
+                          )}
+                          {a.doctor && <p style={{ fontSize: 12, color: col, fontWeight: 600, marginTop: 2 }}>{a.doctor}</p>}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+                {past.length > 0 && (
+                  <>
+                    <div style={{ padding: '7px 20px', background: C.bgWarm, borderTop: upcoming.length > 0 ? `1px solid ${C.border}` : 'none', borderBottom: `1px solid ${C.border}` }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: C.mutedLight, letterSpacing: 1, textTransform: 'uppercase', fontFamily: sans }}>Past</span>
+                    </div>
+                    {past.map((a, i) => {
+                      const r = recipients.find(rec => rec.id === a.recipientId);
+                      const col = rColor(r?.id);
+                      return (
+                        <button key={a.id} onClick={() => setActiveAppt(a)} style={{ width: '100%', padding: '14px 20px', display: 'block', background: 'none', border: 'none', borderLeft: `3px solid ${col}60`, borderBottom: i < past.length - 1 ? `1px solid ${C.border}` : 'none', cursor: 'pointer', textAlign: 'left', opacity: 0.6 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                            <p style={{ fontSize: 14, fontWeight: 700, color: C.text, flex: 1 }}>{a.title}</p>
+                            {r && <span style={{ background: col+'18', color: col, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>{r.nickname}</span>}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
+                            <Clock size={11} color={C.mutedLight} />
+                            <span style={{ fontSize: 12, color: C.muted }}>{a.date} · {a.time}</span>
+                          </div>
+                          {a.location && (
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
+                              <MapPin size={11} color={C.mutedLight} />
+                              <span style={{ fontSize: 12, color: C.muted }}>{a.location}</span>
+                            </div>
+                          )}
+                          {a.doctor && <p style={{ fontSize: 12, color: col, fontWeight: 600, marginTop: 2 }}>{a.doctor}</p>}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

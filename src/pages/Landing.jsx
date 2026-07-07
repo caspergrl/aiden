@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CalendarDays, Shield, MessageCircle, ClipboardList, Heart, ArrowRight, Check, Star, Smartphone } from 'lucide-react';
+import { CalendarDays, Shield, MessageCircle, ClipboardList, Heart, ArrowRight, Check, Smartphone } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Logo from '../components/Logo';
@@ -17,12 +17,6 @@ const STEPS = [
   { n: '1', title: 'Create your account',     desc: 'Sign up in seconds. No credit card required to get started.' },
   { n: '2', title: 'Add your care recipients', desc: 'Enter your loved ones\' profiles — health conditions, medications, doctors.' },
   { n: '3', title: 'Stay organised, stay calm', desc: 'Manage appointments, track documents, and get AI-powered guidance whenever you need it.' },
-];
-
-const TESTIMONIALS = [
-  { name: 'Sarah M.', role: 'Caring for her mother', quote: 'Aiden has been a lifesaver. I used to spend hours trying to remember which doctor said what. Now everything is in one place.' },
-  { name: 'David K.', role: 'Caring for his brother', quote: 'The insurance explainer alone is worth it. I finally understand what Medicare actually covers.' },
-  { name: 'Jennifer L.', role: 'Caring for both parents', quote: 'The AI assistant is like having a knowledgeable friend available at 2am when the anxiety hits.' },
 ];
 
 const FAQ_PREVIEW = [
@@ -154,30 +148,6 @@ export default function Landing() {
               </Link>
             </div>
 
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section style={{ padding: '80px 24px', background: '#fff' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <p style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, color: C.roseDark, textTransform: 'uppercase', marginBottom: 12 }}>From caregivers like you</p>
-            <h2 style={{ fontFamily: serif, fontSize: 'clamp(26px, 4vw, 40px)', color: C.text, letterSpacing: -0.5 }}>Stories from our community</h2>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
-            {TESTIMONIALS.map(({ name, role, quote }) => (
-              <div key={name} style={{ background: C.bgWarm, borderRadius: 20, padding: 28, border: `1px solid ${C.border}` }}>
-                <div style={{ display: 'flex', marginBottom: 16 }}>
-                  {[...Array(5)].map((_, i) => <Star key={i} size={14} color={C.peach} fill={C.peach} />)}
-                </div>
-                <p style={{ fontSize: 14, color: '#4a4038', lineHeight: 1.75, marginBottom: 20, fontStyle: 'italic' }}>"{quote}"</p>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{name}</p>
-                  <p style={{ fontSize: 12, color: C.muted }}>{role}</p>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>

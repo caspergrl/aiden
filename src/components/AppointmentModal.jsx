@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Pencil, Trash2, Check, MapPin, Clock, Tag } from 'lucide-react';
+import { X, Pencil, Trash2, Check, MapPin, Clock, Tag, Share2, Copy, Mail, MessageSquare } from 'lucide-react';
 import { C, serif, sans } from '../theme';
 
 const FI = 'https://cdn-icons-png.flaticon.com/512';
@@ -28,6 +28,10 @@ function from24h(t) {
   if (h === 0) h = 12;
   return `${h}:${String(m).padStart(2,'0')} ${p}`;
 }
+function t24ToH(t) { const h = parseInt((t||'10:00').split(':')[0]); return String(h===0?12:h>12?h-12:h); }
+function t24ToM(t) { return (t||'10:00').split(':')[1]||'00'; }
+function t24ToP(t) { return parseInt((t||'10:00').split(':')[0])>=12?'PM':'AM'; }
+function hmpTo24(h,m,p) { let n=parseInt(h); if(p==='AM'&&n===12)n=0; if(p==='PM'&&n!==12)n+=12; return `${String(n).padStart(2,'0')}:${m}`; }
 function fmtDate(ds) {
   return new Date(ds + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
@@ -45,6 +49,8 @@ const labelStyle = {
 export default function AppointmentModal({ appt, recipients, onUpdate, onDelete, onClose }) {
   const [mode, setMode]           = useState('view'); // 'view' | 'edit'
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [copied, setCopied]       = useState(false);
 
   // Edit buffer
   const [title, setTitle]     = useState(appt.title || '');
@@ -63,6 +69,24 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
 
   function rColor(id) { return id === 1 ? C.rose : C.primary; }
   function initials(name) { return name.split(' ').map(n => n[0]).join('').slice(0, 2); }
+
+  function buildShareText() {
+    return [
+      appt.title,
+      `📅 ${fmtDate(appt.date)} · ${appt.time}`,
+      appt.location ? `📍 ${appt.location}` : null,
+      r             ? `For: ${r.name}` : null,
+      appt.notes    ? `\n${appt.notes}` : null,
+      '\nSent via Aiden',
+    ].filter(Boolean).join('\n');
+  }
+
+  function handleCopy() {
+    navigator.clipboard?.writeText(buildShareText()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   function handleSave() {
     onUpdate(appt.id, {
@@ -122,6 +146,9 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
               <button onClick={() => setMode('edit')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: C.roseLight, color: C.roseDark, border: 'none', borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 700, fontFamily: sans, cursor: 'pointer' }}>
                 <Pencil size={14} /> Edit
               </button>
+              <button onClick={() => { setShowShare(s => !s); setConfirmDelete(false); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: showShare ? '#dde8f5' : C.bgWarm, color: showShare ? C.primaryDark : C.muted, border: 'none', borderRadius: 12, padding: '12px 16px', fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: 'pointer' }}>
+                <Share2 size={14} /> Share
+              </button>
               {confirmDelete ? (
                 <>
                   <button onClick={handleDelete} style={{ flex: 1, background: C.rose, color: '#fff', border: 'none', borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 700, fontFamily: sans, cursor: 'pointer' }}>
@@ -132,11 +159,36 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
                   </button>
                 </>
               ) : (
-                <button onClick={() => setConfirmDelete(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 12, padding: '12px 16px', fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: 'pointer' }}>
+                <button onClick={() => { setConfirmDelete(true); setShowShare(false); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 12, padding: '12px 16px', fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: 'pointer' }}>
                   <Trash2 size={14} /> Delete
                 </button>
               )}
             </div>
+
+            {/* Share panel */}
+            {showShare && (
+              <div style={{ padding: '16px 24px 20px', background: '#f7f5f2', borderTop: `1px solid ${C.border}` }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', fontFamily: sans, marginBottom: 12 }}>Share event details</p>
+                <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 14px', marginBottom: 12, fontFamily: sans, fontSize: 13, color: C.text, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
+                  {buildShareText()}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <a href={`mailto:?subject=${encodeURIComponent(appt.title)}&body=${encodeURIComponent(buildShareText())}`}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: '#eef3fb', borderRadius: 12, textDecoration: 'none', color: C.primaryDark, fontFamily: sans, fontSize: 13, fontWeight: 700 }}>
+                    <Mail size={14} /> Email
+                  </a>
+                  <a href={`sms:?&body=${encodeURIComponent(buildShareText())}`}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: '#eef6f1', borderRadius: 12, textDecoration: 'none', color: '#3a6e58', fontFamily: sans, fontSize: 13, fontWeight: 700 }}>
+                    <MessageSquare size={14} /> Text
+                  </a>
+                  <button onClick={handleCopy}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: copied ? '#eef6f1' : '#fff', border: `1px solid ${C.border}`, borderRadius: 12, cursor: 'pointer', fontFamily: sans, fontSize: 13, fontWeight: 700, color: copied ? '#3a6e58' : C.muted }}>
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -186,9 +238,20 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
               {/* Date & Time */}
               <div>
                 <p style={labelStyle}>Date & Time</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...inputStyle, fontSize: 13 }} />
-                  <input type="time" value={time24} onChange={e => setTime24(e.target.value)} style={{ ...inputStyle, fontSize: 13 }} />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <select value={t24ToH(time24)} onChange={e => setTime24(hmpTo24(e.target.value, t24ToM(time24), t24ToP(time24)))} style={{ flex: 1, background: '#f7f5f2', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 6px', fontSize: 13, fontFamily: sans, color: C.text, outline: 'none' }}>
+                      {['1','2','3','4','5','6','7','8','9','10','11','12'].map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <select value={t24ToM(time24)} onChange={e => setTime24(hmpTo24(t24ToH(time24), e.target.value, t24ToP(time24)))} style={{ flex: 1, background: '#f7f5f2', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 6px', fontSize: 13, fontFamily: sans, color: C.text, outline: 'none' }}>
+                      {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <select value={t24ToP(time24)} onChange={e => setTime24(hmpTo24(t24ToH(time24), t24ToM(time24), e.target.value))} style={{ flex: '0 0 72px', background: '#f7f5f2', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 4px', fontSize: 13, fontFamily: sans, color: C.text, outline: 'none' }}>
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

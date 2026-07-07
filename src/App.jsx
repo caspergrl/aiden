@@ -1,24 +1,45 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 
-import Landing   from './pages/Landing';
-import FAQ       from './pages/FAQ';
-import Contact   from './pages/Contact';
-import Login     from './pages/Login';
-import Account   from './pages/Account';
-import Admin     from './pages/Admin';
-import Dashboard from './pages/Dashboard';
+import Landing       from './pages/Landing';
+import FAQ           from './pages/FAQ';
+import Contact       from './pages/Contact';
+import Login         from './pages/Login';
+import Account       from './pages/Account';
+import Admin         from './pages/Admin';
+import Dashboard     from './pages/Dashboard';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import Terms         from './pages/Terms';
 
 // ─── Auth context ──────────────────────────────────────────────────────────────
 export const AuthCtx = createContext(null);
 export function useAuth() { return useContext(AuthCtx); }
 
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30-minute inactivity logout
+
 function AuthProvider({ children }) {
   const [user,    setUser]    = useState(undefined); // undefined = loading
   const [profile, setProfile] = useState(null);
+  const idleTimer = useRef(null);
+
+  // ── Session timeout: sign out after 30 min of inactivity ─────────────────
+  function resetIdleTimer() {
+    clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => signOut(auth), IDLE_TIMEOUT_MS);
+  }
+
+  useEffect(() => {
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach(e => window.addEventListener(e, resetIdleTimer, { passive: true }));
+    resetIdleTimer(); // start the clock
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+      clearTimeout(idleTimer.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
@@ -41,9 +62,12 @@ function AuthProvider({ children }) {
 
 // ─── Route guards ──────────────────────────────────────────────────────────────
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   if (loading) return <Spinner />;
-  return user ? children : <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  // Block access if an admin has disabled this account
+  if (profile?.status === 'disabled') return <Navigate to="/login" replace />;
+  return children;
 }
 
 function AdminRoute({ children }) {
@@ -82,6 +106,8 @@ export default function App() {
           <Route path="/dashboard" element={<Navigate to="/home" replace />} />
           <Route path="/account"   element={<ProtectedRoute><Account /></ProtectedRoute>} />
           <Route path="/admin"     element={<AdminRoute><Admin /></AdminRoute>} />
+          <Route path="/privacy"   element={<PrivacyPolicy />} />
+          <Route path="/terms"     element={<Terms />} />
           <Route path="*"          element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
