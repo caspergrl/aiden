@@ -2,3 +2,9 @@ runConfig:
   concurrency: 80
   minInstances: 0
   maxInstances: 2
+
+env:
+  - variable: VITE_GOOGLE_MAPS_API_KEY
+    value: AIzaSyCovBmP0JR9n1TXWsYuhEYM0Al8zqYBE5c
+    availability:
+      - BUILD
