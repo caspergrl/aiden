@@ -14,7 +14,7 @@ import {
   CheckSquare, Square, Send, Clock, FileText, Image as ImageIcon,
   AlertCircle, Bell, Check, Info, ExternalLink, Eye, EyeOff, User,
   Scale, ArrowRightLeft, Users, RotateCcw, Download, Upload,
-  Camera, Pencil, Trash2, X, BookMarked, Link2, Share2, Mail, MessageSquare, Search, Copy,
+  Camera, Pencil, Trash2, X, BookMarked, Link2, Share2, Mail, MessageSquare, Search, Copy, MapPin,
 } from "lucide-react";
 
 // ─── PALETTE ── imported from @shared/theme ────────────────────────────────────
@@ -572,6 +572,108 @@ function NotificationSettingsSheet({ role, phone, reminderMethods, onSave, onClo
   );
 }
 
+// ─── PLACES AUTOCOMPLETE INPUT ────────────────────────────────────────────────
+const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+function PlacesInput({ value, onChange, placeholder, style }) {
+  const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen]               = useState(false);
+  const [userPos, setUserPos]         = useState(null);
+  const debounce     = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(
+      pos => setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}
+    );
+  }, []);
+
+  useEffect(() => {
+    const handler = e => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  function handleChange(e) {
+    const val = e.target.value;
+    onChange(val);
+    if (!MAPS_KEY || val.length < 3) { setSuggestions([]); setOpen(false); return; }
+    clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => fetchSuggestions(val), 250);
+  }
+
+  async function fetchSuggestions(input) {
+    try {
+      const body = { input };
+      if (userPos) {
+        body.locationBias = {
+          circle: { center: { latitude: userPos.lat, longitude: userPos.lng }, radius: 50000 },
+        };
+      }
+      const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': MAPS_KEY },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      const items = (data.suggestions || [])
+        .map(s => s.placePrediction?.text?.text)
+        .filter(Boolean)
+        .slice(0, 5);
+      setSuggestions(items);
+      setOpen(items.length > 0);
+    } catch {
+      setSuggestions([]);
+      setOpen(false);
+    }
+  }
+
+  function select(text) {
+    onChange(text);
+    setSuggestions([]);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <input
+        value={value}
+        onChange={handleChange}
+        onFocus={() => suggestions.length > 0 && setOpen(true)}
+        placeholder={placeholder}
+        autoComplete="off"
+        style={style}
+      />
+      {open && suggestions.length > 0 && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 2000,
+          background: '#fff', border: `1px solid ${C.border}`, borderRadius: 14,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.13)', overflow: 'hidden',
+        }}>
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              onMouseDown={() => select(s)}
+              style={{
+                width: '100%', padding: '11px 14px', background: 'none', border: 'none',
+                borderBottom: i < suggestions.length - 1 ? `1px solid ${C.border}` : 'none',
+                cursor: 'pointer', textAlign: 'left', fontSize: 13, color: C.text,
+                fontFamily: sans, display: 'flex', alignItems: 'center', gap: 8,
+              }}
+            >
+              <MapPin size={12} color={C.mutedLight} style={{ flexShrink: 0 }} />
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── APPOINTMENT SHARE SHEET ──────────────────────────────────────────────────
 function ApptShareSheet({ appt, recipients, onClose }) {
   const [copied, setCopied] = useState(false);
@@ -769,7 +871,7 @@ function AppointmentSheet({ appt, recipients, onUpdate, onDelete, onClose }) {
               </div>
               <div>
                 <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Location</p>
-                <input value={cleanLocation(buf.location)||''} onChange={e=>setBuf(b=>({...b,location:e.target.value}))} placeholder="Optional" style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:14, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
+                <PlacesInput value={cleanLocation(buf.location)||''} onChange={v=>setBuf(b=>({...b,location:v}))} placeholder="Optional" style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:14, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
               </div>
               <div>
                 <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:"uppercase", fontFamily:sans, marginBottom:6 }}>Doctor</p>
@@ -2079,12 +2181,11 @@ function AddEventScreen({ onBack, onSave, recipients, reminderMethods = ['email'
 
           {locMode === "inperson" ? (
             <>
-              <input
+              <PlacesInput
                 value={location}
-                onChange={e => setLocation(e.target.value)}
+                onChange={setLocation}
                 placeholder="Clinic name or address"
                 style={{ ...inputStyle, marginBottom: 8 }}
-                autoComplete="off"
               />
               <input
                 value={suite}
