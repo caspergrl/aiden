@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Plus, Clock, MapPin, X, Check, Video } from 
 import { C, serif, sans } from '../../theme';
 import { FULL_MONTHS, DAYS_OF_WEEK } from '../../data';
 import AppointmentModal from '../../components/AppointmentModal';
+import PlacesInput from '../../components/PlacesInput';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const RECIPIENT_PALETTE = ['#c07878','#5f9e9a','#9b87b8','#c49050','#7a9e72','#7a8abf'];
@@ -197,12 +198,21 @@ function AddAppointmentModal({ recipients, onSave, onClose }) {
                 </button>
               ))}
             </div>
-            <input
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              placeholder={locMode === 'video' ? 'https://zoom.us/j/…' : 'Address or place name'}
-              style={inputStyle}
-            />
+            {locMode === 'inperson' ? (
+              <PlacesInput
+                value={location}
+                onChange={setLocation}
+                placeholder="Clinic name or address"
+                style={inputStyle}
+              />
+            ) : (
+              <input
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                placeholder="https://zoom.us/j/…"
+                style={inputStyle}
+              />
+            )}
           </div>
 
           {/* Reminders */}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Pencil, Trash2, Check, MapPin, Clock, Tag, Share2, Copy, Mail, MessageSquare } from 'lucide-react';
 import { C, serif, sans } from '../theme';
+import PlacesInput from './PlacesInput';
 
 const FI = 'https://cdn-icons-png.flaticon.com/512';
 const EVENT_TYPES = [
@@ -265,7 +266,16 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
                     </button>
                   ))}
                 </div>
-                <input value={location} onChange={e => setLocation(e.target.value)} placeholder={locMode === 'video' ? 'https://…' : 'Address or place name'} style={inputStyle} />
+                {locMode === 'inperson' ? (
+                  <PlacesInput
+                    value={location}
+                    onChange={setLocation}
+                    placeholder="Clinic name or address"
+                    style={inputStyle}
+                  />
+                ) : (
+                  <input value={location} onChange={e => setLocation(e.target.value)} placeholder="https://…" style={inputStyle} />
+                )}
               </div>
 
               {/* Notes */}
