@@ -3374,6 +3374,55 @@ function MobileShareSheet({ resource, recipients, onClose }) {
   );
 }
 
+const CAREGIVER_FAQ = [
+  {
+    q: 'What is the difference between Medicare and Medicaid?',
+    a: 'Medicare is a federal health insurance program primarily for people 65+ or those with certain disabilities, regardless of income. Medicaid is a joint federal-state program for low-income individuals and families. Some people qualify for both ("dual eligibles"). Medicaid eligibility and benefits vary by state.',
+  },
+  {
+    q: 'What do Medicare Parts A, B, C, and D cover?',
+    a: 'Part A covers hospital stays, short-term skilled nursing care, hospice, and some home health care. Part B covers doctor visits, outpatient services, preventive care, and medical equipment. Part C (Medicare Advantage) bundles A, B, and usually D through private insurers. Part D is prescription drug coverage.',
+  },
+  {
+    q: 'What is Medigap (supplemental) insurance?',
+    a: 'Medigap plans are sold by private insurers to cover costs original Medicare doesn\'t pay — such as copays, coinsurance, and deductibles. They work alongside original Medicare Parts A and B only and cannot be combined with Medicare Advantage. Plans are standardized (labeled A through N).',
+  },
+  {
+    q: 'What is long-term care insurance?',
+    a: 'Long-term care (LTC) insurance covers services for people who need help with daily activities (bathing, dressing, eating) due to aging, illness, or disability. It typically covers home care, adult day care, assisted living, and nursing home care. Medicare does not cover most long-term care. Premiums rise significantly with age, so it\'s best purchased before 65.',
+  },
+  {
+    q: 'What is the difference between assisted living and a nursing home?',
+    a: 'Assisted living offers housing, meals, and help with daily tasks for people who are mostly independent but need some support. Skilled nursing facilities (nursing homes) provide 24-hour medical care for serious health conditions or post-surgery recovery. Nursing homes accept Medicare (short-term) and Medicaid; assisted living is usually private pay or covered by LTC insurance.',
+  },
+  {
+    q: 'Does Medicare cover home care or long-term care?',
+    a: 'Medicare covers short-term, medically necessary home health care (skilled nursing, physical therapy) if you are homebound and your doctor orders it. It does not cover ongoing custodial care (bathing, dressing) at home unless skilled care is also needed. Extended home care or nursing home stays require Medicaid, LTC insurance, or private funds.',
+  },
+  {
+    q: 'What caregiver support programs are available?',
+    a: 'Many states offer Medicaid HCBS (Home and Community-Based Services) waivers that fund home care. PACE (Program of All-inclusive Care for the Elderly) provides comprehensive care for those who qualify for nursing-home-level care but wish to stay home. Area Agencies on Aging (AAA) connect you with local services. AARP and the National Alliance for Caregiving also offer resources and support groups.',
+  },
+];
+
+function MobileFaqItem({ q, a }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ borderBottom: `1px solid ${C.border}` }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: "100%", background: "none", border: "none", padding: "14px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, cursor: "pointer", textAlign: "left" }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans, lineHeight: 1.4 }}>{q}</span>
+        <ChevronDown size={16} color={C.muted} style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+      </button>
+      {open && (
+        <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, lineHeight: 1.7, paddingBottom: 14, margin: 0 }}>{a}</p>
+      )}
+    </div>
+  );
+}
+
 function ResourcesTab({ resources, onAdd, onUpdate, onDelete, recipients }) {
   const [showAdd, setShowAdd]       = useState(false);
   const [editItem, setEditItem]     = useState(null);
@@ -3489,6 +3538,19 @@ function ResourcesTab({ resources, onAdd, onUpdate, onDelete, recipients }) {
             </div>
           );
         })}
+      </div>
+
+      {/* FAQ section */}
+      <div style={{ marginTop: 32, marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+          <BookMarked size={14} color={C.rose} />
+          <p style={{ fontSize: 11, fontWeight: 700, color: C.rose, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase" }}>Caregiver FAQ</p>
+        </div>
+        <h2 style={{ fontSize: 20, fontWeight: 600, fontFamily: serif, color: C.text, marginBottom: 4 }}>Insurance &amp; Care Guides</h2>
+        <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, marginBottom: 16 }}>Common questions about Medicare, Medicaid, and care options</p>
+        <div style={{ background: "#fff", borderRadius: 22, padding: "0 16px", boxShadow: CARD_SHADOW }}>
+          {CAREGIVER_FAQ.map((item, i) => <MobileFaqItem key={i} q={item.q} a={item.a} />)}
+        </div>
       </div>
 
       {/* FAB */}
