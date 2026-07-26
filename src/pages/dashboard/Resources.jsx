@@ -1,11 +1,60 @@
 import { useState } from 'react';
 import {
   Link2, Plus, Trash2, Share2, ExternalLink, X,
-  Search, Mail, MessageSquare, Pencil, Check, BookMarked,
+  Search, Mail, MessageSquare, Pencil, Check, BookMarked, ChevronDown, HelpCircle,
 } from 'lucide-react';
 import { C, serif, shadowSm, radius } from '../../theme';
 
 const CATEGORIES = ['Medical', 'Legal', 'Caregiver Support', 'Financial', 'Community', 'Other'];
+
+const FAQ_ITEMS = [
+  {
+    q: 'What is the difference between Medicare and Medicaid?',
+    a: 'Medicare is a federal health insurance program primarily for people 65+ or those with certain disabilities, regardless of income. Medicaid is a joint federal-state program providing health coverage to low-income individuals and families. Some people qualify for both ("dual eligibles"). Medicare is administered federally; Medicaid eligibility and benefits vary by state.',
+  },
+  {
+    q: 'What do Medicare Parts A, B, C, and D cover?',
+    a: 'Part A covers hospital stays, short-term skilled nursing facility care, hospice, and some home health care. Part B covers doctor visits, outpatient services, preventive care, and medical equipment. Part C (Medicare Advantage) is offered through private insurers and bundles A, B, and usually D. Part D is prescription drug coverage, available as a standalone plan or included in Medicare Advantage.',
+  },
+  {
+    q: 'What is Medigap (supplemental) insurance?',
+    a: 'Medigap plans are sold by private insurers to cover costs that original Medicare doesn\'t pay — such as copays, coinsurance, and deductibles. They only work alongside original Medicare (Parts A and B) and cannot be combined with Medicare Advantage. Plans are standardized and labeled A through N, making comparison easier.',
+  },
+  {
+    q: 'What is long-term care insurance?',
+    a: 'Long-term care (LTC) insurance covers services for people who need help with daily activities — like bathing, dressing, or eating — due to aging, illness, or disability. It typically covers home care, adult day care, assisted living, and nursing home care. Medicare does not cover most long-term care. LTC insurance is best purchased before age 65, as premiums rise significantly with age.',
+  },
+  {
+    q: 'What is the difference between assisted living and a nursing home?',
+    a: 'Assisted living facilities offer housing, meals, and help with daily tasks for people who are mostly independent but need some support. Skilled nursing facilities (nursing homes) provide 24-hour medical care for those with serious health conditions or recovering from surgery or illness. Nursing homes accept Medicare (for short-term stays) and Medicaid; assisted living is usually private pay or covered by long-term care insurance.',
+  },
+  {
+    q: 'Does Medicare cover home care or long-term care?',
+    a: 'Medicare covers short-term, medically necessary home health care (skilled nursing, physical therapy) if you are homebound and your doctor orders it. It does not cover ongoing custodial care (bathing, dressing) at home unless skilled care is also needed. For extended home care or nursing home stays, you would need Medicaid, long-term care insurance, or private funds.',
+  },
+  {
+    q: 'What caregiver support programs are available?',
+    a: 'Many states offer Medicaid HCBS (Home and Community-Based Services) waivers, which fund home care to help seniors avoid nursing home placement. PACE (Program of All-inclusive Care for the Elderly) provides comprehensive care for those who qualify for nursing-home-level care but wish to remain at home. Area Agencies on Aging (AAA) can connect you with local services. AARP and the National Alliance for Caregiving also offer resources and support groups.',
+  },
+];
+
+function FaqItem({ q, a }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ borderBottom: `1px solid ${C.border}` }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', background: 'none', border: 'none', padding: '14px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', textAlign: 'left' }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 600, color: C.text, lineHeight: 1.4 }}>{q}</span>
+        <ChevronDown size={16} color={C.muted} style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+      </button>
+      {open && (
+        <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, paddingBottom: 14, margin: 0 }}>{a}</p>
+      )}
+    </div>
+  );
+}
 
 function normalizeUrl(u) {
   if (!u) return u;
@@ -423,6 +472,19 @@ export default function Resources({ resources, onAdd, onUpdate, onDelete, recipi
             </div>
           );
         })}
+      </div>
+
+      {/* FAQ section */}
+      <div style={{ marginTop: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <HelpCircle size={16} color={C.roseDark} />
+          <p style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, letterSpacing: 0.8, textTransform: 'uppercase' }}>Caregiver FAQ</p>
+        </div>
+        <h2 style={{ fontFamily: serif, fontSize: 20, color: C.text, marginBottom: 6 }}>Insurance &amp; Care Guides</h2>
+        <p style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Common questions about Medicare, Medicaid, and care options</p>
+        <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 18, padding: '0 20px' }}>
+          {FAQ_ITEMS.map((item, i) => <FaqItem key={i} q={item.q} a={item.a} />)}
+        </div>
       </div>
     </div>
   );
