@@ -15,6 +15,7 @@ import {
   AlertCircle, Bell, Check, Info, ExternalLink, Eye, EyeOff, User,
   Scale, ArrowRightLeft, Users, RotateCcw, Download, Upload,
   Camera, Pencil, Trash2, X, BookMarked, Link2, Share2, Mail, MessageSquare, Search, Copy, MapPin,
+  Pill as PillIcon, RefreshCw, AlarmClock, Activity,
 } from "lucide-react";
 
 // ─── PALETTE ── imported from @shared/theme ────────────────────────────────────
@@ -99,6 +100,33 @@ const CAREGIVING_RECS = {
   "Down Syndrome": ["Annual thyroid screening is essential — hypothyroidism is very common in adults with Down syndrome.", "Schedule regular vision and hearing exams every 1–2 years.", "Cervical spine X-rays are recommended due to atlantoaxial instability risk.", "Begin supported living and employment planning as early as possible.", "Connect with your local Arc chapter for services, advocacy, and peer support.", "Annual cardiology screening is recommended even in adulthood."],
   "Hypothyroidism": ["Ensure Levothyroxine is taken consistently — same time every day, on an empty stomach.", "TSH levels should be checked every 6–12 months.", "Watch for signs of under-treatment: fatigue, unexplained weight gain, or depression."],
 };
+
+const INITIAL_MEDICATIONS = [];
+
+const MED_FREQUENCIES = ['Once daily','Twice daily','Three times daily','Every morning','Every evening','Every bedtime','As needed','Weekly','Other'];
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const diff = new Date(dateStr + 'T00:00:00') - new Date(todayStr() + 'T00:00:00');
+  return Math.round(diff / 86400000);
+}
+function timeToMins(t) {
+  if (!t) return 480;
+  const parts = (t || '8:00 AM').trim().split(' ');
+  const [h, m] = parts[0].split(':').map(Number);
+  const pm = parts[1] === 'PM';
+  return (pm && h !== 12 ? h + 12 : !pm && h === 12 ? 0 : h) * 60 + (m || 0);
+}
+function minsToTimePeriod(mins) {
+  if (mins < 720)  return 'Morning';
+  if (mins < 1020) return 'Afternoon';
+  if (mins < 1200) return 'Evening';
+  return 'Bedtime';
+}
 
 const FULL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS_OF_WEEK = ["Su","Mo","Tu","We","Th","Fr","Sa"];
@@ -921,7 +949,258 @@ function apptMs(a) {
   return new Date(y, mo - 1, d, h, min).getTime();
 }
 
-function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent, notificationRole, reminderMethods, onOpenSettings, onUpdateAppt, onDeleteAppt }) {
+// ─── MEDICATION SHEET (add / edit) ────────────────────────────────────────────
+
+function MedSheet({ initial, recipientId, recipients, onSave, onDelete, onClose }) {
+  const [form, setForm] = useState({
+    name: '', dosage: '', frequency: 'Once daily', times: ['8:00 AM'],
+    prescribingDoctor: '', notes: '', refillDate: '', active: true,
+    recipientId: recipientId || (recipients[0]?.id ?? null),
+    ...(initial || {}),
+  });
+  const [confirmDel, setConfirmDel] = useState(false);
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  function setTime(i, raw) {
+    if (!raw) return;
+    const [h, m] = raw.split(':').map(Number);
+    const p = h >= 12 ? 'PM' : 'AM';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    const arr = [...form.times]; arr[i] = `${h12}:${String(m).padStart(2,'0')} ${p}`;
+    set('times', arr);
+  }
+  function addTime()    { if (form.times.length < 4) set('times', [...form.times, '8:00 AM']); }
+  function removeTime(i){ set('times', form.times.filter((_,j) => j !== i)); }
+
+  const canSave = form.name.trim() && form.recipientId;
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:400, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
+      <div onClick={onClose} style={{ position:'absolute', inset:0, background:'rgba(38,32,26,0.45)' }} />
+      <div style={{ position:'relative', background:'#fff', borderRadius:'22px 22px 0 0', padding:'24px 20px 44px', zIndex:1, maxHeight:'90vh', overflowY:'auto' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <h3 style={{ fontSize:18, fontWeight:600, fontFamily:serif, color:C.text }}>{initial ? 'Edit medication' : 'Add medication'}</h3>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}><X size={18} color={C.muted}/></button>
+        </div>
+
+        {/* For — shown when adding from the Today view (no fixed recipientId) */}
+        {!recipientId && recipients.length > 1 && (
+          <div style={{ marginBottom:16 }}>
+            <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:8 }}>For</p>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              {recipients.map(r => {
+                const active = form.recipientId === r.id;
+                const rc = rColor(r.id);
+                return (
+                  <button key={r.id} onClick={() => set('recipientId', r.id)}
+                    style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:20, border:`1.5px solid ${active?rc:C.border}`, background:active?rc+'14':'white', color:active?rc:C.muted, fontFamily:sans, fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                    <div style={{ width:18, height:18, borderRadius:'50%', background:rc+'33', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:rc }}>{initials(r.name)}</div>
+                    {r.nickname || r.name.split(' ')[0]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {[
+          { label:'Medication name', key:'name',              type:'text',  placeholder:'e.g. Metformin' },
+          { label:'Dosage',          key:'dosage',            type:'text',  placeholder:'e.g. 500mg' },
+          { label:'Prescribing doctor', key:'prescribingDoctor', type:'text', placeholder:'e.g. Dr. Kim' },
+          { label:'Refill date',     key:'refillDate',        type:'date',  placeholder:'' },
+        ].map(({ label, key, type, placeholder }) => (
+          <div key={key} style={{ marginBottom:14 }}>
+            <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:6 }}>{label}</p>
+            <input type={type} value={form[key]} onChange={e => set(key, e.target.value)} placeholder={placeholder}
+              style={{ width:'100%', background:'#f7f5f2', border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', fontSize:14, fontFamily:sans, color:C.text, outline:'none', boxSizing:'border-box' }} />
+          </div>
+        ))}
+
+        <div style={{ marginBottom:14 }}>
+          <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:6 }}>Frequency</p>
+          <select value={form.frequency} onChange={e => set('frequency', e.target.value)}
+            style={{ width:'100%', background:'#f7f5f2', border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', fontSize:14, fontFamily:sans, color:C.text, outline:'none', boxSizing:'border-box' }}>
+            {MED_FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </div>
+
+        <div style={{ marginBottom:14 }}>
+          <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:6 }}>Time(s)</p>
+          {form.times.map((t, i) => (
+            <div key={i} style={{ display:'flex', gap:8, marginBottom:8, alignItems:'center' }}>
+              <input type="time" value={to24h(t) || '08:00'} onChange={e => setTime(i, e.target.value)}
+                style={{ flex:1, background:'#f7f5f2', border:`1px solid ${C.border}`, borderRadius:10, padding:'9px 12px', fontSize:14, fontFamily:sans, color:C.text, outline:'none' }} />
+              {form.times.length > 1 && (
+                <button onClick={() => removeTime(i)} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}><Trash2 size={14} color={C.coral}/></button>
+              )}
+            </div>
+          ))}
+          {form.times.length < 4 && (
+            <button onClick={addTime} style={{ display:'flex', alignItems:'center', gap:4, background:'none', border:`1px dashed ${C.border}`, borderRadius:10, padding:'6px 12px', color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:'pointer', marginBottom:4 }}>
+              <Plus size={12}/> Add another time
+            </button>
+          )}
+        </div>
+
+        <div style={{ marginBottom:20 }}>
+          <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:6 }}>Notes</p>
+          <textarea value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="e.g. Take with food" rows={2}
+            style={{ width:'100%', background:'#f7f5f2', border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', fontSize:14, fontFamily:sans, color:C.text, outline:'none', boxSizing:'border-box', resize:'none' }} />
+        </div>
+
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={() => canSave && onSave(form)} disabled={!canSave}
+            style={{ flex:1, background:`linear-gradient(135deg,${C.rose},${C.roseDark})`, color:'white', border:'none', borderRadius:14, padding:'13px 0', fontSize:14, fontWeight:700, fontFamily:sans, cursor:canSave?'pointer':'not-allowed', opacity:canSave?1:0.5 }}>
+            Save
+          </button>
+          {initial && !confirmDel && (
+            <button onClick={() => setConfirmDel(true)}
+              style={{ background:'#fdf0f0', border:`1px solid ${C.rose}30`, borderRadius:14, padding:'13px 14px', color:C.rose, cursor:'pointer' }}>
+              <Trash2 size={14}/>
+            </button>
+          )}
+          {initial && confirmDel && (
+            <button onClick={onDelete}
+              style={{ background:C.rose, color:'white', border:'none', borderRadius:14, padding:'13px 14px', fontSize:13, fontWeight:700, fontFamily:sans, cursor:'pointer' }}>
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TODAY'S MEDICATIONS VIEW ──────────────────────────────────────────────────
+
+function TodayMedsView({ medications, recipients, medLog, onToggle, onBack }) {
+  const today = todayStr();
+  const log   = medLog[today] || {};
+  const active = medications.filter(m => m.active !== false);
+
+  const doses = [];
+  for (const med of active) {
+    const r = recipients.find(x => x.id === med.recipientId);
+    (med.times || ['8:00 AM']).forEach((time, ti) => {
+      const key = `${med.id}:${ti}`;
+      doses.push({ med, r, time, ti, key, status: log[key] || 'pending', mins: timeToMins(time) });
+    });
+  }
+  doses.sort((a, b) => a.mins - b.mins);
+
+  const groups = ['Morning','Afternoon','Evening','Bedtime'];
+  const grouped = {};
+  for (const d of doses) {
+    const p = minsToTimePeriod(d.mins);
+    (grouped[p] = grouped[p] || []).push(d);
+  }
+
+  const taken = doses.filter(d => d.status === 'taken').length;
+  const total = doses.length;
+  const pct   = total > 0 ? taken / total : 0;
+
+  const refills = active
+    .map(m => ({ ...m, daysLeft: daysUntil(m.refillDate) }))
+    .filter(m => m.daysLeft !== null && m.daysLeft <= 14)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  function toggleStyle(s) {
+    if (s === 'taken')   return { bg: C.sage,    border: C.sage,   icon: <Check size={15} color="white"/> };
+    if (s === 'skipped') return { bg: '#f0ece8',  border: C.border, icon: <X size={13} color={C.muted}/> };
+    return { bg: 'white', border: C.border, icon: null };
+  }
+
+  return (
+    <div style={{ padding:'20px 18px 100px' }}>
+      <BackBtn onBack={onBack}/>
+      <p style={{ fontSize:11, fontWeight:700, color:C.rose, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:4 }}>
+        {new Date().toLocaleDateString('en-US',{ weekday:'long', month:'long', day:'numeric' })}
+      </p>
+      <h1 style={{ fontSize:24, fontWeight:600, color:C.text, fontFamily:serif, letterSpacing:-0.5, marginBottom:14 }}>Medications Today</h1>
+
+      {total > 0 && (
+        <div style={{ background:C.card, borderRadius:18, padding:'14px 16px', boxShadow:CARD_SHADOW_SM, marginBottom:24 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <span style={{ fontSize:13, fontWeight:600, color:C.text, fontFamily:sans }}>{taken} of {total} doses taken</span>
+            <span style={{ fontSize:12, color:C.muted, fontFamily:sans }}>{Math.round(pct*100)}%</span>
+          </div>
+          <div style={{ height:6, background:C.bg, borderRadius:99, overflow:'hidden' }}>
+            <div style={{ height:'100%', width:`${pct*100}%`, background:C.sage, borderRadius:99, transition:'width 0.4s ease' }}/>
+          </div>
+        </div>
+      )}
+
+      {total === 0 ? (
+        <div style={{ textAlign:'center', padding:'56px 20px' }}>
+          <PillIcon size={36} color={C.border} style={{ marginBottom:12 }}/>
+          <p style={{ fontSize:15, fontWeight:600, color:C.text, fontFamily:serif, marginBottom:6 }}>No medications added yet</p>
+          <p style={{ fontSize:13, color:C.muted, fontFamily:sans }}>Add medications from a care recipient's profile.</p>
+        </div>
+      ) : (
+        groups.filter(g => grouped[g]?.length).map(group => (
+          <div key={group} style={{ marginBottom:24 }}>
+            <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:1.2, textTransform:'uppercase', fontFamily:sans, marginBottom:10 }}>{group}</p>
+            <div style={{ background:C.card, borderRadius:18, boxShadow:CARD_SHADOW_SM, overflow:'hidden' }}>
+              {grouped[group].map((dose, i) => {
+                const col  = dose.r ? rColor(dose.r.id) : C.muted;
+                const ts   = toggleStyle(dose.status);
+                const last = i === grouped[group].length - 1;
+                return (
+                  <div key={dose.key} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderBottom:last?'none':`1px solid ${C.bg}` }}>
+                    <div style={{ width:32, height:32, borderRadius:'50%', background:`linear-gradient(135deg,${col}bb,${col})`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <span style={{ fontSize:11, fontWeight:700, color:'white', fontFamily:serif }}>{dose.r ? initials(dose.r.name) : '?'}</span>
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:sans, lineHeight:1.2 }}>
+                        {dose.med.name}{dose.med.dosage ? <span style={{ fontWeight:400, color:C.muted }}> · {dose.med.dosage}</span> : null}
+                      </p>
+                      <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginTop:2 }}>
+                        {dose.time}{dose.r ? ` · ${dose.r.nickname || dose.r.name.split(' ')[0]}` : ''}
+                      </p>
+                    </div>
+                    <button onClick={() => onToggle(dose.key, today)}
+                      style={{ width:32, height:32, borderRadius:'50%', border:`2px solid ${ts.border}`, background:ts.bg, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }}>
+                      {ts.icon}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))
+      )}
+
+      {refills.length > 0 && (
+        <div style={{ marginTop:8 }}>
+          <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:1.2, textTransform:'uppercase', fontFamily:sans, marginBottom:10 }}>Refills Coming Up</p>
+          <div style={{ background:C.card, borderRadius:18, boxShadow:CARD_SHADOW_SM, overflow:'hidden' }}>
+            {refills.map((med, i) => {
+              const urgent = med.daysLeft <= 7;
+              const r      = recipients.find(x => x.id === med.recipientId);
+              const last   = i === refills.length - 1;
+              return (
+                <div key={med.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderBottom:last?'none':`1px solid ${C.bg}` }}>
+                  <RefreshCw size={15} color={urgent ? C.coral : C.muted} style={{ flexShrink:0 }}/>
+                  <div style={{ flex:1 }}>
+                    <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:sans }}>{med.name}{med.dosage ? ` ${med.dosage}` : ''}</p>
+                    <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginTop:1 }}>{r?.nickname || r?.name?.split(' ')[0] || ''}</p>
+                  </div>
+                  <span style={{ fontSize:12, fontWeight:700, color:urgent?C.coral:C.muted, fontFamily:sans, background:urgent?C.coral+'14':C.bg, padding:'3px 10px', borderRadius:20 }}>
+                    {med.daysLeft === 0 ? 'Today' : med.daysLeft < 0 ? 'Overdue' : `${med.daysLeft}d`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── HOME TAB ──────────────────────────────────────────────────────────────────
+
+function HomeTab({ recipients, appointments, logistics, medications, medLog, onGoToMeds, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent, notificationRole, reminderMethods, onOpenSettings, onUpdateAppt, onDeleteAppt }) {
   const pending = logistics.filter(l => !l.completed).length;
 
   // Parse appointment date+time to ms using local time
@@ -966,6 +1245,42 @@ function HomeTab({ recipients, appointments, logistics, onSelect, onGoToList, sh
           <ChevronRight size={13} color={C.coral} style={{ marginLeft: "auto", flexShrink: 0 }} />
         </button>
       )}
+
+      {/* Medications today card */}
+      {medications && medications.length > 0 && (() => {
+        const today = todayStr();
+        const log   = medLog[today] || {};
+        const active = medications.filter(m => m.active !== false);
+        const doses = [];
+        for (const med of active) {
+          (med.times || ['8:00 AM']).forEach((_, ti) => { doses.push(`${med.id}:${ti}`); });
+        }
+        const taken   = doses.filter(k => log[k] === 'taken').length;
+        const total   = doses.length;
+        const due     = doses.filter(k => !log[k] || log[k] === 'pending').length;
+        const pct     = total > 0 ? taken / total : 0;
+        return (
+          <button onClick={onGoToMeds}
+            style={{ width:'100%', background:C.card, borderRadius:18, padding:'14px 16px', marginBottom:20, display:'flex', flexDirection:'column', gap:8, boxShadow:CARD_SHADOW_SM, border:'none', cursor:'pointer', textAlign:'left' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{ width:28, height:28, borderRadius:10, background:C.roseLight, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <PillIcon size={13} color={C.rose}/>
+                </div>
+                <p style={{ fontSize:13, fontWeight:700, color:C.text, fontFamily:sans }}>Medications Today</p>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                {due > 0 && <span style={{ fontSize:11, fontWeight:700, color:C.coral, fontFamily:sans, background:C.coral+'14', padding:'2px 8px', borderRadius:14 }}>{due} due</span>}
+                <ChevronRight size={13} color={C.border}/>
+              </div>
+            </div>
+            <div style={{ height:4, background:C.bg, borderRadius:99, overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${pct*100}%`, background:C.sage, borderRadius:99, transition:'width 0.4s ease' }}/>
+            </div>
+            <p style={{ fontSize:11, color:C.muted, fontFamily:sans }}>{taken} of {total} doses taken today</p>
+          </button>
+        );
+      })()}
 
       {/* Upcoming appointments */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -1275,7 +1590,7 @@ function MobileCareChangeSheet({ recipientId, onClose, onAdd }) {
   );
 }
 
-function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments, medSchedules = [], onSaveMedSchedule, onDeleteMedSchedule, onLogMedication, careChanges = [], onAddCareChange, onDeleteCareChange }) {
+function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments, medSchedules = [], onSaveMedSchedule, onDeleteMedSchedule, onLogMedication, careChanges = [], onAddCareChange, onDeleteCareChange, medications = [], onAddMed, onUpdateMed, onDeleteMed }) {
   const [tab, setTab] = useState("overview");
   const [data, setData] = useState({ ...r });
   const [editSection, setEditSection] = useState(null);
@@ -1285,6 +1600,7 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
   const [markGivenId, setMarkGivenId] = useState(null);
   const [markGivenNote, setMarkGivenNote] = useState('');
   const [justMarked, setJustMarked] = useState({});
+  const [medSheet, setMedSheet] = useState(null); // null | 'new' | med-object
   const [showWeeklyCareSetup, setShowWeeklyCareSetup] = useState(false);
   const [weeklyCareSelection, setWeeklyCareSelection] = useState(['Wash hair', 'Change bedding', 'Trim nails']);
   const [weeklyCareCustom, setWeeklyCareCustom] = useState('');
@@ -1599,93 +1915,68 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
               )}
             </Card>
 
-            {/* Medications */}
-            <Card style={{ marginBottom: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <SectionLabel>Medications</SectionLabel>
-                <EditBtn col={col} onClick={() => startEdit("medications", { newItem: "" })} />
-              </div>
-              {data.medications.map((m, i) => {
-                const sched = medSchedules.find(s => s.recipientId === data.id && s.medicationName === m);
-                const isLast = i === data.medications.length - 1 && editSection !== "medications";
-                return (
-                  <div key={i}>
-                    <div style={rowStyle(isLast && !sched)}>
-                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: C.peach, flexShrink: 0 }} />
-                      {editSection === "medications"
-                        ? <EditInput value={m} onChange={v => updateItem("medications", i, v)} />
-                        : <span style={{ fontSize: 14, color: C.text, fontFamily: sans, flex: 1 }}>{m}</span>}
-                      {editSection !== "medications" && (
-                        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                          {/* Mark given */}
-                          {sched && (
-                            <button
-                              onClick={() => {
-                                if (markGivenId === sched.id) { setMarkGivenId(null); setMarkGivenNote(''); return; }
-                                setMarkGivenId(sched.id); setMarkGivenNote('');
-                              }}
-                              title="Mark as given"
-                              style={{ background: justMarked[sched.id] ? C.sage + "22" : C.roseLight, border: "none", borderRadius: 8, padding: "4px 8px", fontSize: 11, color: justMarked[sched.id] ? C.sage : C.roseDark, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
-                            >
-                              <Check size={11} />{justMarked[sched.id] ? "Given!" : "Mark given"}
-                            </button>
-                          )}
-                          {/* Schedule reminder */}
-                          <button
-                            onClick={() => {
-                              setScheduleSheet({ medName: m });
-                              const existing = medSchedules.find(s => s.recipientId === data.id && s.medicationName === m);
-                              setSchedBuf(existing ? { times: existing.times?.length ? existing.times : [''], enabled: existing.enabled !== false } : { times: [''], enabled: true });
-                            }}
-                            title={sched ? "Edit reminder schedule" : "Set reminder schedule"}
-                            style={{ background: sched ? C.sage + "22" : C.bg, border: `1px solid ${sched ? C.sage : C.border}`, borderRadius: 8, padding: "4px 7px", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
-                          >
-                            <Bell size={11} color={sched ? C.sage : C.mutedLight} />
-                            {sched && <span style={{ fontSize: 10, color: C.sage, fontFamily: sans, fontWeight: 600 }}>{sched.times?.join(', ')}</span>}
-                          </button>
+            {/* Medications — rich med objects from Firestore */}
+            {(() => {
+              const recipMeds = medications.filter(m => m.recipientId === data.id);
+              return (
+                <Card style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <SectionLabel>Medications</SectionLabel>
+                    <button onClick={() => setMedSheet('new')}
+                      style={{ display:'flex', alignItems:'center', gap:4, background:C.roseLight, border:'none', borderRadius:14, padding:'5px 10px', fontSize:12, fontWeight:600, color:C.roseDark, fontFamily:sans, cursor:'pointer' }}>
+                      <Plus size={12}/> Add
+                    </button>
+                  </div>
+                  {recipMeds.length === 0 && (
+                    <p style={{ fontSize:13, color:C.muted, fontFamily:sans, fontStyle:'italic', paddingBottom:4 }}>No medications added yet.</p>
+                  )}
+                  {recipMeds.map((med, i) => {
+                    const days     = daysUntil(med.refillDate);
+                    const refillSoon = days !== null && days <= 14;
+                    const isLast   = i === recipMeds.length - 1;
+                    return (
+                      <div key={med.id} style={rowStyle(isLast)}>
+                        <div style={{ width:28, height:28, borderRadius:9, background:C.roseLight, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                          <PillIcon size={12} color={C.rose}/>
                         </div>
-                      )}
-                      {editSection === "medications" && (
-                        <button onClick={() => removeItem("medications", i)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                          <Trash2 size={14} color={C.coral} />
-                        </button>
-                      )}
-                    </div>
-                    {/* Mark given inline */}
-                    {sched && markGivenId === sched.id && (
-                      <div style={{ background: C.roseLight, borderRadius: 10, padding: "10px 12px", marginBottom: 8, display: "flex", gap: 8, alignItems: "center" }}>
-                        <input
-                          value={markGivenNote}
-                          onChange={e => setMarkGivenNote(e.target.value)}
-                          placeholder="Optional note (e.g. gave with food)"
-                          style={{ flex: 1, background: "white", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: sans, color: C.text, outline: "none" }}
-                        />
-                        <button
-                          onClick={async () => {
-                            await onLogMedication?.(sched.id, data.id, m, markGivenNote);
-                            setJustMarked(prev => ({ ...prev, [sched.id]: true }));
-                            setMarkGivenId(null); setMarkGivenNote('');
-                            setTimeout(() => setJustMarked(prev => ({ ...prev, [sched.id]: false })), 3000);
-                          }}
-                          style={{ background: C.rose, color: "white", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}
-                        >
-                          Confirm
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:sans, lineHeight:1.2 }}>
+                            {med.name}{med.dosage ? <span style={{ fontWeight:400, color:C.muted }}> {med.dosage}</span> : null}
+                          </p>
+                          <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginTop:2 }}>
+                            {med.frequency}{med.times?.length ? ` · ${med.times.join(', ')}` : ''}
+                          </p>
+                          {refillSoon && (
+                            <p style={{ fontSize:11, color: days <= 7 ? C.coral : C.muted, fontFamily:sans, marginTop:2, fontWeight:600 }}>
+                              <RefreshCw size={10} style={{ marginRight:3 }}/>
+                              Refill {days === 0 ? 'today' : days < 0 ? 'overdue' : `in ${days}d`}
+                            </p>
+                          )}
+                        </div>
+                        <button onClick={() => setMedSheet(med)}
+                          style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:8, padding:'4px 8px', cursor:'pointer', flexShrink:0 }}>
+                          <Pencil size={12} color={C.muted}/>
                         </button>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-              {editSection === "medications" && (
-                <>
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <EditInput value={buf.newItem || ""} onChange={v => setBuf(b => ({ ...b, newItem: v }))} placeholder="Add medication…" />
-                    <button onClick={() => { addItem("medications", buf.newItem || ""); setBuf(b => ({ ...b, newItem: "" })); }} style={{ background: C.peach + "33", border: "none", borderRadius: 10, padding: "0 12px", color: C.peach, fontFamily: sans, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>Add</button>
-                  </div>
-                  <SaveCancelRow col={col} onSave={() => setEditSection(null)} onCancel={() => setEditSection(null)} />
-                </>
-              )}
-            </Card>
+                    );
+                  })}
+                </Card>
+              );
+            })()}
+            {medSheet && (
+              <MedSheet
+                initial={medSheet === 'new' ? null : medSheet}
+                recipientId={data.id}
+                recipients={[r]}
+                onSave={async form => {
+                  if (medSheet === 'new') { await onAddMed?.(form); }
+                  else                   { await onUpdateMed?.({ ...form, id: medSheet.id }); }
+                  setMedSheet(null);
+                }}
+                onDelete={async () => { await onDeleteMed?.(medSheet.id); setMedSheet(null); }}
+                onClose={() => setMedSheet(null)}
+              />
+            )}
 
             {/* Medication schedule sheet */}
             {scheduleSheet && (
@@ -4017,6 +4308,9 @@ export default function AidenApp() {
   const [showMsg, setShowMsg] = useState(true);
   const [medSchedules, setMedSchedules] = useState([]);
   const [careChanges, setCareChanges]   = useState([]);
+  const [medications, setMedications]   = useState([]);
+  const [medLog, setMedLog]             = useState({});
+  const [showTodayMeds, setShowTodayMeds] = useState(false);
   const [notificationRole, setNotificationRole]     = useState('caretaker');
   const [notificationPhone, setNotificationPhone]   = useState('');
   const [reminderMethods, setReminderMethods]       = useState(['email']); // ['email'] | ['sms'] | ['email','sms']
@@ -4107,7 +4401,7 @@ export default function AidenApp() {
       setNotificationPhone(userData.notificationPhone || '');
       setReminderMethods(userData.reminderMethods?.length ? userData.reminderMethods : ['email']);
 
-      const [recSnap, apptSnap, logSnap, docSnap, medSchedSnap, resSnap, chgSnap] = await Promise.all([
+      const [recSnap, apptSnap, logSnap, docSnap, medSchedSnap, resSnap, chgSnap, medsSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'recipients')),
         getDocs(collection(db, 'users', uid, 'appointments')),
         getDocs(collection(db, 'users', uid, 'logistics')),
@@ -4115,6 +4409,7 @@ export default function AidenApp() {
         getDocs(collection(db, 'users', uid, 'medicationSchedules')),
         getDocs(collection(db, 'users', uid, 'resources')),
         getDocs(collection(db, 'users', uid, 'careChanges')),
+        getDocs(collection(db, 'users', uid, 'medications')),
       ]);
 
       setRecipients(recSnap.docs.map(d => ({ ...d.data(), id: d.id })));
@@ -4124,6 +4419,7 @@ export default function AidenApp() {
       setMedSchedules(medSchedSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setResources(resSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       setCareChanges(chgSnap.docs.map(d => ({ ...d.data(), id: d.id })));
+      setMedications(medsSnap.docs.map(d => ({ ...d.data(), id: d.id })));
     } catch (e) {
       console.error('Error loading data:', e);
     }
@@ -4315,6 +4611,45 @@ export default function AidenApp() {
     }
   }
 
+  // ── Medications CRUD ────────────────────────────────────────────────────────
+  async function addMedication(data) {
+    const tempId = `temp_${Date.now()}`;
+    const entry  = { ...data, active: true, createdAt: new Date().toISOString() };
+    setMedications(prev => [...prev, { ...entry, id: tempId }]);
+    if (user) {
+      try {
+        const ref = await addDoc(collection(db, 'users', user.uid, 'medications'), entry);
+        setMedications(prev => prev.map(m => m.id === tempId ? { ...m, id: ref.id } : m));
+      } catch (e) {
+        console.error('Error adding medication:', e);
+        setMedications(prev => prev.filter(m => m.id !== tempId));
+      }
+    }
+  }
+  async function updateMedication(updated) {
+    const { id, ...data } = updated;
+    setMedications(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
+    if (user) {
+      try { await updateDoc(doc(db, 'users', user.uid, 'medications', id), data); }
+      catch (e) { console.error('Error updating medication:', e); }
+    }
+  }
+  async function deleteMedication(id) {
+    setMedications(prev => prev.filter(m => m.id !== id));
+    if (user) {
+      try { await deleteDoc(doc(db, 'users', user.uid, 'medications', id)); }
+      catch (e) { console.error('Error deleting medication:', e); }
+    }
+  }
+  function toggleMedLog(key, dateStr) {
+    setMedLog(prev => {
+      const day   = { ...(prev[dateStr] || {}) };
+      const cur   = day[key] || 'pending';
+      day[key]    = cur === 'pending' ? 'taken' : cur === 'taken' ? 'skipped' : 'pending';
+      return { ...prev, [dateStr]: day };
+    });
+  }
+
   // ── Resources ────────────────────────────────────────────────────────────────
   async function addResource(data) {
     const tempId = `temp_${Date.now()}`;
@@ -4403,11 +4738,12 @@ export default function AidenApp() {
 
     // Care tab — recipients list, profiles, and resources (insurance etc.)
     if (tab === "care" || showRecipients) {
-      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => { setSelRecipient(null); }} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} careChanges={careChanges} onAddCareChange={addCareChange} onDeleteCareChange={deleteCareChange} />;
+      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => { setSelRecipient(null); }} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} careChanges={careChanges} onAddCareChange={addCareChange} onDeleteCareChange={deleteCareChange} medications={medications} onAddMed={addMedication} onUpdateMed={updateMedication} onDeleteMed={deleteMedication} />;
       return <CareTab recipients={recipients} onSelect={r => setSelRecipient(r)} onAdd={addRecipient} onDelete={deleteRecipient} />;
     }
 
-    if (tab === "home") return <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} onSelect={r => { setSelRecipient(r); setTab("care"); }} onGoToList={() => setTab("todo")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} reminderMethods={reminderMethods} onOpenSettings={() => setShowSettings(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
+    if (showTodayMeds) return <TodayMedsView medications={medications} recipients={recipients} medLog={medLog} onToggle={toggleMedLog} onBack={() => setShowTodayMeds(false)} />;
+    if (tab === "home") return <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} medications={medications} medLog={medLog} onGoToMeds={() => setShowTodayMeds(true)} onSelect={r => { setSelRecipient(r); setTab("care"); }} onGoToList={() => setTab("todo")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} reminderMethods={reminderMethods} onOpenSettings={() => setShowSettings(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={(date) => { setAddEventDefaultDate(date || null); setShowAddEvent(true); }} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "todo")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} onAddDoctor={addDoctor} onUpdateDoctor={updateDoctor} onDeleteDoctor={deleteDoctor} recipients={recipients} user={user} />;
     if (tab === "resources") return <ResourcesTab resources={resources} onAdd={addResource} onUpdate={updateResource} onDelete={deleteResource} recipients={recipients} />;
