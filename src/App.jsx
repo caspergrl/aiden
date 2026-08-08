@@ -15,7 +15,7 @@ import {
   AlertCircle, Bell, Check, Info, ExternalLink, Eye, EyeOff, User,
   Scale, ArrowRightLeft, Users, RotateCcw, Download, Upload,
   Camera, Pencil, Trash2, X, BookMarked, Link2, Share2, Mail, MessageSquare, Search, Copy, MapPin,
-  Pill as PillIcon, RefreshCw, AlarmClock, Activity,
+  Pill as PillIcon, RefreshCw, AlarmClock, Activity, LogOut,
 } from "lucide-react";
 
 // ─── PALETTE ── imported from @shared/theme ────────────────────────────────────
