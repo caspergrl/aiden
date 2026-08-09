@@ -393,8 +393,7 @@ function NotifToggle({ on, onChange }) {
 
 // ─── PROFILE SHEET ────────────────────────────────────────────────────────────
 
-function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, initialTab = 'account', onClose, onSignOut, onRefresh }) {
-  const [activeTab, setActiveTab]     = useState(initialTab);
+function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, onRefresh }) {
   const [editingName, setEditingName] = useState(false);
   const [nameBuf, setNameBuf]         = useState(user?.displayName || '');
   const [saving, setSaving]           = useState(false);
@@ -463,11 +462,6 @@ function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, initialTab = 'accoun
     setTimeout(() => setNotifSaved(false), 2000);
   }
 
-  const TABS = [
-    { id: 'account',       label: 'Account' },
-    { id: 'notifications', label: 'Notifications' },
-  ];
-
   const NOTIF_TYPES = [
     { key: 'appointments', label: 'Appointment reminders', icon: '📅' },
     { key: 'medications',  label: 'Medication reminders',  icon: '💊' },
@@ -482,161 +476,141 @@ function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, initialTab = 'accoun
   return (
     <div style={{ position:'fixed', inset:0, zIndex:400, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
       <div style={{ position:'absolute', inset:0, background:'rgba(38,32,26,0.45)' }} onClick={onClose}/>
-      <div style={{ position:'relative', background:'white', borderRadius:'22px 22px 0 0', zIndex:1, maxHeight:'90vh', display:'flex', flexDirection:'column' }}>
+      <div style={{ position:'relative', background:'white', borderRadius:'22px 22px 0 0', zIndex:1, maxHeight:'90vh', overflowY:'auto' }}>
 
         {/* Header */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'22px 20px 0' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'22px 20px 16px' }}>
           <h2 style={{ fontSize:20, fontWeight:600, fontFamily:serif, color:C.text }}>My Profile</h2>
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}><X size={18} color={C.muted}/></button>
         </div>
 
-        {/* Tab bar */}
-        <div style={{ display:'flex', gap:0, margin:'16px 20px 0', background:C.bg, borderRadius:12, padding:3 }}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
-              flex:1, padding:'8px 0', borderRadius:10, border:'none', cursor:'pointer', fontSize:13, fontWeight:700, fontFamily:sans,
-              background: activeTab === t.id ? 'white' : 'transparent',
-              color: activeTab === t.id ? C.text : C.muted,
-              boxShadow: activeTab === t.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-              transition: 'all 0.15s',
-            }}>{t.label}</button>
-          ))}
-        </div>
+        <div style={{ padding:'0 20px 44px' }}>
 
-        <div style={{ overflowY:'auto', padding:'20px 20px 44px', flex:1 }}>
-
-          {/* ── ACCOUNT TAB ─────────────────────────────────────────────── */}
-          {activeTab === 'account' && (<>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:24 }}>
-              <div style={{ width:68, height:68, borderRadius:'50%', background:C.rose, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:10 }}>
-                <span style={{ color:'white', fontSize:28, fontWeight:700, fontFamily:serif }}>{initial}</span>
-              </div>
-              <p style={{ fontSize:17, fontWeight:600, fontFamily:serif, color:C.text }}>{displayName}</p>
-              <p style={{ fontSize:13, color:C.muted, fontFamily:sans }}>{user?.email}</p>
+          {/* Avatar */}
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:20 }}>
+            <div style={{ width:64, height:64, borderRadius:'50%', background:C.rose, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:8 }}>
+              <span style={{ color:'white', fontSize:26, fontWeight:700, fontFamily:serif }}>{initial}</span>
             </div>
+            <p style={{ fontSize:16, fontWeight:600, fontFamily:serif, color:C.text }}>{displayName}</p>
+            <p style={{ fontSize:13, color:C.muted, fontFamily:sans }}>{user?.email}</p>
+          </div>
 
-            {error   && <p style={{ fontSize:12, color:C.rose, background:C.roseLight, borderRadius:10, padding:'8px 12px', marginBottom:12, fontFamily:sans }}>{error}</p>}
-            {success && <p style={{ fontSize:12, color:'#3a6e58', background:'#f0f7f4', borderRadius:10, padding:'8px 12px', marginBottom:12, fontFamily:sans }}>{success}</p>}
+          {error   && <p style={{ fontSize:12, color:C.rose, background:C.roseLight, borderRadius:10, padding:'8px 12px', marginBottom:12, fontFamily:sans }}>{error}</p>}
+          {success && <p style={{ fontSize:12, color:'#3a6e58', background:'#f0f7f4', borderRadius:10, padding:'8px 12px', marginBottom:12, fontFamily:sans }}>{success}</p>}
 
-            <div style={{ borderRadius:18, border:`1px solid ${C.border}`, overflow:'hidden', marginBottom:16 }}>
-              {/* Name */}
-              <div style={{ padding:16, borderBottom:`1px solid ${C.border}` }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <p style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.8, color:C.mutedLight, marginBottom:4, fontFamily:sans }}>Full Name</p>
-                    {editingName ? (
-                      <div style={{ display:'flex', gap:8, marginTop:8 }}>
-                        <input value={nameBuf} onChange={e => setNameBuf(e.target.value)} onKeyDown={e => e.key==='Enter' && saveName()}
-                          placeholder="Your name" style={{ flex:1, background:C.bg, border:`1px solid ${C.border}`, borderRadius:10, padding:'8px 12px', fontSize:14, fontFamily:sans, color:C.text, outline:'none' }}/>
-                        <button onClick={saveName} disabled={saving||!nameBuf.trim()} style={{ background:C.rose, color:'white', border:'none', borderRadius:10, padding:'8px 12px', fontSize:12, fontWeight:700, fontFamily:sans, cursor:'pointer', opacity:saving||!nameBuf.trim()?0.5:1 }}>{saving?'…':'Save'}</button>
-                        <button onClick={() => setEditingName(false)} style={{ background:C.bg, border:'none', borderRadius:10, padding:'8px 12px', fontSize:12, fontWeight:600, color:C.muted, fontFamily:sans, cursor:'pointer' }}>Cancel</button>
-                      </div>
-                    ) : <p style={{ fontSize:14, color:C.text, fontFamily:sans }}>{user?.displayName || '—'}</p>}
-                  </div>
-                  {!editingName && (
-                    <button onClick={() => { setEditingName(true); setNameBuf(user?.displayName||''); }}
-                      style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, color:C.roseDark, background:C.roseLight, border:'none', borderRadius:10, padding:'6px 12px', cursor:'pointer', flexShrink:0 }}>
-                      <Pencil size={11}/> Edit
-                    </button>
-                  )}
+          {/* Account fields */}
+          <div style={{ borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', marginBottom:16 }}>
+            <div style={{ padding:14, borderBottom:`1px solid ${C.border}` }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.8, color:C.mutedLight, marginBottom:3, fontFamily:sans }}>Full Name</p>
+                  {editingName ? (
+                    <div style={{ display:'flex', gap:8, marginTop:6 }}>
+                      <input value={nameBuf} onChange={e => setNameBuf(e.target.value)} onKeyDown={e => e.key==='Enter' && saveName()}
+                        placeholder="Your name" style={{ flex:1, background:C.bg, border:`1px solid ${C.border}`, borderRadius:10, padding:'8px 10px', fontSize:14, fontFamily:sans, color:C.text, outline:'none' }}/>
+                      <button onClick={saveName} disabled={saving||!nameBuf.trim()} style={{ background:C.rose, color:'white', border:'none', borderRadius:10, padding:'8px 10px', fontSize:12, fontWeight:700, fontFamily:sans, cursor:'pointer', opacity:saving||!nameBuf.trim()?0.5:1 }}>{saving?'…':'Save'}</button>
+                      <button onClick={() => setEditingName(false)} style={{ background:C.bg, border:'none', borderRadius:10, padding:'8px 10px', fontSize:12, color:C.muted, fontFamily:sans, cursor:'pointer' }}>Cancel</button>
+                    </div>
+                  ) : <p style={{ fontSize:14, color:C.text, fontFamily:sans }}>{user?.displayName || '—'}</p>}
                 </div>
-              </div>
-              {/* Email */}
-              <div style={{ padding:16, borderBottom:`1px solid ${C.border}` }}>
-                <p style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.8, color:C.mutedLight, marginBottom:4, fontFamily:sans }}>Email</p>
-                <p style={{ fontSize:14, color:C.text, fontFamily:sans }}>{user?.email}</p>
-              </div>
-              {/* Password */}
-              <div style={{ padding:16 }}>
-                <p style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.8, color:C.mutedLight, marginBottom:4, fontFamily:sans }}>Password</p>
-                {resetSent
-                  ? <p style={{ fontSize:14, color:'#3a6e58', fontFamily:sans }}>Reset link sent to {user?.email}</p>
-                  : <button onClick={handlePasswordReset} style={{ fontSize:14, color:C.rose, fontWeight:600, background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:sans }}>Send password reset email →</button>}
-              </div>
-            </div>
-
-            <button onClick={onSignOut} style={{ width:'100%', background:C.roseLight, color:C.roseDark, border:'none', borderRadius:14, padding:'14px 0', fontSize:14, fontWeight:700, fontFamily:sans, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-              <LogOut size={15}/> Sign out
-            </button>
-            <div style={{ display:'flex', justifyContent:'center', gap:24, marginTop:20 }}>
-              <button onClick={() => setShowPrivacy(true)} style={{ background:'none', border:'none', color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:'pointer', padding:0 }}>Privacy Policy</button>
-              <button onClick={() => setShowTerms(true)}   style={{ background:'none', border:'none', color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:'pointer', padding:0 }}>Terms of Service</button>
-            </div>
-          </>)}
-
-          {/* ── NOTIFICATIONS TAB ───────────────────────────────────────── */}
-          {activeTab === 'notifications' && (<>
-
-            {/* Role */}
-            <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:10 }}>My role</p>
-            <div style={{ display:'flex', gap:8, marginBottom:24 }}>
-              {[
-                { value:'caretaker', label:'💊 Caretaker', desc:'Actionable reminders' },
-                { value:'observer',  label:'👁 Observer',  desc:'Informational updates' },
-              ].map(r => {
-                const active = np.role === r.value;
-                return (
-                  <button key={r.value} onClick={() => setNp(p => ({ ...p, role: r.value }))} style={{ flex:1, background:active?C.roseLight:'white', border:`2px solid ${active?C.rose:C.border}`, borderRadius:14, padding:'12px 10px', cursor:'pointer', textAlign:'center' }}>
-                    <p style={{ fontSize:13, fontWeight:700, color:active?C.roseDark:C.text, fontFamily:sans }}>{r.label}</p>
-                    <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginTop:3 }}>{r.desc}</p>
+                {!editingName && (
+                  <button onClick={() => { setEditingName(true); setNameBuf(user?.displayName||''); }}
+                    style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, color:C.roseDark, background:C.roseLight, border:'none', borderRadius:10, padding:'6px 10px', cursor:'pointer', flexShrink:0 }}>
+                    <Pencil size={11}/> Edit
                   </button>
-                );
-              })}
-            </div>
-
-            {/* Push denied warning */}
-            {pushStatus === 'denied' && (
-              <div style={{ background:'#fff8f0', border:`1px solid ${C.peach}`, borderRadius:12, padding:'10px 14px', marginBottom:16, fontSize:12, color:C.text, fontFamily:sans, lineHeight:1.5 }}>
-                Push notifications are blocked. Please enable them in your device or browser settings, then try again.
+                )}
               </div>
-            )}
+            </div>
+            <div style={{ padding:14, borderBottom:`1px solid ${C.border}` }}>
+              <p style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.8, color:C.mutedLight, marginBottom:3, fontFamily:sans }}>Email</p>
+              <p style={{ fontSize:14, color:C.text, fontFamily:sans }}>{user?.email}</p>
+            </div>
+            <div style={{ padding:14 }}>
+              <p style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.8, color:C.mutedLight, marginBottom:3, fontFamily:sans }}>Password</p>
+              {resetSent
+                ? <p style={{ fontSize:14, color:'#3a6e58', fontFamily:sans }}>Reset link sent to {user?.email}</p>
+                : <button onClick={handlePasswordReset} style={{ fontSize:14, color:C.rose, fontWeight:600, background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:sans }}>Send password reset email →</button>}
+            </div>
+          </div>
 
-            {/* Per-type notification matrix */}
-            {NOTIF_TYPES.map(type => (
-              <div key={type.key} style={{ marginBottom:20 }}>
-                <p style={{ fontSize:13, fontWeight:700, color:C.text, fontFamily:sans, marginBottom:10 }}>{type.icon} {type.label}</p>
-                <div style={{ background:'white', border:`1px solid ${C.border}`, borderRadius:16, overflow:'hidden' }}>
-                  {CHANNELS.map((ch, i) => {
-                    const isOn = np[type.key]?.[ch.key] ?? false;
-                    const isLast = i === CHANNELS.length - 1;
-                    return (
-                      <div key={ch.key} style={{ display:'flex', alignItems:'center', gap:12, padding:'13px 16px', borderBottom: isLast ? 'none' : `1px solid ${C.bg}` }}>
-                        <span style={{ fontSize:18, flexShrink:0 }}>{ch.icon}</span>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:sans }}>{ch.label}</p>
-                          <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginTop:1 }}>{ch.desc}</p>
-                        </div>
-                        <NotifToggle
-                          on={isOn}
-                          onChange={val => ch.key === 'push' ? handlePushToggle(type.key, val) : setChannel(type.key, ch.key, val)}
-                        />
+          {/* ── Notifications ─────────────────────────────────────────────── */}
+          <p style={{ fontSize:13, fontWeight:700, color:C.text, fontFamily:serif, marginBottom:12, marginTop:4 }}>Notifications</p>
+
+          {/* Role */}
+          <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:8 }}>My role</p>
+          <div style={{ display:'flex', gap:8, marginBottom:20 }}>
+            {[
+              { value:'caretaker', label:'💊 Caretaker', desc:'Actionable reminders' },
+              { value:'observer',  label:'👁 Observer',  desc:'Informational updates' },
+            ].map(r => {
+              const active = np.role === r.value;
+              return (
+                <button key={r.value} onClick={() => setNp(p => ({ ...p, role: r.value }))} style={{ flex:1, background:active?C.roseLight:'white', border:`2px solid ${active?C.rose:C.border}`, borderRadius:14, padding:'10px 8px', cursor:'pointer', textAlign:'center' }}>
+                  <p style={{ fontSize:13, fontWeight:700, color:active?C.roseDark:C.text, fontFamily:sans }}>{r.label}</p>
+                  <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginTop:2 }}>{r.desc}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          {pushStatus === 'denied' && (
+            <div style={{ background:'#fff8f0', border:`1px solid ${C.peach}`, borderRadius:12, padding:'10px 14px', marginBottom:14, fontSize:12, color:C.text, fontFamily:sans, lineHeight:1.5 }}>
+              Push notifications are blocked. Enable them in your device or browser settings, then try again.
+            </div>
+          )}
+
+          {NOTIF_TYPES.map(type => (
+            <div key={type.key} style={{ marginBottom:16 }}>
+              <p style={{ fontSize:12, fontWeight:700, color:C.muted, fontFamily:sans, marginBottom:8 }}>{type.icon} {type.label}</p>
+              <div style={{ borderRadius:14, border:`1px solid ${C.border}`, overflow:'hidden' }}>
+                {CHANNELS.map((ch, i) => {
+                  const isOn   = np[type.key]?.[ch.key] ?? false;
+                  const isLast = i === CHANNELS.length - 1;
+                  return (
+                    <div key={ch.key} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderBottom: isLast ? 'none' : `1px solid ${C.bg}` }}>
+                      <span style={{ fontSize:16, flexShrink:0 }}>{ch.icon}</span>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:sans }}>{ch.label}</p>
+                        <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginTop:1 }}>{ch.desc}</p>
                       </div>
-                    );
-                  })}
-                </div>
+                      <NotifToggle
+                        on={isOn}
+                        onChange={val => ch.key === 'push' ? handlePushToggle(type.key, val) : setChannel(type.key, ch.key, val)}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-
-            {/* Email address reminder */}
-            {(np.appointments?.email || np.medications?.email) && (
-              <div style={{ background:C.bg, borderRadius:12, padding:'10px 14px', marginBottom:20, fontSize:12, color:C.muted, fontFamily:sans, lineHeight:1.5 }}>
-                Email reminders will be sent to <strong style={{ color:C.text }}>{user?.email}</strong>
-              </div>
-            )}
-
-            {/* Phone number — for SMS/push if needed */}
-            <div style={{ marginBottom:24 }}>
-              <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:8 }}>Mobile number <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0 }}>(optional)</span></p>
-              <input type="tel" value={np.phone || ''} onChange={e => setNp(p => ({ ...p, phone: e.target.value }))}
-                placeholder="+1 (555) 000-0000"
-                style={{ width:'100%', background:'#f7f5f2', border:`1px solid ${C.border}`, borderRadius:12, padding:'12px 14px', fontSize:14, fontFamily:sans, color:C.text, outline:'none', boxSizing:'border-box' }}/>
-              <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, marginTop:6, lineHeight:1.5 }}>Used only for SMS reminders if enabled. Standard messaging rates may apply.</p>
             </div>
+          ))}
 
-            <button onClick={saveNotifPrefs} style={{ width:'100%', background:`linear-gradient(135deg,${C.rose},${C.roseDark})`, color:'white', border:'none', borderRadius:14, padding:'14px 0', fontSize:15, fontWeight:700, fontFamily:sans, cursor:'pointer' }}>
-              {notifSaved ? '✓ Saved' : 'Save preferences'}
-            </button>
-          </>)}
+          {(np.appointments?.email || np.medications?.email) && (
+            <p style={{ fontSize:12, color:C.muted, fontFamily:sans, marginBottom:14, lineHeight:1.5 }}>
+              Email reminders go to <strong style={{ color:C.text }}>{user?.email}</strong>
+            </p>
+          )}
+
+          <div style={{ marginBottom:20 }}>
+            <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:8 }}>
+              Mobile number <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0 }}>(optional)</span>
+            </p>
+            <input type="tel" value={np.phone || ''} onChange={e => setNp(p => ({ ...p, phone: e.target.value }))}
+              placeholder="+1 (555) 000-0000"
+              style={{ width:'100%', background:'#f7f5f2', border:`1px solid ${C.border}`, borderRadius:12, padding:'11px 14px', fontSize:14, fontFamily:sans, color:C.text, outline:'none', boxSizing:'border-box' }}/>
+          </div>
+
+          <button onClick={saveNotifPrefs} style={{ width:'100%', background:`linear-gradient(135deg,${C.rose},${C.roseDark})`, color:'white', border:'none', borderRadius:14, padding:'13px 0', fontSize:14, fontWeight:700, fontFamily:sans, cursor:'pointer', marginBottom:20 }}>
+            {notifSaved ? '✓ Saved' : 'Save notification preferences'}
+          </button>
+
+          {/* Sign out */}
+          <button onClick={onSignOut} style={{ width:'100%', background:C.roseLight, color:C.roseDark, border:'none', borderRadius:14, padding:'13px 0', fontSize:14, fontWeight:700, fontFamily:sans, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+            <LogOut size={15}/> Sign out
+          </button>
+          <div style={{ display:'flex', justifyContent:'center', gap:24, marginTop:18 }}>
+            <button onClick={() => setShowPrivacy(true)} style={{ background:'none', border:'none', color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:'pointer', padding:0 }}>Privacy Policy</button>
+            <button onClick={() => setShowTerms(true)}   style={{ background:'none', border:'none', color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:'pointer', padding:0 }}>Terms of Service</button>
+          </div>
 
         </div>
       </div>
@@ -4465,7 +4439,6 @@ export default function AidenApp() {
   });
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile]   = useState(false);
-  const [profileInitialTab, setProfileInitialTab] = useState('account');
   const [chatMessages, setChatMessages] = useState([
     { role: "assistant", text: "Hi! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for your loved ones — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍" }
   ]);
@@ -4930,7 +4903,7 @@ export default function AidenApp() {
     }
 
     if (showTodayMeds) return <TodayMedsView medications={medications} recipients={recipients} medLog={medLog} onToggle={toggleMedLog} onBack={() => setShowTodayMeds(false)} />;
-    if (tab === "home") return <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} medications={medications} medLog={medLog} onGoToMeds={() => setShowTodayMeds(true)} onSelect={r => { setSelRecipient(r); setTab("care"); }} onGoToList={() => setTab("todo")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} reminderMethods={reminderMethods} onOpenSettings={() => { setProfileInitialTab('notifications'); setShowProfile(true); }} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
+    if (tab === "home") return <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} medications={medications} medLog={medLog} onGoToMeds={() => setShowTodayMeds(true)} onSelect={r => { setSelRecipient(r); setTab("care"); }} onGoToList={() => setTab("todo")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} reminderMethods={reminderMethods} onOpenSettings={() => setShowProfile(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={(date) => { setAddEventDefaultDate(date || null); setShowAddEvent(true); }} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "todo")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} onAddDoctor={addDoctor} onUpdateDoctor={updateDoctor} onDeleteDoctor={deleteDoctor} recipients={recipients} user={user} />;
     if (tab === "resources") return <ResourcesTab resources={resources} onAdd={addResource} onUpdate={updateResource} onDelete={deleteResource} recipients={recipients} />;
@@ -5009,8 +4982,7 @@ export default function AidenApp() {
           user={user}
           notifPrefs={notifPrefs}
           onSaveNotifPrefs={saveNotifPrefs}
-          initialTab={profileInitialTab}
-          onClose={() => { setShowProfile(false); setProfileInitialTab('account'); }}
+          onClose={() => setShowProfile(false)}
           onSignOut={() => { signOut(auth); setShowProfile(false); }}
           onRefresh={() => setUser({ ...auth.currentUser })}
         />
