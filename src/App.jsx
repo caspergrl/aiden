@@ -393,7 +393,10 @@ function NotifToggle({ on, onChange }) {
 
 // ─── PROFILE SHEET ────────────────────────────────────────────────────────────
 
-function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, onRefresh }) {
+function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, onRefresh }) {
+  const [subTab, setSubTab] = useState('profile');
+
+  // Profile state
   const [editingName, setEditingName] = useState(false);
   const [nameBuf, setNameBuf]         = useState(user?.displayName || '');
   const [saving, setSaving]           = useState(false);
@@ -403,15 +406,15 @@ function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, 
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms]     = useState(false);
 
-  // Notifications tab state — local copy of prefs
+  // Notifications state
   const defaultPrefs = {
     role: 'caretaker',
     phone: '',
     appointments: { inApp: true, push: false, email: true },
     medications:  { inApp: true, push: false, email: false },
   };
-  const [np, setNp]             = useState({ ...defaultPrefs, ...(notifPrefs || {}) });
-  const [pushStatus, setPushStatus] = useState('idle'); // 'idle'|'requesting'|'denied'|'granted'
+  const [np, setNp]               = useState({ ...defaultPrefs, ...(notifPrefs || {}) });
+  const [pushStatus, setPushStatus] = useState('idle');
   const [notifSaved, setNotifSaved] = useState(false);
 
   const initial     = (user?.displayName?.[0] || user?.email?.[0] || '?').toUpperCase();
@@ -449,7 +452,6 @@ function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, 
       setPushStatus('granted');
       const token = await registerPushToken();
       setChannel(type, 'push', true);
-      // Save token immediately alongside pref update
       if (token && user) {
         try { await updateDoc(doc(db, 'users', user.uid), { [`pushTokens.${token}`]: true }); } catch {}
       }
@@ -468,28 +470,43 @@ function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, 
   ];
 
   const CHANNELS = [
-    { key: 'inApp', label: 'In-app',      icon: '🔔', desc: 'Alert bell & badges inside the app' },
-    { key: 'push',  label: 'Push',         icon: '📲', desc: 'Native push notifications on your device' },
-    { key: 'email', label: 'Email',        icon: '✉️',  desc: 'Reminders to your email address' },
+    { key: 'inApp', label: 'In-app', icon: '🔔', desc: 'Alert bell & badges inside the app' },
+    { key: 'push',  label: 'Push',   icon: '📲', desc: 'Native push notifications on your device' },
+    { key: 'email', label: 'Email',  icon: '✉️',  desc: 'Reminders to your email address' },
   ];
 
+  const fieldLabel = { fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.8, color:C.mutedLight, marginBottom:3, fontFamily:sans };
+
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:400, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
-      <div style={{ position:'absolute', inset:0, background:'rgba(38,32,26,0.45)' }} onClick={onClose}/>
-      <div style={{ position:'relative', background:'white', borderRadius:'22px 22px 0 0', zIndex:1, maxHeight:'90vh', overflowY:'auto' }}>
+    <div style={{ position:'fixed', inset:0, zIndex:200, background:C.bg, display:'flex', flexDirection:'column' }}>
 
-        {/* Header */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'22px 20px 16px' }}>
-          <h2 style={{ fontSize:20, fontWeight:600, fontFamily:serif, color:C.text }}>My Profile</h2>
-          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}><X size={18} color={C.muted}/></button>
-        </div>
+      {/* Header */}
+      <div style={{ background:GRAD, paddingTop:18, paddingLeft:18, paddingRight:18, paddingBottom:14, display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+        <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', padding:4, display:'flex', alignItems:'center' }}>
+          <ChevronLeft size={22} color={C.text}/>
+        </button>
+        <h1 style={{ fontSize:18, fontWeight:600, fontFamily:serif, color:C.text, margin:0 }}>My Account</h1>
+      </div>
 
-        <div style={{ padding:'0 20px 44px' }}>
+      {/* Subnav */}
+      <div style={{ background:'white', borderBottom:`1px solid ${C.border}`, display:'flex', flexShrink:0 }}>
+        {[{ id:'profile', label:'Profile' }, { id:'notifications', label:'Notifications' }].map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)} style={{ flex:1, padding:'13px 8px', background:'none', border:'none', fontWeight: subTab===t.id ? 700 : 400, fontSize:13, color: subTab===t.id ? C.rose : C.mutedLight, fontFamily:sans, borderBottom: subTab===t.id ? `2px solid ${C.rose}` : '2px solid transparent', cursor:'pointer' }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{ flex:1, overflowY:'auto', padding:'20px 18px 48px' }}>
+
+        {/* ── PROFILE ─────────────────────────────────────────────────────── */}
+        {subTab === 'profile' && (<>
 
           {/* Avatar */}
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:20 }}>
-            <div style={{ width:64, height:64, borderRadius:'50%', background:C.rose, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:8 }}>
-              <span style={{ color:'white', fontSize:26, fontWeight:700, fontFamily:serif }}>{initial}</span>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:24 }}>
+            <div style={{ width:68, height:68, borderRadius:'50%', background:C.rose, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:10 }}>
+              <span style={{ color:'white', fontSize:28, fontWeight:700, fontFamily:serif }}>{initial}</span>
             </div>
             <p style={{ fontSize:16, fontWeight:600, fontFamily:serif, color:C.text }}>{displayName}</p>
             <p style={{ fontSize:13, color:C.muted, fontFamily:sans }}>{user?.email}</p>
@@ -498,12 +515,12 @@ function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, 
           {error   && <p style={{ fontSize:12, color:C.rose, background:C.roseLight, borderRadius:10, padding:'8px 12px', marginBottom:12, fontFamily:sans }}>{error}</p>}
           {success && <p style={{ fontSize:12, color:'#3a6e58', background:'#f0f7f4', borderRadius:10, padding:'8px 12px', marginBottom:12, fontFamily:sans }}>{success}</p>}
 
-          {/* Account fields */}
-          <div style={{ borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', marginBottom:16 }}>
+          <div style={{ borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', marginBottom:20 }}>
+            {/* Name */}
             <div style={{ padding:14, borderBottom:`1px solid ${C.border}` }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.8, color:C.mutedLight, marginBottom:3, fontFamily:sans }}>Full Name</p>
+                  <p style={fieldLabel}>Full Name</p>
                   {editingName ? (
                     <div style={{ display:'flex', gap:8, marginTop:6 }}>
                       <input value={nameBuf} onChange={e => setNameBuf(e.target.value)} onKeyDown={e => e.key==='Enter' && saveName()}
@@ -521,20 +538,40 @@ function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, 
                 )}
               </div>
             </div>
+            {/* Email */}
             <div style={{ padding:14, borderBottom:`1px solid ${C.border}` }}>
-              <p style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.8, color:C.mutedLight, marginBottom:3, fontFamily:sans }}>Email</p>
+              <p style={fieldLabel}>Email</p>
               <p style={{ fontSize:14, color:C.text, fontFamily:sans }}>{user?.email}</p>
             </div>
+            {/* Phone */}
+            <div style={{ padding:14, borderBottom:`1px solid ${C.border}` }}>
+              <p style={fieldLabel}>Phone Number <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0 }}>(optional)</span></p>
+              <input type="tel" value={np.phone || ''} onChange={e => setNp(p => ({ ...p, phone: e.target.value }))}
+                placeholder="+1 (555) 000-0000"
+                style={{ width:'100%', background:'transparent', border:'none', padding:0, fontSize:14, fontFamily:sans, color:C.text, outline:'none', marginTop:2 }}/>
+            </div>
+            {/* Password */}
             <div style={{ padding:14 }}>
-              <p style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.8, color:C.mutedLight, marginBottom:3, fontFamily:sans }}>Password</p>
+              <p style={fieldLabel}>Password</p>
               {resetSent
                 ? <p style={{ fontSize:14, color:'#3a6e58', fontFamily:sans }}>Reset link sent to {user?.email}</p>
                 : <button onClick={handlePasswordReset} style={{ fontSize:14, color:C.rose, fontWeight:600, background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:sans }}>Send password reset email →</button>}
             </div>
           </div>
 
-          {/* ── Notifications ─────────────────────────────────────────────── */}
-          <p style={{ fontSize:13, fontWeight:700, color:C.text, fontFamily:serif, marginBottom:12, marginTop:4 }}>Notifications</p>
+          {/* Sign out */}
+          <button onClick={onSignOut} style={{ width:'100%', background:C.roseLight, color:C.roseDark, border:'none', borderRadius:14, padding:'13px 0', fontSize:14, fontWeight:700, fontFamily:sans, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginBottom:20 }}>
+            <LogOut size={15}/> Sign out
+          </button>
+          <div style={{ display:'flex', justifyContent:'center', gap:24 }}>
+            <button onClick={() => setShowPrivacy(true)} style={{ background:'none', border:'none', color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:'pointer', padding:0 }}>Privacy Policy</button>
+            <button onClick={() => setShowTerms(true)}   style={{ background:'none', border:'none', color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:'pointer', padding:0 }}>Terms of Service</button>
+          </div>
+
+        </>)}
+
+        {/* ── NOTIFICATIONS ────────────────────────────────────────────────── */}
+        {subTab === 'notifications' && (<>
 
           {/* Role */}
           <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:8 }}>My role</p>
@@ -585,34 +622,16 @@ function ProfileSheet({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, 
           ))}
 
           {(np.appointments?.email || np.medications?.email) && (
-            <p style={{ fontSize:12, color:C.muted, fontFamily:sans, marginBottom:14, lineHeight:1.5 }}>
+            <p style={{ fontSize:12, color:C.muted, fontFamily:sans, marginBottom:16, lineHeight:1.5 }}>
               Email reminders go to <strong style={{ color:C.text }}>{user?.email}</strong>
             </p>
           )}
 
-          <div style={{ marginBottom:20 }}>
-            <p style={{ fontSize:11, fontWeight:700, color:C.mutedLight, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans, marginBottom:8 }}>
-              Mobile number <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0 }}>(optional)</span>
-            </p>
-            <input type="tel" value={np.phone || ''} onChange={e => setNp(p => ({ ...p, phone: e.target.value }))}
-              placeholder="+1 (555) 000-0000"
-              style={{ width:'100%', background:'#f7f5f2', border:`1px solid ${C.border}`, borderRadius:12, padding:'11px 14px', fontSize:14, fontFamily:sans, color:C.text, outline:'none', boxSizing:'border-box' }}/>
-          </div>
-
-          <button onClick={saveNotifPrefs} style={{ width:'100%', background:`linear-gradient(135deg,${C.rose},${C.roseDark})`, color:'white', border:'none', borderRadius:14, padding:'13px 0', fontSize:14, fontWeight:700, fontFamily:sans, cursor:'pointer', marginBottom:20 }}>
-            {notifSaved ? '✓ Saved' : 'Save notification preferences'}
+          <button onClick={saveNotifPrefs} style={{ width:'100%', background:`linear-gradient(135deg,${C.rose},${C.roseDark})`, color:'white', border:'none', borderRadius:14, padding:'13px 0', fontSize:14, fontWeight:700, fontFamily:sans, cursor:'pointer' }}>
+            {notifSaved ? '✓ Saved' : 'Save preferences'}
           </button>
 
-          {/* Sign out */}
-          <button onClick={onSignOut} style={{ width:'100%', background:C.roseLight, color:C.roseDark, border:'none', borderRadius:14, padding:'13px 0', fontSize:14, fontWeight:700, fontFamily:sans, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-            <LogOut size={15}/> Sign out
-          </button>
-          <div style={{ display:'flex', justifyContent:'center', gap:24, marginTop:18 }}>
-            <button onClick={() => setShowPrivacy(true)} style={{ background:'none', border:'none', color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:'pointer', padding:0 }}>Privacy Policy</button>
-            <button onClick={() => setShowTerms(true)}   style={{ background:'none', border:'none', color:C.mutedLight, fontSize:12, fontFamily:sans, cursor:'pointer', padding:0 }}>Terms of Service</button>
-          </div>
-
-        </div>
+        </>)}
       </div>
 
       {showPrivacy && <LegalDocSheet title="Privacy Policy"   onClose={() => setShowPrivacy(false)}><PrivacyPolicyContent /></LegalDocSheet>}
@@ -4966,7 +4985,7 @@ export default function AidenApp() {
       )}
 
       {showProfile && (
-        <ProfileSheet
+        <AccountPage
           user={user}
           notifPrefs={notifPrefs}
           onSaveNotifPrefs={saveNotifPrefs}
