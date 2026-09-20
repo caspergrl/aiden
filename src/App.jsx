@@ -4095,6 +4095,7 @@ function ChatTab({ messages, setMessages }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 600, color: C.text, fontFamily: serif, letterSpacing: -0.5, marginBottom: 4 }}>Ask <em>Aiden</em></h1>
         {messages.map((m, i) => (
           <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 8, alignItems: "flex-end" }}>
             {m.role === "assistant" && (
