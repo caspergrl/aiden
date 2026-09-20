@@ -3851,11 +3851,24 @@ function ResourcesTab({ resources, onAdd, onUpdate, onDelete, recipients }) {
   const [shareItem, setShareItem]   = useState(null);
   const [search, setSearch]         = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
+  const [infoSection, setInfoSection] = useState(null);
 
   const filtered = resources.filter(r => {
     const q = search.toLowerCase();
     return !q || r.title.toLowerCase().includes(q) || r.url.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q);
   });
+
+  const guides = [
+    { id: "insurance",    Icon: Shield,         label: "Insurance",         desc: "Medicare, Medicaid & private plans in plain language",              color: C.blue },
+    { id: "legal",        Icon: Scale,          label: "Legal",             desc: "Wills, POA, HIPAA, Advanced Directives & more",                     color: C.lavender },
+    { id: "transitional", Icon: ArrowRightLeft, label: "Transitional Help", desc: "Assisted living, hospice, rehab & in-home transitions",             color: C.sage },
+    { id: "support",      Icon: Users,          label: "Support",           desc: "Support groups, home health & caregiver resources",                  color: C.peach },
+  ];
+
+  if (infoSection === "insurance")    return <div><div style={{ padding:"16px 18px 0" }}><BackBtn onBack={() => setInfoSection(null)} label="Resources" /></div><InsuranceTab recipients={recipients} /></div>;
+  if (infoSection === "legal")        return <LegalSection onBack={() => setInfoSection(null)} />;
+  if (infoSection === "transitional") return <TransitionalSection onBack={() => setInfoSection(null)} />;
+  if (infoSection === "support")      return <SupportSection onBack={() => setInfoSection(null)} />;
 
   return (
     <div style={{ padding: "20px 18px", paddingBottom: 80 }}>
@@ -3877,7 +3890,27 @@ function ResourcesTab({ resources, onAdd, onUpdate, onDelete, recipients }) {
       )}
 
       <h2 style={{ fontSize: 24, fontWeight: 600, fontFamily: serif, color: C.text, marginBottom: 4 }}>Resources</h2>
-      <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, marginBottom: 18 }}>Save and share helpful links</p>
+      <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, marginBottom: 18 }}>Guides and helpful links</p>
+
+      {/* Guides */}
+      <p style={{ fontSize: 10, fontWeight: 700, color: C.mutedLight, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: sans, marginBottom: 10 }}>Guides</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+        {guides.map(({ id, Icon: ItemIcon, label, desc, color }) => (
+          <button key={id} onClick={() => setInfoSection(id)} style={{ width: "100%", background: C.card, border: "none", borderRadius: 18, padding: "14px 16px", textAlign: "left", cursor: "pointer", boxShadow: CARD_SHADOW_SM, display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: color + "22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <ItemIcon size={18} color={color} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: serif, marginBottom: 2 }}>{label}</p>
+              <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, lineHeight: 1.4 }}>{desc}</p>
+            </div>
+            <ChevronRight size={15} color={C.border} style={{ flexShrink: 0 }} />
+          </button>
+        ))}
+      </div>
+
+      {/* Saved links */}
+      <p style={{ fontSize: 10, fontWeight: 700, color: C.mutedLight, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: sans, marginBottom: 10 }}>Your Links</p>
 
       {/* Search */}
       <div style={{ position: "relative", marginBottom: 16 }}>
@@ -4250,51 +4283,12 @@ function SupportSection({ onBack }) {
 
 // ─── INFO TAB ──────────────────────────────────────────────────────────────────
 
-function InfoTab({ recipients }) {
-  const [section, setSection] = useState(null);
-
-  if (section === "insurance")    return <div><div style={{ padding: "16px 18px 0" }}><BackBtn onBack={() => setSection(null)} label="Get help" /></div><InsuranceTab recipients={recipients} /></div>;
-  if (section === "legal")        return <LegalSection onBack={() => setSection(null)} />;
-  if (section === "transitional") return <TransitionalSection onBack={() => setSection(null)} />;
-  if (section === "support")      return <SupportSection onBack={() => setSection(null)} />;
-
-  const items = [
-    { id: "insurance",    Icon: Shield,           label: "Insurance",          desc: "Medicare, Medicaid, Humana & more in plain language",              color: C.blue },
-    { id: "legal",        Icon: Scale,            label: "Legal",              desc: "Wills, Advanced Directives, HIPAA, Power of Attorney & more",       color: C.lavender },
-    { id: "transitional", Icon: ArrowRightLeft,   label: "Transitional Help",  desc: "Assisted living, hospice, rehab, memory care & in-home transitions", color: C.sage },
-    { id: "support",      Icon: Users,            label: "Support",            desc: "Support groups, home health, nonprofits & caregiver resources",      color: C.peach },
-  ];
-
-  return (
-    <div style={{ padding: "20px 18px 8px" }}>
-      <h1 style={{ fontSize: 26, fontWeight: 600, color: C.text, marginBottom: 6, fontFamily: serif, letterSpacing: -0.5 }}>Get help</h1>
-      <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, marginBottom: 24 }}>Resources and reference information.</p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {items.map(({ id, Icon: ItemIcon, label, desc, color }) => (
-          <button key={id} onClick={() => setSection(id)} style={{ width: "100%", background: C.card, border: "none", borderRadius: 22, padding: "18px 20px", textAlign: "left", cursor: "pointer", boxShadow: CARD_SHADOW, display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: color + "22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <ItemIcon size={20} color={color} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 16, fontWeight: 600, color: C.text, fontFamily: serif, marginBottom: 3 }}>{label}</p>
-              <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, lineHeight: 1.5 }}>{desc}</p>
-            </div>
-            <ChevronRight size={16} color={C.border} style={{ flexShrink: 0 }} />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── CARE TAB ─────────────────────────────────────────────────────────────────
-// Combines: recipients list + Insurance / Legal / Transitional / Support resources
 
 function CareTab({ recipients, onSelect, onAdd, onDelete }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm]       = useState({ name:"", nickname:"", age:"", relationship:"", conditions:[], medications:[], insurancePlans:[], notes:"", importantNumbers:[], photo:null });
   const [saving, setSaving]   = useState(false);
-  const [infoSection, setInfoSection] = useState(null); // null | 'insurance' | 'legal' | 'transitional' | 'support'
 
   async function handleAdd() {
     if (!form.name.trim()) return;
@@ -4304,19 +4298,6 @@ function CareTab({ recipients, onSelect, onAdd, onDelete }) {
     setShowAdd(false);
     setForm({ name:"", nickname:"", age:"", relationship:"", conditions:[], medications:[], insurancePlans:[], notes:"", importantNumbers:[], photo:null });
   }
-
-  // Sub-section views
-  if (infoSection === "insurance")    return <div><div style={{ padding:"16px 18px 0" }}><BackBtn onBack={() => setInfoSection(null)} label="Care" /></div><InsuranceTab recipients={recipients} /></div>;
-  if (infoSection === "legal")        return <LegalSection onBack={() => setInfoSection(null)} />;
-  if (infoSection === "transitional") return <TransitionalSection onBack={() => setInfoSection(null)} />;
-  if (infoSection === "support")      return <SupportSection onBack={() => setInfoSection(null)} />;
-
-  const resources = [
-    { id:"insurance",    Icon:Shield,         label:"Insurance",         desc:"Medicare, Medicaid & private plans in plain language",              color:C.blue },
-    { id:"legal",        Icon:Scale,          label:"Legal",             desc:"Wills, POA, HIPAA, Advanced Directives & more",                     color:C.lavender },
-    { id:"transitional", Icon:ArrowRightLeft, label:"Transitional Help", desc:"Assisted living, hospice, rehab & in-home transitions",             color:C.sage },
-    { id:"support",      Icon:Users,          label:"Support",           desc:"Support groups, home health & caregiver resources",                  color:C.peach },
-  ];
 
   return (
     <div style={{ padding:"20px 18px 8px" }}>
@@ -4354,26 +4335,9 @@ function CareTab({ recipients, onSelect, onAdd, onDelete }) {
         </div>
       ))}
 
-      <button onClick={() => setShowAdd(true)} style={{ width:"100%", border:`1.5px dashed ${C.border}`, borderRadius:22, padding:"12px 18px", background:"none", color:C.mutedLight, fontSize:13, fontFamily:sans, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:28 }}>
+      <button onClick={() => setShowAdd(true)} style={{ width:"100%", border:`1.5px dashed ${C.border}`, borderRadius:22, padding:"12px 18px", background:"none", color:C.mutedLight, fontSize:13, fontFamily:sans, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:8 }}>
         <Plus size={16}/> Add a care recipient
       </button>
-
-      {/* Resources */}
-      <p style={{ fontSize:10, fontWeight:700, color:C.mutedLight, letterSpacing:1.2, textTransform:"uppercase", fontFamily:sans, marginBottom:12 }}>Resources</p>
-      <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:20 }}>
-        {resources.map(({ id, Icon:ItemIcon, label, desc, color }) => (
-          <button key={id} onClick={() => setInfoSection(id)} style={{ width:"100%", background:C.card, border:"none", borderRadius:18, padding:"14px 16px", textAlign:"left", cursor:"pointer", boxShadow:CARD_SHADOW_SM, display:"flex", alignItems:"center", gap:14 }}>
-            <div style={{ width:40, height:40, borderRadius:12, background:color+"22", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-              <ItemIcon size={18} color={color}/>
-            </div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <p style={{ fontSize:14, fontWeight:600, color:C.text, fontFamily:serif, marginBottom:2 }}>{label}</p>
-              <p style={{ fontSize:12, color:C.muted, fontFamily:sans, lineHeight:1.4 }}>{desc}</p>
-            </div>
-            <ChevronRight size={15} color={C.border} style={{ flexShrink:0 }}/>
-          </button>
-        ))}
-      </div>
 
       {/* Add recipient sheet */}
       {showAdd && (
