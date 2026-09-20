@@ -1337,16 +1337,6 @@ function HomeTab({ recipients, appointments, logistics, medications, medLog, onG
     <div style={{ padding: "20px 18px 8px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <p style={{ color: C.mutedLight, fontSize: 12, fontFamily: sans, letterSpacing: 0.3, marginBottom: 4 }}>Wednesday, March 25, 2026</p>
-        <button
-          onClick={onOpenSettings}
-          title="Notification settings"
-          style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 20, padding: "4px 10px", display: "flex", alignItems: "center", gap: 5, cursor: "pointer", marginTop: -2 }}
-        >
-          <Bell size={12} color={C.muted} />
-          <span style={{ fontSize: 11, color: C.muted, fontFamily: sans, fontWeight: 600 }}>
-            {notificationRole === 'caretaker' ? 'Caretaker' : 'Observer'} · {reminderMethods.includes('email') && reminderMethods.includes('sms') ? 'Email & Text' : reminderMethods.includes('sms') ? 'Text' : 'Email'}
-          </span>
-        </button>
       </div>
       <h1 style={{ fontSize: 26, fontWeight: 600, color: C.text, marginBottom: 20, fontFamily: serif, letterSpacing: -0.5, lineHeight: 1.25 }}>{getGreeting()},<br /><em>Holly.</em></h1>
 
