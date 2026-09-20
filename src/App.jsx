@@ -4094,14 +4094,6 @@ function ChatTab({ messages, setMessages }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ background: "linear-gradient(135deg, #dde8f6 0%, #e8ddf0 60%, #f0dde6 100%)", padding: "14px 18px 16px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid rgba(0,0,0,0.05)` }}>
-        <div style={{ width: 42, height: 42, background: "rgba(255,255,255,0.55)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: "0 2px 10px rgba(100,120,160,0.12)" }}>🤍</div>
-        <div>
-          <p style={{ fontSize: 16, fontWeight: 600, color: C.text, fontFamily: serif }}>Ask Aiden</p>
-          <p style={{ fontSize: 11, color: C.muted, fontFamily: sans }}>Your AI caregiving assistant</p>
-        </div>
-      </div>
-
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
         {messages.map((m, i) => (
           <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 8, alignItems: "flex-end" }}>
@@ -4924,7 +4916,7 @@ export default function AidenApp() {
       <div style={{ height: "env(safe-area-inset-top, 0px)", background: GRAD, flexShrink: 0 }} />
 
       {/* App header */}
-      {!showAddEvent && !(tab === "care" && selRecipient) && tab !== "chat" && (
+      {!showAddEvent && !(tab === "care" && selRecipient) && (
         <div style={{ background: GRAD, paddingTop: 18, paddingLeft: 18, paddingRight: 18, paddingBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
           <button onClick={() => { setTab("home"); setSelRecipient(null); setShowRecipients(false); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
             <svg width="72" height="32" viewBox="0 0 138 61" fill="none" xmlns="http://www.w3.org/2000/svg">
