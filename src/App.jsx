@@ -3892,23 +3892,6 @@ function ResourcesTab({ resources, onAdd, onUpdate, onDelete, recipients }) {
       <h2 style={{ fontSize: 24, fontWeight: 600, fontFamily: serif, color: C.text, marginBottom: 4 }}>Resources</h2>
       <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, marginBottom: 18 }}>Guides and helpful links</p>
 
-      {/* Guides */}
-      <p style={{ fontSize: 10, fontWeight: 700, color: C.mutedLight, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: sans, marginBottom: 10 }}>Guides</p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
-        {guides.map(({ id, Icon: ItemIcon, label, desc, color }) => (
-          <button key={id} onClick={() => setInfoSection(id)} style={{ width: "100%", background: C.card, border: "none", borderRadius: 18, padding: "14px 16px", textAlign: "left", cursor: "pointer", boxShadow: CARD_SHADOW_SM, display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: color + "22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <ItemIcon size={18} color={color} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: serif, marginBottom: 2 }}>{label}</p>
-              <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, lineHeight: 1.4 }}>{desc}</p>
-            </div>
-            <ChevronRight size={15} color={C.border} style={{ flexShrink: 0 }} />
-          </button>
-        ))}
-      </div>
-
       {/* Saved links */}
       <p style={{ fontSize: 10, fontWeight: 700, color: C.mutedLight, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: sans, marginBottom: 10 }}>Your Links</p>
 
@@ -3995,8 +3978,25 @@ function ResourcesTab({ resources, onAdd, onUpdate, onDelete, recipients }) {
         })}
       </div>
 
+      {/* Guides */}
+      <p style={{ fontSize: 10, fontWeight: 700, color: C.mutedLight, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: sans, marginBottom: 10, marginTop: 28 }}>Guides</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+        {guides.map(({ id, Icon: ItemIcon, label, desc, color }) => (
+          <button key={id} onClick={() => setInfoSection(id)} style={{ width: "100%", background: C.card, border: "none", borderRadius: 18, padding: "14px 16px", textAlign: "left", cursor: "pointer", boxShadow: CARD_SHADOW_SM, display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: color + "22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <ItemIcon size={18} color={color} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: serif, marginBottom: 2 }}>{label}</p>
+              <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, lineHeight: 1.4 }}>{desc}</p>
+            </div>
+            <ChevronRight size={15} color={C.border} style={{ flexShrink: 0 }} />
+          </button>
+        ))}
+      </div>
+
       {/* FAQ section */}
-      <div style={{ marginTop: 32, marginBottom: 24 }}>
+      <div style={{ marginTop: 0, marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
           <BookMarked size={14} color={C.rose} />
           <p style={{ fontSize: 11, fontWeight: 700, color: C.rose, fontFamily: sans, letterSpacing: 0.8, textTransform: "uppercase" }}>Caregiver FAQ</p>
