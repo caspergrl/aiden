@@ -4,7 +4,13 @@ import { C, serif } from '../../theme';
 import { getResponse, SUGGESTIONS } from '../../data';
 import { useAuth } from '../../App';
 
-export default function Chat({ messages, setMessages }) {
+// ─── Pendo Agent Analytics ─────────────────────────────────────────────────────
+const PENDO_AGENT_ID = 'YyDQbe2g0wvyaQLp2r1VFIx9RFI';
+
+// crypto.randomUUID() only exists in secure contexts (HTTPS / localhost)
+const newMessageId = prefix => crypto.randomUUID?.() ?? `${prefix}_${Date.now()}`;
+
+export default function Chat({ messages, setMessages, conversationId }) {
   const { profile } = useAuth();
   const [input, setInput]     = useState('');
   const [waiting, setWaiting] = useState(false);
@@ -12,15 +18,33 @@ export default function Chat({ messages, setMessages }) {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, waiting]);
 
-  function send(text) {
+  function send(text, suggestedPrompt = false) {
     if (!text.trim() || waiting) return;
-    setMessages(p => [...p, { role: 'user', text }]);
+    const promptId = newMessageId('prompt');
+    setMessages(p => [...p, { id: promptId, role: 'user', text }]);
     setInput('');
     setWaiting(true);
     setTimeout(() => {
-      setMessages(p => [...p, { role: 'assistant', text: getResponse(text) }]);
+      const replyId = newMessageId('agent_response');
+      const reply   = getResponse(text);
+      setMessages(p => [...p, { id: replyId, role: 'assistant', text: reply }]);
       setWaiting(false);
+      // Pendo: Aiden finished responding
+      window.pendo?.trackAgent?.('agent_response', {
+        agentId: PENDO_AGENT_ID,
+        conversationId,
+        messageId: replyId,
+        content: reply,
+      });
     }, 900);
+    // Pendo: user sent a prompt (typed or suggested)
+    window.pendo?.trackAgent?.('prompt', {
+      agentId: PENDO_AGENT_ID,
+      conversationId,
+      messageId: promptId,
+      content: text,
+      suggestedPrompt,
+    });
   }
 
   const firstName = profile?.name?.split(' ')[0] || 'there';
@@ -71,7 +95,7 @@ export default function Chat({ messages, setMessages }) {
           <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>Suggested questions</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {SUGGESTIONS.map((s, i) => (
-              <button key={i} onClick={() => send(s)} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: C.text, cursor: 'pointer', fontWeight: 500, transition: 'border-color 0.2s' }}
+              <button key={i} onClick={() => send(s, true)} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: C.text, cursor: 'pointer', fontWeight: 500, transition: 'border-color 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = C.rose}
                 onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
                 {s}
