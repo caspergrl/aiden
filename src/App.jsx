@@ -20,6 +20,14 @@ export function useAuth() { return useContext(AuthCtx); }
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30-minute inactivity logout
 
+// createdAt is a Firestore Timestamp, but the legacy seeding path in Dashboard.jsx wrote an
+// ISO string — accept both so Pendo always receives an ISO 8601 date (or nothing).
+function toIsoDate(ts) {
+  if (!ts) return undefined;
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+}
+
 function AuthProvider({ children }) {
   const [user,    setUser]    = useState(undefined); // undefined = loading
   const [profile, setProfile] = useState(null);
@@ -42,13 +50,34 @@ function AuthProvider({ children }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    let signedIn = false;
     return onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
+        signedIn = true;
         const snap = await getDoc(doc(db, 'users', u.uid));
-        setProfile(snap.exists() ? snap.data() : null);
+        const data = snap.exists() ? snap.data() : null;
+        setProfile(data);
+        // Skip if the user signed out (or another user signed in) while the profile was loading
+        if (auth.currentUser?.uid === u.uid) {
+          pendo.identify({
+            visitor: {
+              id:        u.uid,
+              email:     u.email,
+              full_name: data?.name,
+              role:      data?.role,
+              status:    data?.status,
+              createdAt: toIsoDate(data?.createdAt),
+            },
+          });
+        }
       } else {
         setProfile(null);
+        // Only on an actual sign-out: resetting on every signed-out page load would turn each
+        // anonymous visit into a new visitor. clearSession isn't part of the snippet's stub, so
+        // it only exists once the agent has loaded (it may never load behind an ad blocker).
+        if (signedIn && typeof pendo.clearSession === 'function') pendo.clearSession();
+        signedIn = false;
       }
     });
   }, []);
