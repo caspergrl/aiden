@@ -38,6 +38,8 @@ export default function Dashboard() {
     role: 'assistant',
     text: `Hi${profile?.name ? ` ${profile.name.split(' ')[0]}` : ''}! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for your loved ones — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍`,
   }]);
+  // Pendo conversationId for Ask Aiden — same lifetime as chatMessages
+  const [chatConversationId] = useState(() => crypto.randomUUID?.() ?? `conversation_${Date.now()}`);
 
   // ── Load from Firestore on login ──────────────────────────────────────────────
   useEffect(() => {
@@ -308,7 +310,7 @@ export default function Dashboard() {
       case 'resources':
         return <Resources resources={resources} onAdd={addResource} onUpdate={updateResource} onDelete={deleteResource} recipients={recipients} />;
       case 'chat':
-        return <Chat messages={chatMessages} setMessages={setChatMessages} />;
+        return <Chat messages={chatMessages} setMessages={setChatMessages} conversationId={chatConversationId} />;
       default:
         return null;
     }
