@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Link2, Plus, Trash2, Share2, ExternalLink, X,
   Search, Mail, MessageSquare, Pencil, Check, BookMarked, ChevronDown, HelpCircle,
 } from 'lucide-react';
 import { C, serif, shadowSm, radius } from '../../theme';
+import { pendo } from '../../pendo';
 
 const CATEGORIES = ['Medical', 'Legal', 'Caregiver Support', 'Financial', 'Community', 'Other'];
 
@@ -59,6 +60,11 @@ function FaqItem({ q, a }) {
 function normalizeUrl(u) {
   if (!u) return u;
   return /^https?:\/\//i.test(u.trim()) ? u.trim() : `https://${u.trim()}`;
+}
+
+// Hostname for analytics; null instead of throwing on a malformed URL
+function urlDomain(u) {
+  try { return new URL(u).hostname; } catch { return null; }
 }
 
 function isEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim()); }
@@ -192,6 +198,17 @@ function ShareModal({ resource, recipients, onClose }) {
       ...selRecip.filter(id => { const r = recipients.find(x => x.id === id); return r?.email; }).map(id => recipients.find(x => x.id === id).email),
       ...customList.filter(c => c.method === 'email').map(c => c.contact),
     ];
+
+    // Counts only: never phone numbers or email addresses
+    pendo.track('resource_link_shared', {
+      share_method: method, // selected tab: 'sms' | 'email'
+      care_recipient_targets: selRecip.length,
+      custom_contact_targets: customList.length,
+      sms_targets_count: smsTargets.length,
+      email_targets_count: emailTargets.length,
+      resource_category: resource.category || null,
+      url_domain: urlDomain(resource.url),
+    });
 
     if (emailTargets.length) {
       const subj = encodeURIComponent(`Resource: ${resource.title}`);
@@ -335,12 +352,34 @@ export default function Resources({ resources, onAdd, onUpdate, onDelete, recipi
 
   const usedCats = [...new Set(resources.map(r => r.category).filter(Boolean))];
 
+  // Debounced so it fires once per settled search/filter, not on every keystroke
+  useEffect(() => {
+    if (!search.trim() && !filterCat) return;
+    const t = setTimeout(() => pendo.track('resources_searched', {
+      query: search.trim().slice(0, 100),
+      category_filter: filterCat || null,
+      results_count: filtered.length,
+      total_resources: resources.length,
+    }), 1000);
+    return () => clearTimeout(t);
+  }, [search, filterCat]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div style={{ padding: 32, maxWidth: 800 }}>
       {showAdd && (
         <ResourceModal
           onClose={() => setShowAdd(false)}
-          onSave={data => { onAdd({ ...data, createdAt: new Date().toISOString() }); setShowAdd(false); }}
+          onSave={data => {
+            onAdd({ ...data, createdAt: new Date().toISOString() });
+            pendo.track('resource_link_added', {
+              category: data.category || null, // Medical | Legal | Caregiver Support | Financial | Community | Other
+              has_description: !!data.description.trim(),
+              url_domain: urlDomain(data.url),
+              is_first_resource: resources.length === 0,
+              total_resources: resources.length + 1,
+            });
+            setShowAdd(false);
+          }}
         />
       )}
       {editItem && (

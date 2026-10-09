@@ -10,6 +10,7 @@ import {
 } from 'firebase/storage';
 import { storage } from '../../firebase';
 import { useAuth } from '../../App';
+import { pendo } from '../../pendo';
 import { C, serif, shadowSm, shadowXs, radius } from '../../theme';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
@@ -136,7 +137,16 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
     if (doctorModal === 'add') {
       onAddDoctor?.({ ...doctorBuf, name: doctorBuf.name.trim() });
     } else {
-      onUpdateDoctor?.(doctorModal.id, { ...doctorBuf, name: doctorBuf.name.trim() });
+      const updates = { ...doctorBuf, name: doctorBuf.name.trim() };
+      // Field names only, never values
+      const fieldsChanged = ['name', 'specialty', 'phone', 'address', 'notes', 'recipientId']
+        .filter(k => (updates[k] || '') !== (doctorModal[k] || ''));
+      onUpdateDoctor?.(doctorModal.id, updates);
+      pendo.track('care_team_member_updated', {
+        doctor_id: doctorModal.id,
+        fields_changed: fieldsChanged,
+        recipient_changed: fieldsChanged.includes('recipientId'),
+      });
     }
     closeDoctorModal();
   }
@@ -213,6 +223,13 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
       const customMeta = { originalName: file.name };
       if (uploadRecipId) customMeta.recipientId = String(uploadRecipId);
       await uploadBytes(fileRef, file, { customMetadata: customMeta });
+      // Never send file names
+      pendo.track('document_uploaded', {
+        file_type: fileTypeMeta(file.name, file.type).label, // 'PDF' | 'JPG' | 'PNG' | 'File'
+        file_size_bytes: file.size,
+        has_recipient_tag: !!uploadRecipId,
+        total_documents: docs.length + 1,
+      });
       await loadDocs();
     } catch {
       setDocError('Upload failed — please try again.');
@@ -246,6 +263,16 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
   function handleToggle(item) {
     if (!item.completed) {
       onUpdateLogistic(item.id, { completed: true });
+      const doneAfter = allComplete.length + 1;
+      pendo.track('todo_item_completed', {
+        item_id: item.id,
+        has_recipient: !!item.recipientId,
+        has_note: !!item.note,
+        completed_count_after: doneAfter,
+        total_items: logistics.length,
+        completion_pct_after: Math.round((doneAfter / logistics.length) * 100),
+        checklist_now_complete: doneAfter === logistics.length,
+      });
     } else {
       setRestoreId(item.id);
     }
@@ -257,6 +284,13 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
   function addItem() {
     if (!newItem.trim()) return;
     onAddLogistic({ title: newItem.trim(), completed: false, note: '', partnerLink: null, recipientId: newItemRecipId ?? null });
+    // Never send the title (free text)
+    pendo.track('todo_item_added', {
+      has_recipient: newItemRecipId != null,
+      total_items_after: logistics.length + 1,
+      open_items_after: logistics.filter(l => !l.completed).length + 1,
+      filter_active: filterRecipId != null,
+    });
     setNewItem('');
     setNewItemRecipId(null);
     setAdding(false);
@@ -275,6 +309,18 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
   function onDrop(e, targetId) {
     e.preventDefault();
     if (!dragId.current || dragId.current === targetId) { setDragOverId(null); return; }
+    const open      = logistics.filter(l => !l.completed);
+    const fromIndex = open.findIndex(l => l.id === dragId.current);
+    const toIndex   = open.findIndex(l => l.id === targetId);
+    // Only when an item actually moves (the reorder below is a no-op otherwise)
+    if (fromIndex !== -1 && toIndex !== -1) {
+      pendo.track('todo_items_reordered', {
+        from_index: fromIndex,
+        to_index: toIndex,
+        open_items_count: open.length,
+        filter_active: filterRecipId != null,
+      });
+    }
     setLogistics(prev => {
       const inc  = prev.filter(l => !l.completed);
       const comp = prev.filter(l => l.completed);

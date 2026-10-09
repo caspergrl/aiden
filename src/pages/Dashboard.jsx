@@ -5,9 +5,10 @@ import {
   deleteDoc, setDoc, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { pendo } from '../pendo';
 import DashboardLayout from './dashboard/DashboardLayout';
 import Home        from './dashboard/Home';
-import Care        from './dashboard/Care';
+import Care, { apptMs } from './dashboard/Care';
 import CalendarView from './dashboard/CalendarView';
 import MyList      from './dashboard/MyList';
 import Insurance   from './dashboard/Insurance';
@@ -18,6 +19,7 @@ import { useAuth } from '../App';
 import {
   INITIAL_RECIPIENTS, INITIAL_APPOINTMENTS,
   INITIAL_DOCTORS, INITIAL_LOGISTICS,
+  COMMON_MEDICATIONS, CAREGIVING_RECS,
 } from '../data';
 
 export default function Dashboard() {
@@ -93,6 +95,7 @@ export default function Dashboard() {
       setChanges(chgSnap.docs.map(d => ({ ...d.data(), id: d.id })));
     } catch (e) {
       console.error('Failed to load data:', e);
+      pendo.track('data_sync_failed', { operation: 'loadData', error_code: e?.code || 'unknown', section: active });
     }
     setDataLoading(false);
   }
@@ -100,6 +103,7 @@ export default function Dashboard() {
   // ── Generic Firestore error handler ──────────────────────────────────────────
   function fsError(op, e) {
     console.error(`Firestore ${op} failed:`, e?.code, e?.message);
+    pendo.track('data_sync_failed', { operation: op, error_code: e?.code || 'unknown', section: active });
     setSaveError(`Save failed (${e?.code || 'unknown error'}). Changes were not saved. Please try again.`);
     setTimeout(() => setSaveError(null), 5000);
   }
@@ -115,6 +119,24 @@ export default function Dashboard() {
       const ref = await addDoc(collection(db, 'users', user.uid, 'recipients'), firestoreData);
       // Replace temp id with real Firestore id
       setRecipients(prev => prev.map(r => r.id === tempId ? { ...r, id: ref.id } : r));
+      // Profile-depth counts only: never names, conditions or medication names (PHI)
+      const { conditions = [], allergies = [], medications = [] } = data;
+      pendo.track('care_recipient_added', {
+        recipient_id: ref.id,
+        section: active, // 'care' | 'home'
+        is_first_recipient: recipients.length === 0,
+        total_recipients: recipients.length + 1,
+        relationship: data.relationship?.slice(0, 50) || null,
+        age: data.age || null, // 0 = not provided
+        conditions_count: conditions.length,
+        guidance_conditions_count: conditions.filter(c => CAREGIVING_RECS[c]).length,
+        allergies_count: allergies.length,
+        medications_count: medications.length,
+        custom_medications_count: medications.filter(m => !COMMON_MEDICATIONS.includes(typeof m === 'string' ? m : m?.name)).length,
+        has_email: !!data.email,
+        has_phone: !!data.phone,
+        has_notes: !!data.notes,
+      });
     } catch (e) {
       fsError('addRecipient', e);
       setRecipients(prev => prev.filter(r => r.id !== tempId)); // rollback
@@ -141,15 +163,33 @@ export default function Dashboard() {
       const { id: _localId, ...firestoreData } = data;
       const ref = await addDoc(collection(db, 'users', user.uid, 'doctors'), firestoreData);
       setDoctors(prev => prev.map(d => d.id === tempId ? { ...d, id: ref.id } : d));
+      // Booleans only: no provider names, phone numbers or specialties
+      pendo.track('care_team_member_added', {
+        doctor_id: ref.id,
+        section: active, // 'care' (profile Care team) | 'todo' (Doctors tab)
+        is_linked_to_recipient: !!data.recipientId,
+        has_specialty: !!data.specialty,
+        has_phone: !!data.phone,
+        has_address: !!data.address,
+        has_notes: !!data.notes,
+        care_team_size: doctors.length + 1,
+      });
     } catch (e) {
       fsError('addDoctor', e);
       setDoctors(prev => prev.filter(d => d.id !== tempId));
     }
   }
   async function deleteDoctor(id) {
+    const removed = doctors.find(d => d.id === id);
     setDoctors(prev => prev.filter(d => d.id !== id));
     try {
       await deleteDoc(doc(db, 'users', user.uid, 'doctors', id));
+      pendo.track('care_team_member_removed', {
+        doctor_id: id,
+        section: active, // 'care' (one-click trash) | 'todo' (confirmed delete)
+        was_linked_to_recipient: !!removed?.recipientId,
+        care_team_size_after: doctors.filter(d => d.id !== id).length,
+      });
     } catch (e) { fsError('deleteDoctor', e); }
   }
   async function updateDoctor(id, changes) {
@@ -167,6 +207,20 @@ export default function Dashboard() {
       const { id: _localId, ...firestoreData } = data;
       const ref = await addDoc(collection(db, 'users', user.uid, 'appointments'), firestoreData);
       setAppointments(prev => prev.map(a => a.id === tempId ? { ...a, id: ref.id } : a));
+      // No title, location text or notes
+      pendo.track('appointment_created', {
+        appointment_id: ref.id,
+        section: active, // 'calendar' | 'care'
+        appointment_type: data.type || null,
+        is_for_self: !data.recipientId,
+        location_mode: data.location?.startsWith('http') ? 'video' : data.location ? 'in_person' : 'none',
+        has_time: !!data.time,
+        has_doctor: !!data.doctor,
+        has_notes: !!data.notes,
+        reminders_enabled: data.reminders ?? null, // only set by the Calendar modal
+        days_until_appointment: Math.round((new Date(data.date + 'T00:00:00') - new Date().setHours(0, 0, 0, 0)) / 86400000),
+        total_appointments: appointments.length + 1,
+      });
     } catch (e) {
       fsError('addAppointment', e);
       setAppointments(prev => prev.filter(a => a.id !== tempId));
@@ -180,9 +234,17 @@ export default function Dashboard() {
     } catch (e) { fsError('updateAppointment', e); }
   }
   async function deleteAppointment(id) {
+    const appt = appointments.find(a => a.id === id);
     setAppointments(prev => prev.filter(a => a.id !== id));
     try {
       await deleteDoc(doc(db, 'users', user.uid, 'appointments', id));
+      pendo.track('appointment_deleted', {
+        appointment_id: id,
+        section: active, // 'home' | 'calendar' | 'care'
+        appointment_type: appt?.type || null,
+        was_upcoming: appt ? apptMs(appt) >= Date.now() : null,
+        is_for_self: appt ? !appt.recipientId : null,
+      });
     } catch (e) { fsError('deleteAppointment', e); }
   }
 

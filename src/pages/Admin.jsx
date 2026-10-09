@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { useAuth } from '../App';
+import { pendo } from '../pendo';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { C, serif, shadow } from '../theme';
@@ -55,14 +56,34 @@ function UserModal({ user: u, onClose, onSave }) {
     setSaving(true); setError('');
     try {
       if (isNew) {
+        // Capture before createUser: it signs the admin out and the new user in
+        const adminUid = auth.currentUser?.uid;
         const { user: fbUser } = await createUserWithEmailAndPassword(auth, email.trim(), password);
         await setDoc(doc(db, 'users', fbUser.uid), {
           uid: fbUser.uid, email: email.trim(), name: name.trim(),
           role, status, notes: notes.trim(), createdAt: serverTimestamp(),
         });
+        pendo.track('admin_user_created', {
+          admin_uid: adminUid,
+          new_user_uid: fbUser.uid,
+          role,
+          status,
+          has_name: !!name.trim(),
+          has_notes: !!notes.trim(),
+        });
         onSave({ uid: fbUser.uid, email: email.trim(), name: name.trim(), role, status, notes: notes.trim(), createdAt: null });
       } else {
         await updateDoc(doc(db, 'users', u.uid), { name: name.trim(), role, status, notes: notes.trim() });
+        pendo.track('admin_user_updated', {
+          target_uid: u.uid,
+          previous_role: u.role || 'user',
+          new_role: role,
+          previous_status: u.status || 'active',
+          new_status: status,
+          role_changed: (u.role || 'user') !== role,
+          status_changed: (u.status || 'active') !== status,
+          notes_changed: (u.notes || '') !== notes.trim(),
+        });
         onSave({ ...u, name: name.trim(), role, status, notes: notes.trim() });
       }
       onClose();
@@ -156,6 +177,12 @@ function DeleteModal({ user: u, onClose, onDelete }) {
     if (confirm !== u.email) return;
     setDeleting(true);
     await deleteDoc(doc(db, 'users', u.uid));
+    pendo.track('admin_user_deleted', {
+      target_uid: u.uid,
+      target_role: u.role || 'user',
+      target_status: u.status || 'active',
+      target_account_age_days: u.createdAt?.toDate ? Math.floor((Date.now() - u.createdAt.toDate()) / 86400000) : null,
+    });
     onDelete(u.uid);
     onClose();
   }

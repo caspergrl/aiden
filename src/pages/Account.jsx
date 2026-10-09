@@ -5,6 +5,7 @@ import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch } from 'fire
 import { User, Shield, Trash2, Save, ArrowRight, Heart, Check } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { useAuth } from '../App';
+import { pendo } from '../pendo';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { C, serif, shadow } from '../theme';
@@ -36,6 +37,7 @@ export default function Account() {
     if (!name.trim() || savingName) return;
     setSavingName(true);
     await updateDoc(doc(db, 'users', user.uid), { name: name.trim() });
+    pendo.track('profile_name_updated', { is_first_time_set: !profile?.name });
     setProfile(p => ({ ...p, name: name.trim() }));
     setSavingName(false); setNameSaved(true);
     setTimeout(() => setNameSaved(false), 2500);
@@ -44,34 +46,54 @@ export default function Account() {
   async function sendReset() {
     setResetting(true);
     await sendPasswordResetEmail(auth, user.email);
+    pendo.track('password_reset_requested', { source: 'account_settings' });
     setResetSent(true); setResetting(false);
   }
 
-  // Delete all PHI subcollections before removing the user doc and auth record
+  // Delete all PHI subcollections before removing the user doc and auth record.
+  // Returns the number of docs deleted per subcollection, e.g. { recipients: 2 }.
   async function deleteAllSubcollections(uid) {
     const subcolls = [
       'recipients', 'appointments', 'doctors',
       'medicationSchedules', 'medicationLogs',
       'logistics', 'resources',
     ];
+    const deleted = {};
     for (const sub of subcolls) {
       const snap = await getDocs(collection(db, 'users', uid, sub));
       if (snap.empty) continue;
       const batch = writeBatch(db);
       snap.docs.forEach(d => batch.delete(d.ref));
       await batch.commit();
+      deleted[sub] = snap.size;
     }
+    return deleted;
   }
 
   async function handleDelete() {
     if (delConfirm !== user.email) return;
     setDeleting(true); setDelError('');
+    let step = 'subcollections'; // last step attempted, reported if deletion fails
     try {
-      await deleteAllSubcollections(user.uid); // wipe all PHI subcollections first
+      const deleted = await deleteAllSubcollections(user.uid); // wipe all PHI subcollections first
+      step = 'profile_doc';
       await deleteDoc(doc(db, 'users', user.uid));
+      step = 'auth_user';
       await deleteUser(user);
+      pendo.track('account_deleted', {
+        account_age_days: profile?.createdAt?.toDate ? Math.floor((Date.now() - profile.createdAt.toDate()) / 86400000) : null,
+        role: profile?.role || 'user',
+        recipients_deleted: deleted.recipients || 0,
+        appointments_deleted: deleted.appointments || 0,
+        records_deleted_total: Object.values(deleted).reduce((a, b) => a + b, 0),
+      });
       navigate('/');
     } catch (e) {
+      pendo.track('account_deletion_failed', {
+        error_code: e.code || 'unknown',
+        requires_recent_login: e.code === 'auth/requires-recent-login',
+        failed_step: step, // 'subcollections' | 'profile_doc' | 'auth_user'
+      });
       if (e.code === 'auth/requires-recent-login') {
         setDelError('For security, please sign out and sign in again before deleting your account.');
       } else {
