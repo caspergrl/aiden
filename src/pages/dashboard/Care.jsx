@@ -7,6 +7,7 @@ import { C, serif, shadowSm, radius } from '../../theme';
 import { INSURANCE_INFO, CAREGIVING_RECS, COMMON_MEDICATIONS } from '../../data';
 import { useAuth } from '../../App';
 import { db } from '../../firebase';
+import { pendo } from '../../pendo';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 const COLORS = [C.rose, C.primary, C.sage, C.lavender, C.peach];
@@ -14,7 +15,7 @@ function rColor(id, recipients) {
   const idx = recipients ? recipients.findIndex(r => r.id === id) : 0;
   return COLORS[idx % COLORS.length];
 }
-function apptMs(a) {
+export function apptMs(a) {
   const [y, mo, d] = (a.date || '').split('-').map(Number);
   if (!y) return Infinity;
   const t = a.time || '12:00 AM';
@@ -433,7 +434,19 @@ function EditRecipientModal({ recipient, onClose, onSave }) {
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
   function handleSave() {
     if (!form.name.trim()) { setError('Name is required.'); return; }
-    onSave({ ...recipient, name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], age: parseInt(form.age) || 0, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), conditions: form.conditions, allergies: form.allergies, medications: form.medications, notes: form.notes.trim() });
+    const updated = { ...recipient, name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], age: parseInt(form.age) || 0, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), conditions: form.conditions, allergies: form.allergies, medications: form.medications, notes: form.notes.trim() };
+    // Field names only, never values
+    const fieldsChanged = ['name', 'nickname', 'age', 'relationship', 'email', 'phone', 'conditions', 'allergies', 'medications', 'notes']
+      .filter(k => JSON.stringify(updated[k]) !== JSON.stringify(recipient[k]));
+    pendo.track('care_recipient_updated', {
+      recipient_id: recipient.id,
+      fields_changed: fieldsChanged,
+      conditions_count: form.conditions.length,
+      guidance_conditions_count: form.conditions.filter(c => CAREGIVING_RECS[c]).length,
+      allergies_count: form.allergies.length,
+      medications_count: form.medications.length,
+    });
+    onSave(updated);
     onClose();
   }
   return (
@@ -513,7 +526,17 @@ function ManageInsuranceModal({ recipient, onClose, onSave }) {
   }
   function removeCustom(name) { setCustomPlans(prev => prev.filter(x => x !== name)); }
   function handleSave() {
-    onSave({ ...recipient, insurancePlans: [...checkedIds, ...customPlans] });
+    const prevPlans = recipient.insurancePlans || [];
+    const nextPlans = [...checkedIds, ...customPlans];
+    pendo.track('insurance_plans_updated', {
+      recipient_id: recipient.id,
+      predefined_plans: checkedIds, // 'medicare' | 'humana' | 'medicaid' | 'bcbs'
+      custom_plans_count: customPlans.length, // never send custom plan names (free text)
+      total_plans_count: nextPlans.length,
+      plans_added_count: nextPlans.filter(p => !prevPlans.includes(p)).length,
+      plans_removed_count: prevPlans.filter(p => !nextPlans.includes(p)).length,
+    });
+    onSave({ ...recipient, insurancePlans: nextPlans });
     onClose();
   }
 
@@ -757,6 +780,14 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
     if (!title.trim()) return;
     const change = { recipientId, type, title: title.trim(), details: details.trim(), date, createdAt: new Date().toISOString() };
     onAdd(change);
+    // Never send title or details (free-text health information)
+    pendo.track('care_change_logged', {
+      recipient_id: recipientId,
+      change_type: type, // 'health' | 'location' | 'medication' | 'other'
+      has_details: !!details.trim(),
+      is_backdated: !!date && date < today,
+      days_since_change: Math.round((new Date(today) - new Date(date)) / 86400000),
+    });
     setSavedChange(change);
     setStep('saved');
   }
@@ -764,7 +795,17 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
   function handleGetGuidance() {
     setStep('guidance');
     setLoadingGuidance(true);
-    setTimeout(() => { setGuidance(buildAidenGuidance(savedChange)); setLoadingGuidance(false); }, 1200);
+    setTimeout(() => {
+      const g = buildAidenGuidance(savedChange);
+      setGuidance(g);
+      setLoadingGuidance(false);
+      pendo.track('aiden_guidance_viewed', {
+        recipient_id: savedChange.recipientId,
+        change_type: savedChange.type,
+        guidance_headline: g.headline, // fixed string from buildAidenGuidance, never user text
+        paragraphs_count: g.paragraphs.length,
+      });
+    }, 1200);
   }
 
   if (step === 'saved') {
@@ -876,10 +917,25 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
   const visibleUpcoming = showAllAppts ? upcomingAppts : upcomingAppts.slice(0, 4);
   const visiblePrevious = showAllAppts ? previousAppts : previousAppts.slice(0, 2);
 
+  function handleConfirmDelete() {
+    // Deletion doesn't cascade: these counts also size the orphaned data left behind
+    pendo.track('care_recipient_deleted', {
+      recipient_id: r.id,
+      relationship: r.relationship?.slice(0, 50) || null,
+      care_team_count: myDoctors.length,
+      appointments_count: myAppts.length,
+      upcoming_appointments_count: upcomingAppts.length,
+      changes_logged_count: changes.filter(c => c.recipientId === r.id).length,
+      remaining_recipients: recipients.length - 1,
+    });
+    onDelete(r.id);
+    onBack();
+  }
+
   return (
     <div style={{ maxWidth: 800 }}>
       {showEdit     && <EditRecipientModal recipient={r} onClose={() => setShowEdit(false)} onSave={u => { onEdit(u); setShowEdit(false); }} />}
-      {showDelete   && <DeleteConfirmModal recipient={r} onClose={() => setShowDelete(false)} onDelete={() => { onDelete(r.id); onBack(); }} />}
+      {showDelete   && <DeleteConfirmModal recipient={r} onClose={() => setShowDelete(false)} onDelete={handleConfirmDelete} />}
       {showDoctor   && <AddDoctorModal recipientId={r.id} onClose={() => setShowDoctor(false)} onAdd={d => { onAddDoctor(d); setShowDoctor(false); }} />}
       {showInsurance && <ManageInsuranceModal recipient={r} onClose={() => setShowInsurance(false)} onSave={onEdit} />}
       {showAppt       && <AddAppointmentModal recipientId={r.id} doctors={myDoctors} onClose={() => setShowAppt(false)} onAdd={a => { onAddAppointment(a); setShowAppt(false); }} />}

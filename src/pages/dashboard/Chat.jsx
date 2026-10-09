@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Heart } from 'lucide-react';
 import { C, serif } from '../../theme';
-import { getResponse, SUGGESTIONS } from '../../data';
+import { getResponse, SUGGESTIONS, CHAT_RESPONSES } from '../../data';
 import { useAuth } from '../../App';
+import { pendo } from '../../pendo';
 
 export default function Chat({ messages, setMessages }) {
   const { profile } = useAuth();
@@ -18,8 +19,19 @@ export default function Chat({ messages, setMessages }) {
     setInput('');
     setWaiting(true);
     setTimeout(() => {
-      setMessages(p => [...p, { role: 'assistant', text: getResponse(text) }]);
+      const reply = getResponse(text);
+      setMessages(p => [...p, { role: 'assistant', text: reply }]);
       setWaiting(false);
+      // Never send the question text: it often contains health details
+      const topic = Object.keys(CHAT_RESPONSES).find(k => CHAT_RESPONSES[k] === reply); // memory | hipaa | directive | burnout | default
+      pendo.track('ask_aiden_question_asked', {
+        input_method: SUGGESTIONS.includes(text) ? 'suggestion' : 'typed',
+        suggestion_index: SUGGESTIONS.indexOf(text),
+        response_topic: topic,
+        is_fallback_response: topic === 'default',
+        message_length: text.length,
+        is_first_question: messages.length <= 1,
+      });
     }, 900);
   }
 

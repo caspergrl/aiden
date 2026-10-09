@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Send, CheckCircle, Mail } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { useAuth } from '../App';
+import { pendo } from '../pendo';
 import { C, serif } from '../theme';
 
 const FORMSPREE_ID = 'mojbqabj'; // ← replace with your Formspree form ID
@@ -20,6 +22,7 @@ const inp = {
 };
 
 export default function Contact() {
+  const { user } = useAuth();
   const [form, setForm]       = useState({ name: '', email: '', message: '' });
   const [status, setStatus]   = useState('idle'); // idle | sending | success | error
   const [error, setError]     = useState('');
@@ -45,6 +48,10 @@ export default function Contact() {
       });
 
       if (res.ok) {
+        pendo.track('contact_form_submitted', {
+          message_length: form.message.trim().length,
+          is_logged_in: !!user,
+        });
         setStatus('success');
         setForm({ name: '', email: '', message: '' });
       } else {

@@ -8,6 +8,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Eye, EyeOff } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { useAuth } from '../App';
+import { pendo } from '../pendo';
 import { serif, sans } from '../theme';
 
 const ERR = {
@@ -51,9 +52,18 @@ export default function Login() {
     setLoading(true); setError('');
     try {
       if (mode === 'signin') {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+        const { user: u } = await signInWithEmailAndPassword(auth, email.trim(), password);
+        pendo.track('user_signed_in', { uid: u.uid, method: 'email_password' });
       } else {
         const { user: u } = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        // Track before the profile write: firestore.rules reject role/status on client creates,
+        // so code after setDoc may never run even though the account now exists
+        pendo.track('user_signed_up', {
+          uid: u.uid,
+          signup_method: 'email_password',
+          has_name: !!name.trim(),
+          entry_point: params.get('mode') === 'signup' ? 'signup_link' : 'in_page_toggle',
+        });
         await setDoc(doc(db, 'users', u.uid), {
           uid: u.uid, email: u.email, name: name.trim() || '',
           role: 'user', status: 'active', createdAt: serverTimestamp(),
@@ -61,6 +71,11 @@ export default function Login() {
       }
       navigate('/home');
     } catch (e) {
+      pendo.track('auth_failed', {
+        mode, // 'signin' | 'signup'
+        error_code: e.code || 'unknown',
+        is_mapped_error: !!ERR[e.code],
+      });
       setError(ERR[e.code] || 'Something went wrong. Please try again.');
     }
     setLoading(false);
@@ -72,8 +87,14 @@ export default function Login() {
     setLoading(true); setError('');
     try {
       await sendPasswordResetEmail(auth, email.trim());
+      pendo.track('password_reset_requested', { source: 'login_forgot_password' });
       setResetSent(true);
     } catch (e) {
+      pendo.track('auth_failed', {
+        mode, // 'forgot'
+        error_code: e.code || 'unknown',
+        is_mapped_error: !!ERR[e.code],
+      });
       setError(ERR[e.code] || 'Something went wrong. Please try again.');
     }
     setLoading(false);

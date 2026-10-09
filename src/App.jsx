@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { pendo } from './pendo';
 
 import Landing       from './pages/Landing';
 import FAQ           from './pages/FAQ';
@@ -28,7 +29,16 @@ function AuthProvider({ children }) {
   // ── Session timeout: sign out after 30 min of inactivity ─────────────────
   function resetIdleTimer() {
     clearTimeout(idleTimer.current);
-    idleTimer.current = setTimeout(() => signOut(auth), IDLE_TIMEOUT_MS);
+    idleTimer.current = setTimeout(() => {
+      // The timer also runs for signed-out visitors on public pages
+      if (auth.currentUser) {
+        pendo.track('session_timed_out', {
+          idle_timeout_minutes: IDLE_TIMEOUT_MS / 60000,
+          path: window.location.pathname,
+        });
+      }
+      signOut(auth);
+    }, IDLE_TIMEOUT_MS);
   }
 
   useEffect(() => {

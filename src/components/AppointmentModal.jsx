@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Pencil, Trash2, Check, MapPin, Clock, Tag, Share2, Copy, Mail, MessageSquare } from 'lucide-react';
 import { C, serif, sans } from '../theme';
+import { pendo } from '../pendo';
 import PlacesInput from './PlacesInput';
 
 const FI = 'https://cdn-icons-png.flaticon.com/512';
@@ -82,15 +83,28 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
     ].filter(Boolean).join('\n');
   }
 
+  // appointment_shared properties: no title, location text or notes
+  function shareProps(method) {
+    return {
+      share_method: method, // 'email' | 'sms' | 'copy'
+      appointment_id: appt.id,
+      appointment_type: appt.type || null,
+      has_location: !!appt.location,
+      has_notes: !!appt.notes,
+      has_recipient: !!r,
+    };
+  }
+
   function handleCopy() {
     navigator.clipboard?.writeText(buildShareText()).then(() => {
+      pendo.track('appointment_shared', shareProps('copy'));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   }
 
   function handleSave() {
-    onUpdate(appt.id, {
+    const updates = {
       title:       title.trim() || appt.title,
       date,
       time:        from24h(time24),
@@ -98,7 +112,18 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
       location:    location.trim() || null,
       notes:       notes.trim() || null,
       recipientId: recipientId === 'myself' ? null : recipientId,
+    };
+    // Field names only, never values ('' and null both mean "not set")
+    const fieldsChanged = Object.keys(updates).filter(k => (updates[k] || null) !== (appt[k] || null));
+    pendo.track('appointment_updated', {
+      appointment_id: appt.id,
+      fields_changed: fieldsChanged,
+      was_rescheduled: fieldsChanged.includes('date') || fieldsChanged.includes('time'),
+      appointment_type: updates.type,
+      location_mode: locMode === 'video' ? 'video' : 'in_person',
+      recipient_changed: fieldsChanged.includes('recipientId'),
     });
+    onUpdate(appt.id, updates);
     onClose();
   }
 
@@ -175,10 +200,12 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <a href={`mailto:?subject=${encodeURIComponent(appt.title)}&body=${encodeURIComponent(buildShareText())}`}
+                    onClick={() => pendo.track('appointment_shared', shareProps('email'))}
                     style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: '#eef3fb', borderRadius: 12, textDecoration: 'none', color: C.primaryDark, fontFamily: sans, fontSize: 13, fontWeight: 700 }}>
                     <Mail size={14} /> Email
                   </a>
                   <a href={`sms:?&body=${encodeURIComponent(buildShareText())}`}
+                    onClick={() => pendo.track('appointment_shared', shareProps('sms'))}
                     style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: '#eef6f1', borderRadius: 12, textDecoration: 'none', color: '#3a6e58', fontFamily: sans, fontSize: 13, fontWeight: 700 }}>
                     <MessageSquare size={14} /> Text
                   </a>
