@@ -14,6 +14,7 @@ import Insurance   from './dashboard/Insurance';
 import Resources   from './dashboard/Resources';
 import Chat        from './dashboard/Chat';
 import { useAuth } from '../App';
+import { sendRecipientVisitorMetadata, sendRecipientObjectMetadata } from '../recipientMetadata';
 
 import {
   INITIAL_RECIPIENTS, INITIAL_APPOINTMENTS,
@@ -44,6 +45,13 @@ export default function Dashboard() {
     if (!user) return;
     loadData(user.uid);
   }, [user]);
+
+  // Send recipient metadata once data has loaded, and again whenever recipients change.
+  useEffect(() => {
+    if (!user || dataLoading) return;
+    sendRecipientVisitorMetadata(recipients);
+    sendRecipientObjectMetadata(recipients);
+  }, [user, dataLoading, recipients]);
 
   async function seedUserData(uid) {
     const batch = writeBatch(db);
