@@ -285,6 +285,10 @@ export default function Dashboard() {
             changes={changes}
             onAddChange={addChange}
             onDeleteChange={deleteChange}
+            resources={resources}
+            onAddResource={addResource}
+            onUpdateResource={updateResource}
+            onDeleteResource={deleteResource}
           />
         );
       case 'calendar':

@@ -9,4 +9,13 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, '../shared'),
     },
   },
+  server: {
+    proxy: {
+      '/api/google-calendar': {
+        target:       'https://www.googleapis.com',
+        changeOrigin: true,
+        rewrite:      path => path.replace(/^\/api\/google-calendar/, '/calendar/v3'),
+      },
+    },
+  },
 });

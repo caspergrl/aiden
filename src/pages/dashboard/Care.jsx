@@ -2,12 +2,94 @@ import { useState, useRef, useEffect } from 'react';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Check, Phone, X,
   Search, Pencil, AlertTriangle, CalendarDays, Shield, Users,
+  Upload, Download, FileText, Image as ImageIcon, BookMarked,
+  ExternalLink, Link2, AlertCircle,
 } from 'lucide-react';
 import { C, serif, shadowSm, radius } from '../../theme';
 import { INSURANCE_INFO, CAREGIVING_RECS, COMMON_MEDICATIONS } from '../../data';
 import { useAuth } from '../../App';
 import { db } from '../../firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, addDoc, deleteDoc } from 'firebase/firestore';
+import {
+  ref as storageRef, listAll, getMetadata,
+  getDownloadURL, uploadBytes, deleteObject,
+} from 'firebase/storage';
+import { storage } from '../../firebase';
+
+function calcAge(birthdate) {
+  if (!birthdate) return null;
+  const today = new Date();
+  const bd = new Date(birthdate + 'T00:00:00');
+  let age = today.getFullYear() - bd.getFullYear();
+  const m = today.getMonth() - bd.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+  return age;
+}
+
+const DOC_TYPES = ['Will', 'Power of Attorney', 'Advanced Directive', 'Insurance Card', 'Medical Record', 'Other'];
+const RESOURCE_CATEGORIES = ['Medical', 'Legal', 'Caregiver Support', 'Financial', 'Community', 'Other'];
+const CAT_COLORS = { Medical: '#4a7aaa', Legal: '#7a5aaa', 'Caregiver Support': C.rose, Financial: '#4a8a5a', Community: '#a07030', Other: '#7a7a8c' };
+
+function fileTypeMeta(name = '', contentType = '') {
+  const ext = name.split('.').pop().toLowerCase();
+  if (ext === 'pdf' || contentType === 'application/pdf') return { label: 'PDF', color: '#e05050', isImg: false };
+  if (['jpg', 'jpeg'].includes(ext) || contentType.startsWith('image/jpeg')) return { label: 'JPG', color: C.primary, isImg: true };
+  if (ext === 'png' || contentType === 'image/png') return { label: 'PNG', color: C.lavender, isImg: true };
+  return { label: 'File', color: C.mutedLight, isImg: false };
+}
+function fmtDocSize(bytes) {
+  if (!bytes) return '';
+  const b = parseInt(bytes);
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+function fmtDocDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function normalizeUrl(u) {
+  if (!u) return u;
+  return /^https?:\/\//i.test(u.trim()) ? u.trim() : `https://${u.trim()}`;
+}
+
+function ResourceLinkModal({ initial, onClose, onSave }) {
+  const [form, setForm] = useState({ title: initial?.title || '', url: initial?.url || '', description: initial?.description || '', category: initial?.category || '' });
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
+      <div style={{ background: 'rgba(38,32,26,0.4)', position: 'absolute', inset: 0 }} />
+      <div style={{ background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 480, position: 'relative', zIndex: 1, boxShadow: '0 8px 40px rgba(140,60,40,0.15)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontFamily: serif, fontSize: 20, color: C.text, margin: 0 }}>{initial ? 'Edit link' : 'Add resource link'}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} color={C.muted} /></button>
+        </div>
+        {[{ key: 'title', label: 'Title *', placeholder: 'e.g. Medicare Plan Finder' }, { key: 'url', label: 'URL *', placeholder: 'https://example.com' }, { key: 'description', label: 'Description', placeholder: 'Optional — what is this for?' }].map(({ key, label, placeholder }) => (
+          <div key={key} style={{ marginBottom: 14 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>{label}</p>
+            <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={placeholder}
+              style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box', background: '#faf9f7' }} />
+          </div>
+        ))}
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Category</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {RESOURCE_CATEGORIES.map(c => {
+              const active = form.category === c;
+              const cc = CAT_COLORS[c];
+              return <button key={c} onClick={() => setForm(f => ({ ...f, category: active ? '' : c }))} style={{ padding: '6px 12px', borderRadius: 20, border: `1.5px solid ${active ? cc : C.border}`, background: active ? cc + '18' : '#fff', color: active ? cc : C.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{c}</button>;
+            })}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, background: C.bgWarm || '#f7f5f2', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => { if (!form.title.trim() || !form.url.trim()) return; onSave({ ...form, url: normalizeUrl(form.url) }); onClose(); }} disabled={!form.title.trim() || !form.url.trim()} style={{ flex: 2, background: form.title.trim() && form.url.trim() ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 12, padding: '11px 0', fontWeight: 700, fontSize: 14, cursor: form.title.trim() && form.url.trim() ? 'pointer' : 'default' }}>
+            {initial ? 'Save changes' : 'Add link'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const COLORS = [C.rose, C.primary, C.sage, C.lavender, C.peach];
 function rColor(id, recipients) {
@@ -381,7 +463,7 @@ function RecipientForm({ values, onChange }) {
         <div>{lbl('Nickname')}<input value={values.nickname} onChange={e => onChange('nickname', e.target.value)} placeholder="Mom" style={inp} /></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div>{lbl('Age')}<input type="number" value={values.age} onChange={e => onChange('age', e.target.value)} placeholder="78" style={inp} /></div>
+        <div>{lbl('Date of birth')}<input type="date" value={values.birthdate} onChange={e => onChange('birthdate', e.target.value)} max={new Date().toISOString().slice(0, 10)} style={inp} /></div>
         <div>{lbl('Relationship')}<input value={values.relationship} onChange={e => onChange('relationship', e.target.value)} placeholder="Parent, Sibling…" style={inp} /></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -398,12 +480,12 @@ function RecipientForm({ values, onChange }) {
 
 // ─── Add Recipient Modal ────────────────────────────────────────────────────────
 export function AddRecipientModal({ onClose, onAdd }) {
-  const [form, setForm] = useState({ name: '', nickname: '', age: '', relationship: '', email: '', phone: '', conditions: [], allergies: [], medications: [], notes: '' });
+  const [form, setForm] = useState({ name: '', nickname: '', birthdate: '', relationship: '', email: '', phone: '', conditions: [], allergies: [], medications: [], notes: '' });
   const [error, setError] = useState('');
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
   function handleAdd() {
     if (!form.name.trim()) { setError('Name is required.'); return; }
-    onAdd({ id: Date.now(), name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], age: parseInt(form.age) || 0, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), photo: null, conditions: form.conditions, allergies: form.allergies, medications: form.medications, insurancePlans: [], notes: form.notes.trim(), importantNumbers: [] });
+    onAdd({ id: Date.now(), name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], birthdate: form.birthdate, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), photo: null, conditions: form.conditions, allergies: form.allergies, medications: form.medications, insurancePlans: [], notes: form.notes.trim(), importantNumbers: [] });
     onClose();
   }
   return (
@@ -419,7 +501,7 @@ export function AddRecipientModal({ onClose, onAdd }) {
 // ─── Edit Recipient Modal ───────────────────────────────────────────────────────
 function EditRecipientModal({ recipient, onClose, onSave }) {
   const [form, setForm] = useState({
-    name: recipient.name, nickname: recipient.nickname, age: String(recipient.age),
+    name: recipient.name, nickname: recipient.nickname, birthdate: recipient.birthdate || '',
     relationship: recipient.relationship, email: recipient.email, phone: recipient.phone,
     conditions: [...recipient.conditions],
     allergies: [...(recipient.allergies || [])],
@@ -433,7 +515,7 @@ function EditRecipientModal({ recipient, onClose, onSave }) {
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
   function handleSave() {
     if (!form.name.trim()) { setError('Name is required.'); return; }
-    onSave({ ...recipient, name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], age: parseInt(form.age) || 0, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), conditions: form.conditions, allergies: form.allergies, medications: form.medications, notes: form.notes.trim() });
+    onSave({ ...recipient, name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], birthdate: form.birthdate, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), conditions: form.conditions, allergies: form.allergies, medications: form.medications, notes: form.notes.trim() });
     onClose();
   }
   return (
@@ -854,7 +936,8 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
 }
 
 // ─── Recipient detail view ──────────────────────────────────────────────────────
-function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, onDeleteDoctor, appointments, onAddAppointment, onDeleteAppointment, recipients, changes = [], onAddChange, onDeleteChange }) {
+function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, onDeleteDoctor, appointments, onAddAppointment, onDeleteAppointment, recipients, changes = [], onAddChange, onDeleteChange, resources = [], onAddResource, onUpdateResource, onDeleteResource }) {
+  const { user } = useAuth();
   const [tab, setTab]               = useState('overview');
   const [showEdit, setShowEdit]     = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -864,6 +947,76 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
   const [showPhone, setShowPhone]   = useState(false);
   const [showAllAppts, setShowAllAppts] = useState(false);
   const [showAddChange, setShowAddChange] = useState(false);
+
+  // Docs state
+  const [rdocs, setRdocs]               = useState([]);
+  const [rdocsLoading, setRdocsLoading] = useState(false);
+  const [ruploading, setRuploading]     = useState(false);
+  const [rdeletingDoc, setRdeletingDoc] = useState(null);
+  const [rdocError, setRdocError]       = useState('');
+  const rdocFileRef                     = useRef(null);
+  const [showDocTypePick, setShowDocTypePick] = useState(false);
+  const [pendingDocType, setPendingDocType]   = useState('');
+
+  // Resources state
+  const [resourceSheet, setResourceSheet] = useState(null); // null | 'new' | resource-object
+  const myResources = resources.filter(res => String(res.recipientId) === String(r.id));
+
+  useEffect(() => {
+    if (tab === 'docs') loadRdocs();
+  }, [tab]);
+
+  async function loadRdocs() {
+    if (!user?.uid) return;
+    setRdocsLoading(true); setRdocError('');
+    try {
+      const folder = storageRef(storage, `users/${user.uid}/documents`);
+      const result = await listAll(folder);
+      const items = await Promise.all(result.items.map(async itemRef => {
+        const [meta, url] = await Promise.all([getMetadata(itemRef), getDownloadURL(itemRef)]);
+        return {
+          fullPath: itemRef.fullPath, ref: itemRef,
+          name: meta.customMetadata?.originalName ?? itemRef.name,
+          size: meta.size, uploadedAt: meta.timeCreated, contentType: meta.contentType,
+          recipientId: meta.customMetadata?.recipientId || null,
+          docType: meta.customMetadata?.docType || '',
+          url,
+        };
+      }));
+      items.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+      setRdocs(items.filter(d => String(d.recipientId) === String(r.id)));
+    } catch(e) { console.error('loadRdocs:', e); setRdocError('Could not load documents.'); }
+    setRdocsLoading(false);
+  }
+
+  async function handleRdocUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !user?.uid) return;
+    setRuploading(true); setRdocError('');
+    try {
+      const path = `users/${user.uid}/documents/${Date.now()}_${file.name}`;
+      const fRef = storageRef(storage, path);
+      await uploadBytes(fRef, file, { customMetadata: { originalName: file.name, recipientId: String(r.id), docType: pendingDocType } });
+      setPendingDocType('');
+      await loadRdocs();
+    } catch { setRdocError('Upload failed — please try again.'); }
+    setRuploading(false);
+  }
+
+  async function handleRdocDelete(d) {
+    try {
+      await deleteObject(d.ref);
+      setRdocs(prev => prev.filter(x => x.fullPath !== d.fullPath));
+      setRdeletingDoc(null);
+    } catch { setRdocError('Could not delete document.'); }
+  }
+
+  function handleRdocDownload(d) {
+    const a = document.createElement('a');
+    a.href = d.url; a.download = d.name; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
 
   const col       = rColor(r.id, recipients);
   const myDoctors = doctors.filter(d => d.recipientId === r.id);
@@ -909,7 +1062,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, color: col, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>{r.relationship}</p>
             <h2 style={{ fontFamily: serif, fontSize: 26, color: C.text, marginBottom: 4 }}>{r.name}</h2>
-            <p style={{ fontSize: 13, color: C.muted }}>Age {r.age}{r.email ? ` · ${r.email}` : ''}{r.phone ? ` · ${r.phone}` : ''}</p>
+            <p style={{ fontSize: 13, color: C.muted }}>{(calcAge(r.birthdate) ?? r.age) ? `Age ${calcAge(r.birthdate) ?? r.age}` : ''}{(calcAge(r.birthdate) ?? r.age) && (r.email || r.phone) ? ' · ' : ''}{r.email || r.phone || ''}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
               {(r.insurancePlans || []).map(p => {
                 const info = INSURANCE_INFO[p];
@@ -921,9 +1074,9 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
           </div>
         </div>
 
-        <div style={{ display: 'flex', marginTop: 20, borderTop: `1px solid ${col}20`, paddingTop: 14, gap: 4 }}>
-          {['overview', 'guidance', 'changes', 'notes'].map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ padding: '7px 18px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: tab === t ? 700 : 500, color: tab === t ? '#fff' : C.muted, background: tab === t ? col : 'transparent', cursor: 'pointer', textTransform: 'capitalize' }}>{t}</button>
+        <div style={{ display: 'flex', marginTop: 20, borderTop: `1px solid ${col}20`, paddingTop: 14, gap: 4, flexWrap: 'wrap' }}>
+          {[['overview','Overview'],['guidance','Guidance'],['changes','Changes'],['notes','Notes'],['docs','Documents'],['resources','Library']].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: tab === id ? 700 : 500, color: tab === id ? '#fff' : C.muted, background: tab === id ? col : 'transparent', cursor: 'pointer' }}>{label}</button>
           ))}
         </div>
       </div>
@@ -1210,6 +1363,167 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
           </Card>
         </>
       )}
+
+      {/* ── Documents ──────────────────────────────────────────────────── */}
+      {tab === 'docs' && (
+        <div>
+          <input ref={rdocFileRef} type="file" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx" style={{ display: 'none' }} onChange={handleRdocUpload} />
+
+          {/* Doc type picker modal */}
+          {showDocTypePick && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setShowDocTypePick(false)}>
+              <div style={{ background: 'rgba(38,32,26,0.4)', position: 'absolute', inset: 0 }} />
+              <div style={{ background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 380, position: 'relative', zIndex: 1, boxShadow: '0 8px 40px rgba(140,60,40,0.15)' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+                  <h2 style={{ fontFamily: serif, fontSize: 18, color: C.text, margin: 0 }}>What type of document?</h2>
+                  <button onClick={() => setShowDocTypePick(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} color={C.muted} /></button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {DOC_TYPES.map(t => (
+                    <button key={t} onClick={() => { setPendingDocType(t); setShowDocTypePick(false); rdocFileRef.current?.click(); }}
+                      style={{ width: '100%', textAlign: 'left', background: '#faf9f7', border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 16px', fontSize: 14, fontWeight: 500, color: C.text, cursor: 'pointer' }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <p style={{ fontSize: 13, color: C.muted }}>Wills, directives & legal records for {r.nickname || r.name.split(' ')[0]}.</p>
+            <button onClick={() => setShowDocTypePick(true)} disabled={ruploading}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: ruploading ? C.border : col, color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: ruploading ? 'default' : 'pointer' }}>
+              <Upload size={14} /> {ruploading ? 'Uploading…' : 'Upload'}
+            </button>
+          </div>
+
+          {rdocError && (
+            <div style={{ background: '#fdf5f5', borderRadius: 12, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertCircle size={14} color={C.coral || '#e05050'} style={{ flexShrink: 0 }} />
+              <p style={{ fontSize: 13, color: C.coral || '#e05050' }}>{rdocError}</p>
+            </div>
+          )}
+
+          {rdocsLoading && <div style={{ textAlign: 'center', padding: '40px 0', color: C.mutedLight }}>Loading…</div>}
+
+          {!rdocsLoading && rdocs.length === 0 && !rdocError && (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: C.mutedLight }}>
+              <FileText size={32} style={{ marginBottom: 12, opacity: 0.3 }} />
+              <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: C.muted }}>No documents yet</p>
+              <p style={{ fontSize: 13 }}>Upload a PDF, image, or Word doc above.</p>
+            </div>
+          )}
+
+          {!rdocsLoading && rdocs.map(d => {
+            const meta = fileTypeMeta(d.name, d.contentType);
+            const isDel = rdeletingDoc === d.fullPath;
+            return (
+              <div key={d.fullPath} style={{ background: '#fff', borderRadius: 14, padding: '14px 16px', marginBottom: 10, border: `1px solid ${C.border}` }}>
+                {isDel ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <Trash2 size={14} color={C.coral || '#e05050'} style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.text, flex: 1 }}>Delete <strong>{d.name}</strong>?</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => handleRdocDelete(d)} style={{ background: '#c0392b', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Delete</button>
+                      <button onClick={() => setRdeletingDoc(null)} style={{ background: 'none', border: 'none', fontSize: 12, color: C.muted, cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 40, height: 40, background: meta.color + '18', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {meta.isImg ? <ImageIcon size={18} color={meta.color} /> : <FileText size={18} color={meta.color} />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {d.docType && (
+                        <span style={{ display: 'inline-block', background: col + '14', color: col, borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 700, marginBottom: 3, letterSpacing: 0.3 }}>{d.docType}</span>
+                      )}
+                      <p style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</p>
+                      <p style={{ fontSize: 12, color: C.mutedLight }}>{meta.label}{d.size ? ` · ${fmtDocSize(d.size)}` : ''}{d.uploadedAt ? ` · ${fmtDocDate(d.uploadedAt)}` : ''}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => handleRdocDownload(d)} style={{ width: 34, height: 34, background: col + '18', border: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <Download size={15} color={col} />
+                      </button>
+                      <button onClick={() => setRdeletingDoc(d.fullPath)} style={{ width: 34, height: 34, background: C.bgWarm || '#f5f0eb', border: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <Trash2 size={15} color={C.mutedLight} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {!rdocsLoading && rdocs.length > 0 && (
+            <button onClick={() => setShowDocTypePick(true)} disabled={ruploading}
+              style={{ width: '100%', border: `1.5px dashed ${col}`, borderRadius: 14, padding: 14, background: 'none', color: col, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 }}>
+              <Plus size={15} /> Upload another
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Library (Resource Links) ────────────────────────────────────── */}
+      {tab === 'resources' && (
+        <div>
+          {resourceSheet && (
+            <ResourceLinkModal
+              initial={resourceSheet === 'new' ? null : resourceSheet}
+              onClose={() => setResourceSheet(null)}
+              onSave={d => {
+                if (resourceSheet === 'new') onAddResource?.({ ...d, recipientId: r.id });
+                else onUpdateResource?.(resourceSheet.id, d);
+                setResourceSheet(null);
+              }}
+            />
+          )}
+
+          {myResources.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <BookMarked size={32} style={{ marginBottom: 12, opacity: 0.3 }} />
+              <p style={{ fontSize: 14, fontWeight: 600, color: C.muted, marginBottom: 4 }}>No links yet</p>
+              <p style={{ fontSize: 13, color: C.mutedLight }}>Save useful websites, articles, or contacts for {r.nickname || r.name.split(' ')[0]}.</p>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {myResources.map(res => {
+              const cc = CAT_COLORS[res.category] || C.primary;
+              return (
+                <div key={res.id} style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.border}`, borderLeft: `4px solid ${cc}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {res.category && (
+                        <span style={{ display: 'inline-block', background: cc + '18', color: cc, borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, marginBottom: 6 }}>{res.category}</span>
+                      )}
+                      <p style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4 }}>{res.title}</p>
+                      {res.description && <p style={{ fontSize: 13, color: C.muted, marginBottom: 6 }}>{res.description}</p>}
+                      <a href={res.url} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: 13, color: C.primary, display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none' }}>
+                        <ExternalLink size={12} /> {res.url.replace(/^https?:\/\//, '').split('/')[0]}
+                      </a>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => setResourceSheet(res)} style={{ width: 34, height: 34, background: C.bgWarm || '#f5f0eb', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <Pencil size={14} color={C.muted} />
+                      </button>
+                      <button onClick={() => onDeleteResource?.(res.id)} style={{ width: 34, height: 34, background: C.bgWarm || '#f5f0eb', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <Trash2 size={14} color={C.mutedLight} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <button onClick={() => setResourceSheet('new')}
+            style={{ width: '100%', border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '10px 18px', background: C.roseLight || '#fdf5f5', color: C.roseDark || C.rose, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+            <Plus size={14} /> Add resource link
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1221,6 +1535,7 @@ export default function Care({
   doctors, onAddDoctor, onDeleteDoctor,
   appointments, onAddAppointment, onDeleteAppointment,
   changes = [], onAddChange, onDeleteChange,
+  resources = [], onAddResource, onUpdateResource, onDeleteResource,
 }) {
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -1254,6 +1569,10 @@ export default function Care({
           changes={changes}
           onAddChange={onAddChange}
           onDeleteChange={onDeleteChange}
+          resources={resources}
+          onAddResource={onAddResource}
+          onUpdateResource={onUpdateResource}
+          onDeleteResource={onDeleteResource}
         />
       </div>
     );
@@ -1342,7 +1661,7 @@ export default function Care({
                     <span style={{ fontSize: 11, color: C.muted, background: C.bgWarm, borderRadius: 10, padding: '2px 8px', fontWeight: 600 }}>{r.relationship}</span>
                   </div>
                   <p style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>
-                    Age {r.age}{r.conditions.length > 0 ? ` · ${r.conditions[0]}${r.conditions.length > 1 ? ` +${r.conditions.length - 1} more` : ''}` : ''}
+                    {(calcAge(r.birthdate) ?? r.age) ? `Age ${calcAge(r.birthdate) ?? r.age}` : ''}{(calcAge(r.birthdate) ?? r.age) && r.conditions.length > 0 ? ' · ' : ''}{r.conditions.length > 0 ? `${r.conditions[0]}${r.conditions.length > 1 ? ` +${r.conditions.length - 1} more` : ''}` : ''}
                   </p>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {(r.insurancePlans || []).map(p => (

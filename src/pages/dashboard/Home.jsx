@@ -6,6 +6,15 @@ import { getDailyMessage, INSURANCE_INFO } from '../../data';
 import { AddRecipientModal } from './Care';
 
 function rColor(id) { return id === 1 ? C.rose : C.primary; }
+function calcAge(birthdate) {
+  if (!birthdate) return null;
+  const today = new Date();
+  const bd = new Date(birthdate + 'T00:00:00');
+  let age = today.getFullYear() - bd.getFullYear();
+  const m = today.getMonth() - bd.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+  return age;
+}
 function initials(name) { return name.split(' ').map(n => n[0]).join('').slice(0, 2); }
 function fmtDate(d) {
   const dt = new Date(d + 'T00:00:00');
@@ -141,7 +150,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{r.name}</p>
-                <p style={{ fontSize: 12, color: C.muted }}>Age {r.age} · {r.conditions[0]}{r.conditions.length > 1 ? ` +${r.conditions.length - 1}` : ''}</p>
+                <p style={{ fontSize: 12, color: C.muted }}>{(calcAge(r.birthdate) ?? r.age) ? `Age ${calcAge(r.birthdate) ?? r.age}` : ''}{(calcAge(r.birthdate) ?? r.age) && r.conditions[0] ? ' · ' : ''}{r.conditions[0] || ''}{r.conditions.length > 1 ? ` +${r.conditions.length - 1}` : ''}</p>
                 <div style={{ display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
                   {r.insurancePlans.map(p => {
                     const info = INSURANCE_INFO[p];

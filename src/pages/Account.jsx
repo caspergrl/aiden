@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updatePassword, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
-import { User, Shield, Trash2, Save, ArrowRight, Heart, Check } from 'lucide-react';
+import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch, getDoc, setDoc } from 'firebase/firestore';
+import { User, Shield, Trash2, Save, ArrowRight, Heart, Check, Calendar, RefreshCw, Unlink } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { useAuth } from '../App';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { C, serif, shadow } from '../theme';
+import { saveTokens, loadTokens, clearTokens } from '../secureTokens';
+import { gcalClientId, gcalTokenKey, startGoogleCalendarOAuth, exchangeGCalCode, fetchGCalUserEmail, refreshGCalToken, fetchGCalEvents } from '../gcal';
 
 function Card({ children, style }) {
   return (
@@ -31,6 +33,101 @@ export default function Account() {
   const [delConfirm, setDelConfirm] = useState('');
   const [deleting, setDeleting]   = useState(false);
   const [delError, setDelError]   = useState('');
+
+  // ── Google Calendar connections ──────────────────────────────────────────────
+  const [connStatus, setConnStatus]   = useState({});
+  const [connLoading, setConnLoading] = useState(false);
+  const [connError, setConnError]     = useState('');
+  const [gcalSyncing, setGcalSyncing] = useState({});
+  const [gcalExchanging, setGcalExchanging] = useState(false);
+
+  // Load connection metadata from Firestore
+  useEffect(() => {
+    if (!user) return;
+    getDoc(doc(db, 'users', user.uid, 'connections', 'status')).then(snap => {
+      if (snap.exists()) setConnStatus(snap.data());
+    });
+  }, [user]);
+
+  // Handle OAuth callback — Google redirects back to /account with ?code=...&state=gcal_connect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code   = params.get('code');
+    const state  = params.get('state');
+    if (!code || state !== 'gcal_connect' || !user) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    setGcalExchanging(true);
+    (async () => {
+      try {
+        const tokens = await exchangeGCalCode(code);
+        if (tokens.access_token) {
+          const email = await fetchGCalUserEmail(tokens.access_token);
+          const key   = email ? gcalTokenKey(email) : 'gcal_unknown';
+          await saveTokens(key, {
+            accessToken:  tokens.access_token,
+            refreshToken: tokens.refresh_token || null,
+            expiresAt:    Date.now() + (tokens.expires_in || 3600) * 1000,
+          });
+          const accountMeta = { email: email || '', connectedAt: Date.now() };
+          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), {
+            googleCalendars: { [key]: accountMeta },
+          }, { merge: true });
+          setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: accountMeta } }));
+        }
+      } catch (e) { setConnError('Could not connect Google Calendar — please try again.'); }
+      setGcalExchanging(false);
+    })();
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const gcalAccounts = Object.entries(connStatus.googleCalendars || {})
+    .map(([key, meta]) => ({ key, ...meta }))
+    .sort((a, b) => (a.connectedAt || 0) - (b.connectedAt || 0));
+
+  async function handleConnectGoogleCalendar() {
+    if (!gcalClientId()) {
+      setConnError('Google Calendar client ID not configured — add VITE_GOOGLE_CALENDAR_CLIENT_ID to .env');
+      return;
+    }
+    setConnError('');
+    await startGoogleCalendarOAuth();
+  }
+
+  async function handleDisconnectGoogleCalendar(key, email) {
+    setConnLoading(true);
+    try {
+      await clearTokens(key);
+      const updated = { ...(connStatus.googleCalendars || {}) };
+      delete updated[key];
+      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { googleCalendars: updated }, { merge: true });
+      setConnStatus(p => {
+        const cals = { ...(p.googleCalendars || {}) };
+        delete cals[key];
+        return { ...p, googleCalendars: cals };
+      });
+    } catch { setConnError('Could not disconnect — try again.'); }
+    setConnLoading(false);
+  }
+
+  async function handleSyncGoogleCalendar(key, email) {
+    setGcalSyncing(p => ({ ...p, [key]: true })); setConnError('');
+    try {
+      const stored = await loadTokens(key);
+      if (!stored?.accessToken) throw new Error('Not connected — please reconnect Google Calendar.');
+      let { accessToken, refreshToken, expiresAt } = stored;
+      if (Date.now() > (expiresAt || 0) - 60_000) {
+        const refreshed = await refreshGCalToken(refreshToken);
+        if (!refreshed.access_token) throw new Error('Session expired — please reconnect Google Calendar.');
+        accessToken = refreshed.access_token;
+        expiresAt   = Date.now() + (refreshed.expires_in || 3600) * 1000;
+        await saveTokens(key, { accessToken, refreshToken, expiresAt });
+      }
+      const events = await fetchGCalEvents(accessToken, email);
+      const meta = { email, connectedAt: connStatus.googleCalendars?.[key]?.connectedAt || Date.now(), lastSync: Date.now(), eventCount: events.length };
+      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { googleCalendars: { [key]: meta } }, { merge: true });
+      setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: meta } }));
+    } catch (e) { setConnError(e.message || 'Sync failed — try reconnecting.'); }
+    setGcalSyncing(p => ({ ...p, [key]: false }));
+  }
 
   async function saveName() {
     if (!name.trim() || savingName) return;
@@ -153,6 +250,67 @@ export default function Account() {
               </button>
             </>
           )}
+        </Card>
+
+        {/* Google Calendar connections */}
+        <Card style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <Calendar size={17} color={C.primary} />
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Google Calendar</h2>
+            {gcalAccounts.length > 0 && (
+              <span style={{ marginLeft: 'auto', background: '#f0f7f4', color: '#3a6e58', border: '1px solid #8ab5a040', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 800 }}>
+                {gcalAccounts.length === 1 ? 'Connected' : `${gcalAccounts.length} accounts`}
+              </span>
+            )}
+          </div>
+          <p style={{ fontSize: 14, color: C.muted, marginBottom: 16, lineHeight: 1.65 }}>
+            Pull upcoming events from your Google Calendar into Aiden. You stay in control — nothing is written back.
+          </p>
+
+          {gcalExchanging && (
+            <div style={{ background: '#f0f7f4', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#3a6e58' }}>
+              Connecting your Google account…
+            </div>
+          )}
+
+          {connError && (
+            <p style={{ fontSize: 13, color: C.coral, marginBottom: 12 }}>{connError}</p>
+          )}
+
+          {/* Connected accounts */}
+          {gcalAccounts.map(({ key, email, lastSync, eventCount }) => (
+            <div key={key} style={{ background: C.bgWarm, borderRadius: 12, padding: '12px 14px', marginBottom: 10, border: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {email || 'Google Account'}
+                  </p>
+                  {lastSync && (
+                    <p style={{ fontSize: 12, color: C.mutedLight, margin: '3px 0 0' }}>
+                      Synced {new Date(lastSync).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {eventCount != null && ` · ${eventCount} events`}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => handleSyncGoogleCalendar(key, email)} disabled={!!gcalSyncing[key]}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 0', fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer', opacity: gcalSyncing[key] ? 0.6 : 1 }}>
+                  <RefreshCw size={13} /> {gcalSyncing[key] ? 'Syncing…' : 'Sync now'}
+                </button>
+                <button onClick={() => handleDisconnectGoogleCalendar(key, email)} disabled={connLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 14px', fontSize: 13, color: C.muted, cursor: 'pointer' }}>
+                  <Unlink size={13} /> Disconnect
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <button onClick={handleConnectGoogleCalendar}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fff', color: '#444', border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: gcalAccounts.length ? 4 : 0 }}>
+            <span style={{ fontWeight: 800, fontSize: 15 }}>G</span>
+            {gcalAccounts.length ? 'Add another account' : 'Connect with Google'}
+          </button>
         </Card>
 
         {/* Admin link */}

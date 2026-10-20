@@ -122,13 +122,13 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
   const [dragOverId, setDragOverId] = useState(null);
 
   // ── Doctor modal state ────────────────────────────────────────────────────────
-  const BLANK_DOC = { name: '', specialty: '', phone: '', address: '', notes: '', recipientId: '' };
+  const BLANK_DOC = { name: '', specialty: '', practiceName: '', phone: '', address: '', notes: '', recipientId: '' };
   const [doctorModal, setDoctorModal] = useState(null); // null | 'add' | doctor-object (edit)
   const [doctorBuf, setDoctorBuf]     = useState(BLANK_DOC);
   const [deletingDoctor, setDeletingDoctor] = useState(null); // id being confirmed
 
   function openAddDoctor()    { setDoctorBuf(BLANK_DOC); setDoctorModal('add'); }
-  function openEditDoctor(d)  { setDoctorBuf({ name: d.name||'', specialty: d.specialty||'', phone: d.phone||'', address: d.address||'', notes: d.notes||'', recipientId: d.recipientId||'' }); setDoctorModal(d); }
+  function openEditDoctor(d)  { setDoctorBuf({ name: d.name||'', specialty: d.specialty||'', practiceName: d.practiceName||'', phone: d.phone||'', address: d.address||'', notes: d.notes||'', recipientId: d.recipientId||'' }); setDoctorModal(d); }
   function closeDoctorModal() { setDoctorModal(null); }
 
   function saveDoctorModal() {
@@ -497,6 +497,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                         {recip && <RecipAvatar r={recip} size={22} />}
                       </div>
                       {d.specialty && <p style={{ fontSize: 13, color: col, fontWeight: 700, marginTop: 2 }}>{d.specialty}</p>}
+                      {d.practiceName && <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 1 }}>{d.practiceName}</p>}
                       {d.phone && <a href={`tel:${d.phone}`} style={{ fontSize: 12, color: C.primary, marginTop: 3, display: 'block', textDecoration: 'none', fontWeight: 500 }}>{d.phone}</a>}
                       {d.address && <p style={{ fontSize: 12, color: C.mutedLight }}>{d.address}</p>}
                       {d.notes && <p style={{ fontSize: 12, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>{d.notes}</p>}
@@ -538,11 +539,12 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
 
                 {/* Form fields */}
                 {[
-                  { key: 'name',      label: 'Name *',       placeholder: 'Dr. Sarah Chen' },
-                  { key: 'specialty', label: 'Specialty',    placeholder: 'Cardiologist' },
-                  { key: 'phone',     label: 'Phone',        placeholder: '(555) 000-0000' },
-                  { key: 'address',   label: 'Address',      placeholder: '123 Main St, Atlanta, GA' },
-                  { key: 'notes',     label: 'Notes',        placeholder: 'Any additional info…' },
+                  { key: 'name',         label: 'Name *',        placeholder: 'Dr. Sarah Chen' },
+                  { key: 'specialty',    label: 'Specialty',     placeholder: 'Cardiologist' },
+                  { key: 'practiceName', label: 'Practice name', placeholder: 'Riverside Medical Group' },
+                  { key: 'phone',        label: 'Phone',         placeholder: '(555) 000-0000' },
+                  { key: 'address',      label: 'Address',       placeholder: '123 Main St, Atlanta, GA' },
+                  { key: 'notes',        label: 'Notes',         placeholder: 'Any additional info…' },
                 ].map(({ key, label, placeholder }) => (
                   <div key={key} style={{ marginBottom: 14 }}>
                     <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>{label}</p>
