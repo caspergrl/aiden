@@ -47,5 +47,24 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+
+	<!-- OAuth deep-link scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.aiden.caregiverapp</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.aiden.caregiverapp</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- HealthKit permissions -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>Aiden reads steps, heart rate, and weight to help you track health trends for the people you care for.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Aiden does not write health data.</string>
 </dict>
 </plist>

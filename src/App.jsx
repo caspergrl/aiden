@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { C, serif, sans, FONTS_URL, GRAD, CARD_SHADOW, CARD_SHADOW_SM } from '@shared/theme';
+import { saveTokens, loadTokens, clearTokens } from './secureTokens';
 import AuthScreen from './AuthScreen';
 import { auth, db, storage } from './firebase';
 import { onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
@@ -15,46 +16,12 @@ import {
   AlertCircle, Bell, Check, Info, ExternalLink, Eye, EyeOff, User,
   Scale, ArrowRightLeft, Users, RotateCcw, Download, Upload,
   Camera, Pencil, Trash2, X, BookMarked, Link2, Share2, Mail, MessageSquare, Search, Copy, MapPin,
-  Pill as PillIcon, RefreshCw, AlarmClock, Activity, LogOut,
+  Pill as PillIcon, RefreshCw, AlarmClock, Activity, LogOut, Sparkles,
 } from "lucide-react";
 
 // ─── PALETTE ── imported from @shared/theme ────────────────────────────────────
 
 // ─── DATA ──────────────────────────────────────────────────────────────────────
-
-const DAILY_MESSAGES = [
-  "Every small act of care you give today matters more than you know. You are someone's whole world.",
-  "You don't have to do everything perfectly. Showing up with love is enough.",
-  "Taking care of yourself is part of taking care of them. Rest is not selfish — it is necessary.",
-  "Caregiving is one of the most profound acts of love a person can offer. Your dedication is extraordinary.",
-  "It's okay to feel overwhelmed sometimes. That means you care deeply. Give yourself grace today.",
-  "You are doing a hard, beautiful, important thing. Don't forget to celebrate yourself too.",
-  "The person you care for is lucky to have you — even on the days it doesn't feel that way.",
-  "One step at a time. You don't have to solve everything today. Just be present.",
-  "Caregiving asks so much of you. Please don't forget to ask something of yourself — rest, joy, connection.",
-  "Your patience and love are quietly shaping someone's entire experience of the world. That is everything.",
-  "Today might be hard. That's okay. Hard days pass, and your strength remains.",
-  "You are not alone in this. Millions of people walk this road. Reach out when you need to.",
-  "Breathe. You are enough. What you are doing is enough. You are more capable than you realize.",
-  "Even the smallest moments of joy — a smile, a song, a shared meal — are worth cherishing.",
-  "There is no perfect way to be a caregiver. There is only your way, done with love.",
-  "Your loved one sees your love, even when words are hard. Presence is the greatest gift.",
-  "It's okay to grieve the things that have changed while still celebrating what remains.",
-  "You are building something invisible and irreplaceable: a legacy of compassion and devotion.",
-  "Accepting help is not weakness. It is wisdom. You deserve a village too.",
-  "The hard conversations, the long drives, the middle-of-the-night moments — they all count.",
-  "You show up even when it's hard. That quiet consistency is one of the most loving things a person can do.",
-  "Caregiving teaches us what truly matters. You are living that lesson with grace.",
-  "Today, do one small thing for yourself. Even five minutes of something that restores you.",
-  "Love is action. And every action you take in care is a profound expression of love.",
-  "You are navigating one of life's most complex seasons. Be proud of how far you've come.",
-  "It's okay not to have all the answers. Doing your best with what you know is always enough.",
-  "The person you're caring for may not be able to say it today, but your love reaches them.",
-  "You carry a lot. Please remember that you're allowed to put some of it down for a little while.",
-  "Your empathy and endurance are remarkable. Don't let the hard days make you forget that.",
-  "Every day you show up is a gift. Thank you for being someone who shows up.",
-  "You are doing sacred work. The love you give quietly sustains someone else's whole world.",
-];
 
 // Demo seed data removed — new users start with a blank workspace.
 // No PHI is pre-populated; users add their own care recipients and data.
@@ -75,6 +42,24 @@ const INITIAL_LOGISTICS = [
   { id: 8, title: "Social Security Beneficiary Update", completed: false, note: "", partnerLink: null },
 ];
 
+const FACILITY_TYPES = [
+  { value: 'assisted_living',  label: 'Assisted living' },
+  { value: 'nursing_home',     label: 'Nursing home / skilled nursing' },
+  { value: 'memory_care',      label: 'Memory care facility' },
+  { value: 'rehab',            label: 'Rehabilitation center' },
+  { value: 'other',            label: 'Other care facility' },
+];
+
+const MOBILITY_OPTIONS = [
+  { value: 'bedridden',  label: 'Bedridden',             icon: '🛏',  sub: 'Confined to bed most of the time' },
+  { value: 'wheelchair', label: 'Wheelchair',             icon: '♿',  sub: 'Needs wheelchair most of the time' },
+  { value: 'walker',     label: 'Uses walking aid',       icon: '🦯',  sub: 'Cane, crutches, walker, etc.' },
+  { value: 'fall_risk',  label: 'Fall risk',              icon: '⚠️',  sub: 'Prone to falls, needs supervision' },
+  { value: 'limited',    label: 'Limited mobility',       icon: '🚶',  sub: 'Slow or restricted movement' },
+  { value: 'transfer',   label: 'Needs transfer assist',  icon: '🤝',  sub: 'Help moving between surfaces' },
+  { value: 'prosthetic', label: 'Prosthetic limb',        icon: '🦾',  sub: 'Uses a prosthesis' },
+];
+
 const INSURANCE_INFO = {
   medicare:  { name: "Medicare", shortName: "Medicare", color: "#6880a8", bg: "#edf1f8", emoji: "🏛️",
     parts: [
@@ -93,13 +78,6 @@ const INSURANCE_INFO = {
     warning: "⚠️ Many procedures require prior authorization. Always verify before scheduling." },
 };
 
-const CAREGIVING_RECS = {
-  "Mild Cognitive Impairment": ["Schedule regular cognitive assessments with a neurologist — track changes over time.", "Establish consistent daily routines to reduce confusion and anxiety.", "Research memory care facilities early — before a crisis, not during one.", "Consider a medical alert device or GPS tracker for safety and peace of mind.", "Attend a caregiver support group for dementia and MCI families.", "Simplify her living environment — reduce clutter, label cabinets, improve lighting."],
-  "Type 2 Diabetes": ["Monitor blood sugar levels regularly and keep a log to share with Dr. Kim.", "Coordinate with a registered dietitian for a diabetes-friendly meal plan.", "Ensure regular A1C testing every 3–6 months.", "Know the signs of low blood sugar: shakiness, confusion, sweating.", "Keep glucose tablets or juice accessible at home and when traveling."],
-  "Hypertension": ["Monitor blood pressure at home using a cuff and log daily readings.", "Reduce sodium intake — aim for under 2,300mg/day.", "Encourage light exercise such as short daily walks.", "Review all medications with the prescribing doctor twice a year."],
-  "Down Syndrome": ["Annual thyroid screening is essential — hypothyroidism is very common in adults with Down syndrome.", "Schedule regular vision and hearing exams every 1–2 years.", "Cervical spine X-rays are recommended due to atlantoaxial instability risk.", "Begin supported living and employment planning as early as possible.", "Connect with your local Arc chapter for services, advocacy, and peer support.", "Annual cardiology screening is recommended even in adulthood."],
-  "Hypothyroidism": ["Ensure Levothyroxine is taken consistently — same time every day, on an empty stomach.", "TSH levels should be checked every 6–12 months.", "Watch for signs of under-treatment: fatigue, unexplained weight gain, or depression."],
-};
 
 const INITIAL_MEDICATIONS = [];
 
@@ -150,6 +128,15 @@ const SUGGESTIONS = [
 
 // serif and sans imported from @shared/theme
 
+function calcAge(birthdate) {
+  if (!birthdate) return null;
+  const today = new Date();
+  const bd = new Date(birthdate + 'T00:00:00');
+  let age = today.getFullYear() - bd.getFullYear();
+  const m = today.getMonth() - bd.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+  return age;
+}
 function getDaysInMonth(m, y) { return new Date(y, m + 1, 0).getDate(); }
 function getFirstDay(m, y) { return new Date(y, m, 1).getDay(); }
 const RECIPIENT_PALETTE = ['#c07878','#5f9e9a','#9b87b8','#c49050','#7a9e72','#7a8abf'];
@@ -202,7 +189,6 @@ function hmpTo24(h,m,p) { let n=parseInt(h); if(p==='AM'&&n===12)n=0; if(p==='PM
 function fmtLongDate(ds) {
   return new Date(ds + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
-function getDailyMessage() { return DAILY_MESSAGES[(new Date("2026-03-25").getDate() - 1) % DAILY_MESSAGES.length]; }
 function getResponse(text) {
   const t = text.toLowerCase();
   if (t.includes("memory") || t.includes("cognitive")) return CHAT_RESPONSES.memory;
@@ -239,33 +225,6 @@ function BackBtn({ onBack, label = "Back" }) {
   return (
     <button onClick={onBack} style={{ background: C.card, border: "none", borderRadius: 20, padding: "7px 14px", color: C.muted, fontSize: 13, fontWeight: 600, fontFamily: sans, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, marginBottom: 16, boxShadow: CARD_SHADOW_SM }}>
       <ChevronLeft size={15} />{label}
-    </button>
-  );
-}
-
-// ─── DAILY MESSAGE ─────────────────────────────────────────────────────────────
-
-function DailyMessageCard({ onHide }) {
-  return (
-    <div style={{ background: "linear-gradient(135deg, #e8eff8 0%, #f0eaf8 50%, #f8eded 100%)", borderRadius: 22, padding: "18px 20px", marginBottom: 20, boxShadow: CARD_SHADOW_SM, position: "relative" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 1.2, marginBottom: 10, textTransform: "uppercase", fontFamily: sans }}>✦ Today's message</p>
-          <p style={{ fontSize: 15, color: C.text, lineHeight: 1.8, fontFamily: serif, fontStyle: "italic", fontWeight: 400 }}>"{getDailyMessage()}"</p>
-          <p style={{ fontSize: 11, color: C.mutedLight, marginTop: 10, fontFamily: sans }}>— Aiden</p>
-        </div>
-        <button onClick={onHide} style={{ background: "rgba(255,255,255,0.5)", border: "none", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-          <EyeOff size={13} color={C.muted} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ShowMessageBtn({ onShow }) {
-  return (
-    <button onClick={onShow} style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: `1px dashed ${C.border}`, borderRadius: 14, padding: "8px 14px", color: C.mutedLight, fontSize: 12, fontWeight: 500, fontFamily: sans, cursor: "pointer", marginBottom: 20 }}>
-      <Eye size={13} /> Show today's message
     </button>
   );
 }
@@ -391,9 +350,142 @@ function NotifToggle({ on, onChange }) {
   );
 }
 
+// ─── CONNECTIONS HELPERS ──────────────────────────────────────────────────────
+
+const GCAL_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events';
+
+function gcalClientId() { return import.meta.env.VITE_GOOGLE_CALENDAR_CLIENT_ID || ''; }
+
+function pkceGenerateVerifier() {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function pkceChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+// Custom scheme used on native; web uses window.location.origin
+const GCAL_NATIVE_SCHEME = 'com.aiden.caregiverapp://oauth';
+
+async function isNativePlatform() {
+  try {
+    const { Capacitor } = await import('@capacitor/core');
+    return Capacitor.isNativePlatform();
+  } catch { return false; }
+}
+
+function gcalRedirectUri() {
+  // Reads whatever was stored when the flow was started so exchange uses the same URI
+  return sessionStorage.getItem('gcal_redirect_uri') || window.location.origin;
+}
+
+async function startGoogleCalendarOAuth() {
+  const verifier  = pkceGenerateVerifier();
+  const challenge = await pkceChallenge(verifier);
+  sessionStorage.setItem('gcal_verifier', verifier);
+
+  const native      = await isNativePlatform();
+  const redirectUri = native ? GCAL_NATIVE_SCHEME : window.location.origin;
+  sessionStorage.setItem('gcal_redirect_uri', redirectUri);
+
+  const params = new URLSearchParams({
+    client_id:             gcalClientId(),
+    redirect_uri:          redirectUri,
+    response_type:         'code',
+    scope:                 GCAL_SCOPES,
+    code_challenge:        challenge,
+    code_challenge_method: 'S256',
+    access_type:           'offline',
+    prompt:                'consent',
+    state:                 'gcal_connect',
+  });
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+
+  if (native) {
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.open({ url: authUrl });
+  } else {
+    window.location.href = authUrl;
+  }
+}
+
+async function exchangeGCalCode(code) {
+  const verifier = sessionStorage.getItem('gcal_verifier') || '';
+  sessionStorage.removeItem('gcal_verifier');
+  const body = new URLSearchParams({
+    code,
+    client_id:     gcalClientId(),
+    redirect_uri:  gcalRedirectUri(),
+    grant_type:    'authorization_code',
+    code_verifier: verifier,
+  });
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  return resp.json();
+}
+
+async function refreshGCalToken(refreshToken) {
+  const body = new URLSearchParams({
+    client_id: gcalClientId(),
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+  });
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  return resp.json();
+}
+
+async function fetchGCalUserEmail(accessToken) {
+  try {
+    const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const data = await resp.json();
+    return data.email || null;
+  } catch { return null; }
+}
+
+// Converts an email into a safe key for secure storage and Firestore field names
+function gcalTokenKey(email) {
+  return 'gcal_' + email.replace(/[.@+]/g, '_');
+}
+
+async function fetchGCalEvents(accessToken, email) {
+  const now    = new Date().toISOString();
+  const future = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+  const resp = await fetch(
+    `/api/google-calendar/calendars/primary/events?` +
+    new URLSearchParams({ timeMin: now, timeMax: future, singleEvents: 'true', orderBy: 'startTime', maxResults: '100' }),
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!resp.ok) throw new Error(`GCal fetch failed: ${resp.status}`);
+  const data = await resp.json();
+  const key = email ? gcalTokenKey(email) : 'unknown';
+  return (data.items || []).map(ev => ({
+    id:          `gcal_${key}_${ev.id}`,
+    title:       ev.summary || '(No title)',
+    date:        ev.start?.dateTime?.slice(0, 10) || ev.start?.date || '',
+    time:        ev.start?.dateTime ? new Date(ev.start.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+    notes:       ev.description || '',
+    source:      'google_calendar',
+    gcalEmail:   email || null,
+    gcalEventId: ev.id,
+  }));
+}
+
 // ─── PROFILE SHEET ────────────────────────────────────────────────────────────
 
-function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, onRefresh }) {
+function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, onRefresh, onGCalConnected }) {
   const [subTab, setSubTab] = useState('profile');
 
   // Profile state
@@ -405,6 +497,125 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
   const [resetSent, setResetSent]     = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms]     = useState(false);
+
+  // Connections state
+  const [connStatus, setConnStatus]       = useState({});
+  const [connLoading, setConnLoading]     = useState(false);
+  const [connError, setConnError]         = useState('');
+  const [healthStatus, setHealthStatus]   = useState('idle'); // idle | requesting | connected | unavailable
+  const [healthData, setHealthData]       = useState(null);
+  const [gcalSyncing, setGcalSyncing]     = useState({}); // { [tokenKey]: bool }
+
+  // Load connection metadata from Firestore; tokens live in device secure storage
+  useEffect(() => {
+    if (!user) return;
+    getDoc(doc(db, 'users', user.uid, 'connections', 'status')).then(snap => {
+      if (snap.exists()) setConnStatus(snap.data());
+    });
+  }, [user]);
+
+  // Derive sorted array of connected Google Calendar accounts from Firestore metadata
+  const gcalAccounts = Object.entries(connStatus.googleCalendars || {})
+    .map(([key, meta]) => ({ key, ...meta }))
+    .sort((a, b) => (a.connectedAt || 0) - (b.connectedAt || 0));
+
+  async function handleConnectGoogleCalendar() {
+    if (!gcalClientId()) {
+      setConnError('Google Calendar client ID not configured — add VITE_GOOGLE_CALENDAR_CLIENT_ID to .env');
+      return;
+    }
+    setConnError('');
+    await startGoogleCalendarOAuth();
+  }
+
+  async function handleDisconnectGoogleCalendar(key, email) {
+    setConnLoading(true);
+    try {
+      await clearTokens(key);
+      // Remove this account's entry from the googleCalendars map in Firestore
+      const updated = { ...(connStatus.googleCalendars || {}) };
+      delete updated[key];
+      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { googleCalendars: updated }, { merge: true });
+      setConnStatus(p => {
+        const cals = { ...(p.googleCalendars || {}) };
+        delete cals[key];
+        return { ...p, googleCalendars: cals };
+      });
+      onGCalConnected?.([], email);
+    } catch { setConnError('Could not disconnect — try again.'); }
+    setConnLoading(false);
+  }
+
+  async function handleSyncGoogleCalendar(key, email) {
+    setGcalSyncing(p => ({ ...p, [key]: true })); setConnError('');
+    try {
+      const stored = await loadTokens(key);
+      if (!stored?.accessToken) throw new Error('Not connected — please reconnect Google Calendar.');
+      let { accessToken, refreshToken, expiresAt } = stored;
+      if (Date.now() > (expiresAt || 0) - 60_000) {
+        const refreshed = await refreshGCalToken(refreshToken);
+        if (!refreshed.access_token) throw new Error('Session expired — please reconnect Google Calendar.');
+        accessToken = refreshed.access_token;
+        expiresAt   = Date.now() + (refreshed.expires_in || 3600) * 1000;
+        await saveTokens(key, { accessToken, refreshToken, expiresAt });
+      }
+      const events = await fetchGCalEvents(accessToken, email);
+      // Only metadata (no tokens) goes to Firestore
+      const meta = { email, connectedAt: connStatus.googleCalendars?.[key]?.connectedAt || Date.now(), lastSync: Date.now(), eventCount: events.length };
+      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { googleCalendars: { [key]: meta } }, { merge: true });
+      setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: meta } }));
+      onGCalConnected?.(events, email);
+    } catch (e) {
+      setConnError(e.message || 'Sync failed — try reconnecting.');
+    }
+    setGcalSyncing(p => ({ ...p, [key]: false }));
+  }
+
+  async function handleConnectHealth() {
+    setHealthStatus('requesting'); setConnError('');
+    try {
+      const platform = (await import('@capacitor/core')).Capacitor.getPlatform();
+      if (platform === 'ios') {
+        const { CapacitorHealthkit } = await import('@perfood/capacitor-healthkit');
+        await CapacitorHealthkit.requestAuthorization({
+          all: [], write: [],
+          read: ['steps', 'heart_rate', 'weight', 'blood_pressure_systolic', 'blood_pressure_diastolic'],
+        });
+        const now   = new Date();
+        const week  = new Date(now - 7 * 24 * 60 * 60 * 1000);
+        const steps = await CapacitorHealthkit.queryHKitSampleType({ sampleName: 'steps', startDate: week.toISOString(), endDate: now.toISOString(), limit: 7 });
+        setHealthData({ platform: 'ios', steps: steps?.resultData?.reduce((s, r) => s + (r.value || 0), 0) || 0, synced: Date.now() });
+        setHealthStatus('connected');
+        // Only store connection metadata in Firestore — no health data goes server-side
+        await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { health: { platform: 'ios', connectedAt: Date.now(), lastSync: Date.now() } }, { merge: true });
+        setConnStatus(p => ({ ...p, health: { platform: 'ios', connectedAt: Date.now(), lastSync: Date.now() } }));
+      } else if (platform === 'android') {
+        const { HealthConnect } = await import('capacitor-health-connect');
+        const avail = await HealthConnect.checkAvailability();
+        if (avail.availability !== 'Available') {
+          setConnError('Install the Health Connect app from the Play Store first.');
+          setHealthStatus('idle'); return;
+        }
+        await HealthConnect.requestHealthPermissions({ read: ['Steps', 'HeartRate', 'Weight'], write: [] });
+        setHealthStatus('connected');
+        await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { health: { platform: 'android', connectedAt: Date.now(), lastSync: Date.now() } }, { merge: true });
+        setConnStatus(p => ({ ...p, health: { platform: 'android', connectedAt: Date.now(), lastSync: Date.now() } }));
+      } else {
+        setConnError('Health data is only available on iOS and Android devices.');
+        setHealthStatus('unavailable');
+      }
+    } catch (e) {
+      setConnError(e.message?.includes('denied') ? 'Health access denied — check Settings > Privacy > Health.' : (e.message || 'Could not connect to Health.'));
+      setHealthStatus('idle');
+    }
+  }
+
+  async function handleDisconnectHealth() {
+    await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { health: null }, { merge: true });
+    setConnStatus(p => ({ ...p, health: null }));
+    setHealthData(null);
+    setHealthStatus('idle');
+  }
 
   // Notifications state
   const defaultPrefs = {
@@ -490,8 +701,8 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
 
       {/* Subnav */}
       <div style={{ background:'white', borderBottom:`1px solid ${C.border}`, display:'flex', flexShrink:0 }}>
-        {[{ id:'profile', label:'Profile' }, { id:'notifications', label:'Notifications' }].map(t => (
-          <button key={t.id} onClick={() => setSubTab(t.id)} style={{ flex:1, padding:'13px 8px', background:'none', border:'none', fontWeight: subTab===t.id ? 700 : 400, fontSize:13, color: subTab===t.id ? C.rose : C.mutedLight, fontFamily:sans, borderBottom: subTab===t.id ? `2px solid ${C.rose}` : '2px solid transparent', cursor:'pointer' }}>
+        {[{ id:'profile', label:'Profile' }, { id:'notifications', label:'Notifications' }, { id:'connections', label:'Connections' }].map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)} style={{ flex:1, padding:'13px 6px', background:'none', border:'none', fontWeight: subTab===t.id ? 700 : 400, fontSize:13, color: subTab===t.id ? C.rose : C.mutedLight, fontFamily:sans, borderBottom: subTab===t.id ? `2px solid ${C.rose}` : '2px solid transparent', cursor:'pointer' }}>
             {t.label}
           </button>
         ))}
@@ -631,6 +842,142 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
             {notifSaved ? '✓ Saved' : 'Save preferences'}
           </button>
 
+        </>)}
+
+        {/* ── CONNECTIONS ──────────────────────────────────────────────────── */}
+        {subTab === 'connections' && (<>
+          <p style={{ fontSize:13, color:C.muted, fontFamily:sans, lineHeight:1.5, marginBottom:20 }}>
+            Connect Aiden to services you already use to keep everything in sync automatically.
+          </p>
+
+          {connError && (
+            <div style={{ background:'#fff5f5', border:`1px solid ${C.roseLight}`, borderRadius:12, padding:'10px 14px', marginBottom:14, fontSize:12, color:C.rose, fontFamily:sans, lineHeight:1.5 }}>
+              {connError}
+            </div>
+          )}
+
+          {/* ── Health card ── */}
+          <div style={{ borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', marginBottom:16, background:'white' }}>
+            <div style={{ padding:'14px 16px', borderBottom:`1px solid ${C.bg}`, display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:40, height:40, borderRadius:12, background:'linear-gradient(135deg,#ff6b6b,#ff3860)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:20 }}>
+                ❤️
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <p style={{ fontSize:15, fontWeight:700, color:C.text, fontFamily:sans, margin:0 }}>Health Data</p>
+                <p style={{ fontSize:12, color:C.muted, fontFamily:sans, margin:0, marginTop:2 }}>
+                  Apple Health (iOS) · Google Health Connect (Android)
+                </p>
+              </div>
+              {connStatus.health?.connectedAt ? (
+                <span style={{ fontSize:11, fontWeight:700, color:'#3a6e58', background:'#f0f7f4', borderRadius:8, padding:'4px 8px', flexShrink:0 }}>Connected</span>
+              ) : null}
+            </div>
+            <div style={{ padding:'12px 16px' }}>
+              <p style={{ fontSize:12, color:C.muted, fontFamily:sans, lineHeight:1.6, marginBottom:12 }}>
+                Read steps, heart rate, weight, and blood pressure directly from your device's health app.
+                Data stays on your device and is only used to enrich care guidance.
+              </p>
+              {connStatus.health?.lastSync && (
+                <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, marginBottom:10 }}>
+                  Last synced {new Date(connStatus.health.lastSync).toLocaleDateString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                </p>
+              )}
+              {healthData && (
+                <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+                  {healthData.steps != null && (
+                    <div style={{ background:C.bg, borderRadius:10, padding:'6px 10px', fontSize:12, fontFamily:sans, color:C.text }}>
+                      <span style={{ fontWeight:700 }}>{healthData.steps.toLocaleString()}</span> steps this week
+                    </div>
+                  )}
+                </div>
+              )}
+              {connStatus.health?.connectedAt ? (
+                <div style={{ display:'flex', gap:8 }}>
+                  <button onClick={handleConnectHealth} disabled={healthStatus==='requesting'}
+                    style={{ flex:1, background:C.bg, border:`1px solid ${C.border}`, borderRadius:10, padding:'9px 0', fontSize:13, fontWeight:600, fontFamily:sans, color:C.text, cursor:'pointer' }}>
+                    {healthStatus==='requesting' ? 'Syncing…' : 'Sync now'}
+                  </button>
+                  <button onClick={handleDisconnectHealth}
+                    style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:10, padding:'9px 12px', fontSize:13, color:C.muted, fontFamily:sans, cursor:'pointer' }}>
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <button onClick={handleConnectHealth} disabled={healthStatus==='requesting'}
+                  style={{ width:'100%', background:`linear-gradient(135deg,${C.rose},${C.roseDark})`, color:'white', border:'none', borderRadius:10, padding:'10px 0', fontSize:13, fontWeight:700, fontFamily:sans, cursor:'pointer', opacity:healthStatus==='requesting'?0.7:1 }}>
+                  {healthStatus==='requesting' ? 'Requesting access…' : 'Connect Health'}
+                </button>
+              )}
+              {healthStatus==='unavailable' && (
+                <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, marginTop:8, textAlign:'center' }}>
+                  Available on iOS and Android devices only
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* ── Google Calendar card ── */}
+          <div style={{ borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', marginBottom:16, background:'white' }}>
+            <div style={{ padding:'14px 16px', borderBottom:`1px solid ${C.bg}`, display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:40, height:40, borderRadius:12, background:'white', border:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:20 }}>
+                📅
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <p style={{ fontSize:15, fontWeight:700, color:C.text, fontFamily:sans, margin:0 }}>Google Calendar</p>
+                <p style={{ fontSize:12, color:C.muted, fontFamily:sans, margin:0, marginTop:2 }}>Import appointments automatically</p>
+              </div>
+              {gcalAccounts.length > 0 && (
+                <span style={{ fontSize:11, fontWeight:700, color:'#3a6e58', background:'#f0f7f4', borderRadius:8, padding:'4px 8px', flexShrink:0 }}>
+                  {gcalAccounts.length === 1 ? 'Connected' : `${gcalAccounts.length} accounts`}
+                </span>
+              )}
+            </div>
+            <div style={{ padding:'12px 16px' }}>
+              <p style={{ fontSize:12, color:C.muted, fontFamily:sans, lineHeight:1.6, marginBottom:gcalAccounts.length ? 12 : 12 }}>
+                Pull upcoming events from your Google Calendar into Aiden. You stay in control — nothing is written back.
+              </p>
+
+              {/* Connected accounts list */}
+              {gcalAccounts.map(({ key, email, lastSync, eventCount }) => (
+                <div key={key} style={{ background:C.bg, borderRadius:10, padding:'10px 12px', marginBottom:8 }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:6 }}>
+                    <div style={{ minWidth:0 }}>
+                      <p style={{ fontSize:13, fontWeight:600, color:C.text, fontFamily:sans, margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {email || 'Google Account'}
+                      </p>
+                      {lastSync && (
+                        <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, margin:0, marginTop:2 }}>
+                          Synced {new Date(lastSync).toLocaleDateString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                          {eventCount != null && ` · ${eventCount} events`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <button onClick={() => handleSyncGoogleCalendar(key, email)} disabled={!!gcalSyncing[key]}
+                      style={{ flex:1, background:'white', border:`1px solid ${C.border}`, borderRadius:8, padding:'7px 0', fontSize:12, fontWeight:600, fontFamily:sans, color:C.text, cursor:'pointer', opacity:gcalSyncing[key]?0.7:1 }}>
+                      {gcalSyncing[key] ? 'Syncing…' : 'Sync now'}
+                    </button>
+                    <button onClick={() => handleDisconnectGoogleCalendar(key, email)} disabled={connLoading}
+                      style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:8, padding:'7px 12px', fontSize:12, color:C.muted, fontFamily:sans, cursor:'pointer' }}>
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add / connect button */}
+              <button onClick={handleConnectGoogleCalendar}
+                style={{ width:'100%', background:'white', color:'#444', border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 0', fontSize:13, fontWeight:600, fontFamily:sans, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop: gcalAccounts.length ? 4 : 0 }}>
+                <span style={{ fontSize:16 }}>G</span>
+                {gcalAccounts.length ? 'Add another account' : 'Connect with Google'}
+              </button>
+            </div>
+          </div>
+
+          <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, textAlign:'center', lineHeight:1.6 }}>
+            More connections — pharmacy refills, Medicare data, and more — coming soon.
+          </p>
         </>)}
       </div>
 
@@ -1336,7 +1683,7 @@ function TodayMedsView({ medications, recipients, medLog, onToggle, onBack }) {
 
 // ─── HOME TAB ──────────────────────────────────────────────────────────────────
 
-function HomeTab({ recipients, appointments, logistics, medications, medLog, onGoToMeds, onSelect, onGoToList, showMsg, setShowMsg, onShowAddEvent, notificationRole, reminderMethods, onOpenSettings, onUpdateAppt, onDeleteAppt }) {
+function HomeTab({ recipients, appointments, logistics, medications, medLog, onGoToMeds, onSelect, onGoToList, onShowAddEvent, notificationRole, reminderMethods, onOpenSettings, onUpdateAppt, onDeleteAppt }) {
   const pending = logistics.filter(l => !l.completed).length;
 
   // Parse appointment date+time to ms using local time
@@ -1358,8 +1705,6 @@ function HomeTab({ recipients, appointments, logistics, medications, medLog, onG
         <p style={{ color: C.mutedLight, fontSize: 12, fontFamily: sans, letterSpacing: 0.3, marginBottom: 4 }}>Wednesday, March 25, 2026</p>
       </div>
       <h1 style={{ fontSize: 26, fontWeight: 600, color: C.text, marginBottom: 20, fontFamily: serif, letterSpacing: -0.5, lineHeight: 1.25 }}>{getGreeting()},<br /><em>Holly.</em></h1>
-
-      {showMsg ? <DailyMessageCard onHide={() => setShowMsg(false)} /> : <ShowMessageBtn onShow={() => setShowMsg(true)} />}
 
       {/* Alert row */}
       {pending > 0 && (
@@ -1459,16 +1804,17 @@ function HomeTab({ recipients, appointments, logistics, medications, medLog, onG
 
 function RecipientsPage({ recipients, onSelect, onBack, onAdd, onDelete }) {
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: "", nickname: "", age: "", relationship: "", conditions: [], medications: [], insurancePlans: [], notes: "", importantNumbers: [], photo: null });
+  const BLANK_RECIP = { name: "", nickname: "", birthdate: "", relationship: "", address: "", facilityType: null, conditions: [], medications: [], insurancePlans: [], notes: "", importantNumbers: [], photo: null, mobility: [] };
+  const [form, setForm] = useState(BLANK_RECIP);
   const [saving, setSaving] = useState(false);
 
   async function handleAdd() {
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || !form.birthdate || !form.address.trim()) return;
     setSaving(true);
-    await onAdd({ ...form, age: form.age ? Number(form.age) : null });
+    await onAdd({ ...form });
     setSaving(false);
     setShowAdd(false);
-    setForm({ name: "", nickname: "", age: "", relationship: "", conditions: [], medications: [], insurancePlans: [], notes: "", importantNumbers: [], photo: null });
+    setForm(BLANK_RECIP);
   }
 
   return (
@@ -1492,7 +1838,7 @@ function RecipientsPage({ recipients, onSelect, onBack, onAdd, onDelete }) {
                   {r.relationship && <span style={{ fontSize: 10, color: C.muted, background: C.bg, borderRadius: 10, padding: "2px 8px", fontWeight: 600, fontFamily: sans }}>{r.relationship}</span>}
                 </div>
                 <p style={{ fontSize: 12, color: C.muted, marginBottom: 8, fontFamily: sans }}>
-                  {r.age ? `Age ${r.age}` : ""}{r.age && r.conditions?.length ? " · " : ""}{r.conditions?.[0] ?? ""}{r.conditions?.length > 1 ? ` +${r.conditions.length - 1}` : ""}
+                  {(() => { const a = calcAge(r.birthdate) ?? r.age; return a ? `Age ${a}` : ""; })()}{(() => { const a = calcAge(r.birthdate) ?? r.age; return a && r.conditions?.length ? " · " : ""; })()}{r.conditions?.[0] ?? ""}{r.conditions?.length > 1 ? ` +${r.conditions.length - 1}` : ""}
                 </p>
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
                   {(r.insurancePlans ?? []).map(p => INSURANCE_INFO[p] ? <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color} /> : <Pill key={p} label={`🛡️ ${p}`} color={C.muted} />)}
@@ -1524,17 +1870,56 @@ function RecipientsPage({ recipients, onSelect, onBack, onAdd, onDelete }) {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <EditInput value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="Full name *" />
+              <div>
+                <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 4 }}>Date of birth *</p>
+                <input type="date" value={form.birthdate} onChange={e => setForm(f => ({ ...f, birthdate: e.target.value }))} max={todayStr()} style={{ width: "100%", background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", fontSize: 13, fontFamily: sans, color: C.text, outline: "none", boxSizing: "border-box" }} />
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 <EditInput value={form.nickname} onChange={v => setForm(f => ({ ...f, nickname: v }))} placeholder="Nickname" />
-                <EditInput value={form.age} onChange={v => setForm(f => ({ ...f, age: v }))} placeholder="Age" />
+                <EditInput value={form.relationship} onChange={v => setForm(f => ({ ...f, relationship: v }))} placeholder="Relationship" />
               </div>
-              <EditInput value={form.relationship} onChange={v => setForm(f => ({ ...f, relationship: v }))} placeholder="Relationship (e.g. Parent)" />
+              <div>
+                <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 4 }}>Home / facility address *</p>
+                <PlacesInput value={form.address} onChange={v => setForm(f => ({ ...f, address: v }))} placeholder="Start typing an address…" style={{ width: "100%", background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", fontSize: 13, fontFamily: sans, color: C.text, outline: "none", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 6 }}>Is {form.name.trim() || "this person"} at a care facility?</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {FACILITY_TYPES.map(f => {
+                    const active = form.facilityType === f.value;
+                    return (
+                      <button key={f.value} type="button" onClick={() => setForm(fm => ({ ...fm, facilityType: active ? null : f.value }))}
+                        style={{ background: active ? "#f0ece8" : C.bg, border: `1.5px solid ${active ? C.roseDark : C.border}`, borderRadius: 20, padding: "5px 12px", fontSize: 12, fontWeight: active ? 600 : 400, color: active ? C.roseDark : C.muted, fontFamily: sans, cursor: "pointer" }}>
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <EditInput value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} placeholder="Notes (optional)" multiline />
+              <div>
+                <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 6 }}>Mobility <span style={{ fontWeight: 400, color: C.mutedLight }}>(select all that apply)</span></p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {MOBILITY_OPTIONS.map(opt => {
+                    const active = (form.mobility ?? []).includes(opt.value);
+                    return (
+                      <button key={opt.value} type="button" onClick={() => setForm(f => ({ ...f, mobility: active ? (f.mobility ?? []).filter(v => v !== opt.value) : [...(f.mobility ?? []), opt.value] }))}
+                        style={{ display: "flex", alignItems: "center", gap: 10, background: active ? "#f0ece8" : C.bg, border: `1.5px solid ${active ? C.roseDark : C.border}`, borderRadius: 10, padding: "8px 12px", cursor: "pointer", textAlign: "left" }}>
+                        <span style={{ fontSize: 16, flexShrink: 0 }}>{opt.icon}</span>
+                        <span style={{ fontSize: 13, fontWeight: active ? 600 : 400, color: active ? C.roseDark : C.text, fontFamily: sans, flex: 1 }}>{opt.label}</span>
+                        {active && <Check size={13} color={C.roseDark} style={{ flexShrink: 0 }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-              <button onClick={handleAdd} disabled={saving || !form.name.trim()} style={{ flex: 1, background: saving || !form.name.trim() ? C.border : `linear-gradient(135deg, ${C.rose}, ${C.roseDark})`, color: "white", border: "none", borderRadius: 14, padding: "13px 0", fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: saving || !form.name.trim() ? "default" : "pointer" }}>
+              {(() => { const dis = saving || !form.name.trim() || !form.birthdate || !form.address.trim(); return (
+              <button onClick={handleAdd} disabled={dis} style={{ flex: 1, background: dis ? C.border : `linear-gradient(135deg, ${C.rose}, ${C.roseDark})`, color: "white", border: "none", borderRadius: 14, padding: "13px 0", fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: dis ? "default" : "pointer" }}>
                 {saving ? "Saving…" : "Add recipient"}
               </button>
+              ); })()}
               <button onClick={() => setShowAdd(false)} style={{ flex: 1, background: C.bg, color: C.muted, border: "none", borderRadius: 14, padding: "13px 0", fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: "pointer" }}>Cancel</button>
             </div>
           </div>
@@ -1716,7 +2101,9 @@ function MobileCareChangeSheet({ recipientId, onClose, onAdd }) {
   );
 }
 
-function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments, medSchedules = [], onSaveMedSchedule, onDeleteMedSchedule, onLogMedication, careChanges = [], onAddCareChange, onDeleteCareChange, medications = [], onAddMed, onUpdateMed, onDeleteMed }) {
+const DOC_TYPES = ['Will', 'Power of Attorney', 'Advanced Directive', 'Insurance Card', 'Medical Record', 'Other'];
+
+function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, onAddDoctor, onUpdateDoctor, onDeleteDoctor, appointments, medSchedules = [], onSaveMedSchedule, onDeleteMedSchedule, onLogMedication, careChanges = [], onAddCareChange, onDeleteCareChange, medications = [], onAddMed, onUpdateMed, onDeleteMed, resources = [], onAddResource, onUpdateResource, onDeleteResource }) {
   const [tab, setTab] = useState("overview");
   const [data, setData] = useState({ ...r });
   const [editSection, setEditSection] = useState(null);
@@ -1732,6 +2119,85 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
   const [weeklyCareCustom, setWeeklyCareCustom] = useState('');
   const [showInsuranceModal, setShowInsuranceModal] = useState(false);
   const [showChangeSheet, setShowChangeSheet]       = useState(false);
+  const [editDoctorId, setEditDoctorId]             = useState(null);
+  const [editDoctorBuf, setEditDoctorBuf]           = useState({});
+  const [deleteDoctorId, setDeleteDoctorId]         = useState(null);
+  const [editMobility, setEditMobility]             = useState(false);
+  const [guidance, setGuidance]                     = useState(null);   // array of {title, items}
+  const [guidanceLoading, setGuidanceLoading]       = useState(false);
+  const [guidanceError, setGuidanceError]           = useState('');
+  const [guidanceDirty, setGuidanceDirty]           = useState(true);   // true = button enabled
+  const [guidanceSnapshot, setGuidanceSnapshot]     = useState(null);
+
+  // Documents state
+  const [rdocs, setRdocs]               = useState([]);
+  const [rdocsLoading, setRdocsLoading] = useState(false);
+  const [ruploading, setRuploading]     = useState(false);
+  const [rdeletingDoc, setRdeletingDoc] = useState(null);
+  const [rdocError, setRdocError]       = useState('');
+  const rdocFileRef                     = useRef(null);
+  const [rdocTypePick, setRdocTypePick] = useState(false);
+  const [pendingDocType, setPendingDocType] = useState('');
+
+  // Resources state
+  const [resourceSheet, setResourceSheet] = useState(null); // null | 'new' | resource-object
+  const myResources = resources.filter(res => String(res.recipientId) === String(r.id));
+
+  useEffect(() => {
+    if (tab === 'docs') loadRdocs();
+  }, [tab]);
+
+  async function loadRdocs() {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setRdocsLoading(true); setRdocError('');
+    try {
+      const folder = storageRef(storage, `users/${uid}/documents`);
+      const result = await listAll(folder);
+      const items  = await Promise.all(result.items.map(async itemRef => {
+        const [meta, url] = await Promise.all([getMetadata(itemRef), getDownloadURL(itemRef)]);
+        return {
+          fullPath:    itemRef.fullPath,
+          ref:         itemRef,
+          name:        meta.customMetadata?.originalName ?? itemRef.name,
+          size:        meta.size,
+          uploadedAt:  meta.timeCreated,
+          contentType: meta.contentType,
+          recipientId: meta.customMetadata?.recipientId || null,
+          docType:     meta.customMetadata?.docType || '',
+          url,
+        };
+      }));
+      items.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+      setRdocs(items.filter(d => String(d.recipientId) === String(r.id)));
+    } catch(e) { console.error('loadRdocs:', e); setRdocError('Could not load documents.'); }
+    setRdocsLoading(false);
+  }
+
+  async function handleRdocUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setRuploading(true); setRdocError('');
+    try {
+      const path = `users/${uid}/documents/${Date.now()}_${file.name}`;
+      const fRef = storageRef(storage, path);
+      await uploadBytes(fRef, file, { customMetadata: { originalName: file.name, recipientId: String(r.id), docType: pendingDocType } });
+      setPendingDocType('');
+      await loadRdocs();
+    } catch { setRdocError('Upload failed — please try again.'); }
+    setRuploading(false);
+  }
+
+  async function handleRdocDelete(d) {
+    try {
+      await deleteObject(d.ref);
+      setRdocs(prev => prev.filter(x => x.fullPath !== d.fullPath));
+      setRdeletingDoc(null);
+    } catch { setRdocError('Could not delete document.'); }
+  }
 
   // Normalise mobility to always be an array
   const mobilityArr = Array.isArray(data.mobility) ? data.mobility : (data.mobility ? [data.mobility] : []);
@@ -1772,6 +2238,9 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
     onUpdate && onUpdate(updated);
     setEditSection(null);
     setBuf({});
+    // Mark guidance as stale whenever profile data changes
+    const snap = JSON.stringify(updated);
+    if (snap !== guidanceSnapshot) setGuidanceDirty(true);
   }
 
   function startEdit(section, initial) {
@@ -1784,6 +2253,90 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
     if (!f) return;
     const url = URL.createObjectURL(f);
     save({ photo: url });
+  }
+
+  async function generateGuidance() {
+    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+    if (!apiKey) { setGuidanceError('Anthropic API key not configured — add VITE_ANTHROPIC_API_KEY to .env.'); return; }
+    setGuidanceLoading(true);
+    setGuidanceError('');
+    const age = calcAge(data.birthdate) ?? data.age;
+    const mobLabels = mobilityArr.map(v => MOBILITY_OPTIONS.find(o => o.value === v)?.label ?? v);
+    const recipMeds = medications.filter(m => m.recipientId === data.id);
+    const facilityLabel = FACILITY_TYPES.find(f => f.value === data.facilityType)?.label;
+    const livingSituation = facilityLabel
+      ? `Care setting: ${facilityLabel}${data.address ? ` (${data.address})` : ''}`
+      : data.address
+        ? `Living at home (${data.address})`
+        : 'Living at home';
+
+    const profile = [
+      `Name: ${data.name}`,
+      age               ? `Age: ${age}`                                                                                                  : null,
+      data.relationship ? `Relationship to caregiver: ${data.relationship}`                                                              : null,
+      livingSituation,
+      data.conditions?.length   ? `Medical conditions: ${data.conditions.join(', ')}`                                                    : null,
+      mobLabels.length          ? `Mobility: ${mobLabels.join(', ')}`                                                                    : null,
+      data.insurancePlans?.length ? `Insurance: ${data.insurancePlans.map(p => INSURANCE_INFO[p]?.name ?? p).join(', ')}`               : null,
+      myDoctors.length          ? `Care team: ${myDoctors.map(d => `${d.name}${d.specialty ? ` (${d.specialty})` : ''}`).join(', ')}`   : null,
+      recipMeds.length          ? `Medications: ${recipMeds.map(m => `${m.name}${m.dosage ? ` ${m.dosage}` : ''}${m.frequency ? `, ${m.frequency}` : ''}`).join('; ')}` : null,
+      upcomingAppts.length      ? `Upcoming appointments: ${upcomingAppts.slice(0, 4).map(a => `${a.title} on ${a.date}`).join(', ')}`   : null,
+      data.notes        ? `Additional notes: ${data.notes}`                                                                              : null,
+    ].filter(Boolean).join('\n');
+
+    const settingContext = facilityLabel
+      ? `The care recipient lives in a ${facilityLabel.toLowerCase()}. Tailor guidance accordingly: focus on how the caregiver can advocate effectively within a facility setting — communicating with staff, monitoring care quality, understanding residents' rights, navigating facility policies, and making the most of visits. Avoid recommending things the facility's professional staff already handle (e.g. medication administration, wound care). Do include guidance on staying informed, coordinating with the care team, and supporting emotional wellbeing during visits.`
+      : `The care recipient lives at home, likely with family support. Tailor guidance accordingly: focus on practical day-to-day caregiving, home safety, managing medications and appointments, preventing caregiver burnout, and knowing when to seek additional help.`;
+
+    const prompt = `You are Aiden, a compassionate AI assistant for family caregivers. A caregiver has come to you for guidance on caring for their loved one. Based on the profile below, provide warm, empathetic, practical caregiving guidance.
+
+Care recipient profile:
+${profile}
+
+${settingContext}
+
+Return a JSON array of guidance sections. Each section has:
+- "title": a short, warm section heading (e.g. "Managing Diabetes Day-to-Day")
+- "items": an array of 3–5 specific, actionable recommendations
+
+Draw on trusted sources where relevant: CDC, NIH, Medicare.gov, AARP, National Institute on Aging, MedlinePlus, eldercare.acl.gov, Long-Term Care Ombudsman program. Be compassionate — acknowledge the difficulty of caregiving when appropriate. Include only sections relevant to this person's actual data. Include 3–6 sections total.
+
+If conditions, medications, or mobility needs are listed, address those specifically. If insurance is listed, include one section on navigating coverage. Always include a brief caregiver wellbeing section.
+
+Respond with ONLY a valid JSON array. No markdown fences, no other text.`;
+
+    try {
+      const res = await fetch('/api/anthropic/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        let msg = t;
+        try { msg = JSON.parse(t)?.error?.message ?? t; } catch {}
+        throw new Error(msg);
+      }
+      const json = await res.json();
+      const raw  = json.content[0].text.trim().replace(/^```[a-z]*\n?/i, '').replace(/```$/, '').trim();
+      const sections = JSON.parse(raw);
+      setGuidance(sections);
+      setGuidanceDirty(false);
+      setGuidanceSnapshot(JSON.stringify(data));
+    } catch (e) {
+      console.error('Guidance error:', e);
+      setGuidanceError(e.message || 'Could not generate guidance — please try again.');
+    }
+    setGuidanceLoading(false);
   }
 
   // ── List helpers ──────────────────────────────────────────────────────────
@@ -1849,20 +2402,52 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
           {editSection === "basic" ? (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
               <EditInput value={buf.name ?? data.name} onChange={v => setBuf(b => ({ ...b, name: v }))} placeholder="Full name" />
+              <div>
+                <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 3 }}>Date of birth</p>
+                <input type="date" value={buf.birthdate ?? data.birthdate ?? ''} onChange={e => setBuf(b => ({ ...b, birthdate: e.target.value }))} max={todayStr()} style={{ width: "100%", background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", fontSize: 13, fontFamily: sans, color: C.text, outline: "none", boxSizing: "border-box" }} />
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                 <EditInput value={buf.nickname ?? data.nickname} onChange={v => setBuf(b => ({ ...b, nickname: v }))} placeholder="Nickname" />
-                <EditInput value={buf.age ?? data.age} onChange={v => setBuf(b => ({ ...b, age: v }))} placeholder="Age" />
+                <EditInput value={buf.relationship ?? data.relationship} onChange={v => setBuf(b => ({ ...b, relationship: v }))} placeholder="Relationship" />
               </div>
-              <EditInput value={buf.relationship ?? data.relationship} onChange={v => setBuf(b => ({ ...b, relationship: v }))} placeholder="Relationship" />
               <EditInput value={buf.email ?? data.email} onChange={v => setBuf(b => ({ ...b, email: v }))} placeholder="Email" />
               <EditInput value={buf.phone ?? data.phone} onChange={v => setBuf(b => ({ ...b, phone: v }))} placeholder="Phone" />
+              <div>
+                <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 4 }}>Address</p>
+                <PlacesInput value={buf.address ?? data.address ?? ''} onChange={v => setBuf(b => ({ ...b, address: v }))} placeholder="Home / facility address" style={{ width: "100%", background: "#f7f5f2", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", fontSize: 13, fontFamily: sans, color: C.text, outline: "none", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 6 }}>Care facility?</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {FACILITY_TYPES.map(f => {
+                    const cur = buf.facilityType !== undefined ? buf.facilityType : data.facilityType;
+                    const active = cur === f.value;
+                    return (
+                      <button key={f.value} type="button" onClick={() => setBuf(b => ({ ...b, facilityType: active ? null : f.value }))}
+                        style={{ background: active ? col + "18" : C.bg, border: `1.5px solid ${active ? col : C.border}`, borderRadius: 20, padding: "5px 12px", fontSize: 12, fontWeight: active ? 600 : 400, color: active ? col : C.muted, fontFamily: sans, cursor: "pointer" }}>
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <SaveCancelRow col={col} onSave={() => save(buf)} onCancel={() => setEditSection(null)} />
             </div>
           ) : (
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 10, color: col, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", fontFamily: sans, marginBottom: 4 }}>{data.relationship}</p>
               <h2 style={{ fontSize: 22, fontWeight: 600, fontFamily: serif, color: C.text, letterSpacing: -0.3, marginBottom: 3 }}>{data.name}</h2>
-              <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, marginBottom: 6 }}>Age {data.age} · {data.email}</p>
+              <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, marginBottom: 3 }}>{(() => { const a = calcAge(data.birthdate) ?? data.age; return a ? `Age ${a}` : ''; })()}{(calcAge(data.birthdate) ?? data.age) && data.email ? ' · ' : ''}{data.email}</p>
+              {data.address && (
+                <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginBottom: 3, display: "flex", alignItems: "flex-start", gap: 4 }}>
+                  <MapPin size={11} style={{ flexShrink: 0, marginTop: 1 }} color={col} />{data.address}
+                </p>
+              )}
+              {data.facilityType && (
+                <p style={{ fontSize: 11, fontWeight: 600, color: col, fontFamily: sans, marginBottom: 4 }}>
+                  {FACILITY_TYPES.find(f => f.value === data.facilityType)?.label}
+                </p>
+              )}
               <button onClick={() => startEdit("basic", {})} style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.5)", border: "none", borderRadius: 12, padding: "4px 10px", fontSize: 11, fontWeight: 600, color: col, fontFamily: sans, cursor: "pointer" }}>
                 <Pencil size={10} /> Edit info
               </button>
@@ -1871,9 +2456,9 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
         </div>
 
         <div style={{ display: "flex", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
-          {["overview", "guidance", "changes", "notes"].map(t => (
-            <button key={t} onClick={() => { setTab(t); setEditSection(null); }} style={{ flex: 1, padding: "11px 4px", background: "none", border: "none", fontWeight: tab === t ? 700 : 400, fontSize: 12, color: tab === t ? C.text : C.muted, fontFamily: sans, cursor: "pointer", borderBottom: tab === t ? `2px solid ${col}` : "2px solid transparent", textTransform: "capitalize" }}>
-              {t}
+          {[{id:"overview",label:"Overview"},{id:"guidance",label:"Guidance"},{id:"changes",label:"Changes"},{id:"notes",label:"Notes"},{id:"docs",label:"Docs"},{id:"resources",label:"Library"}].map(t => (
+            <button key={t.id} onClick={() => { setTab(t.id); setEditSection(null); }} style={{ flex: 1, padding: "11px 2px", background: "none", border: "none", fontWeight: tab === t.id ? 700 : 400, fontSize: 11, color: tab === t.id ? C.text : C.muted, fontFamily: sans, cursor: "pointer", borderBottom: tab === t.id ? `2px solid ${col}` : "2px solid transparent" }}>
+              {t.label}
             </button>
           ))}
         </div>
@@ -1885,28 +2470,47 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
           <>
             {/* Mobility */}
             <Card style={{ marginBottom: 12 }}>
-              <SectionLabel>Mobility</SectionLabel>
-
-              {/* Multi-select toggles */}
-              <div style={{ display: "flex", gap: 8, marginBottom: mobilityArr.length > 0 ? 16 : 0 }}>
-                {[
-                  { value: 'bedridden', label: 'Bedridden', icon: '🛏', sub: 'Most of the time' },
-                  { value: 'wheelchair', label: 'Wheelchair', icon: '♿', sub: 'Needs most of the time' },
-                  { value: 'walker', label: 'Uses walking aid', icon: '🦯', sub: 'Canes, crutches, etc.' },
-                ].map(opt => {
-                  const active = mobilityArr.includes(opt.value);
-                  return (
-                    <button key={opt.value} onClick={() => toggleMobility(opt.value)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 7, background: active ? col + "14" : C.bg, border: `2px solid ${active ? col : C.border}`, borderRadius: 14, padding: "10px 10px", cursor: "pointer", transition: "all 0.15s", textAlign: "left" }}>
-                      <span style={{ fontSize: 18, flexShrink: 0 }}>{opt.icon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: active ? col : C.text, fontFamily: sans, margin: 0 }}>{opt.label}</p>
-                        <p style={{ fontSize: 10, color: C.muted, fontFamily: sans, margin: 0, lineHeight: 1.4 }}>{opt.sub}</p>
-                      </div>
-                      {active && <Check size={13} color={col} style={{ flexShrink: 0 }} />}
-                    </button>
-                  );
-                })}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: editMobility ? 14 : (mobilityArr.length > 0 ? 12 : 0) }}>
+                <SectionLabel>Mobility</SectionLabel>
+                <button onClick={() => setEditMobility(e => !e)} style={{ background: "none", border: "none", color: col, fontSize: 12, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3, marginTop: -12 }}>
+                  {editMobility ? <><Check size={12} /> Done</> : <><Pencil size={12} /> Edit</>}
+                </button>
               </div>
+
+              {editMobility ? (
+                /* ── Edit mode: all 7 options ─────────────────────── */
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: mobilityArr.length > 0 ? 16 : 0 }}>
+                  {MOBILITY_OPTIONS.map(opt => {
+                    const active = mobilityArr.includes(opt.value);
+                    return (
+                      <button key={opt.value} onClick={() => toggleMobility(opt.value)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, background: active ? col + "14" : C.bg, border: `2px solid ${active ? col : C.border}`, borderRadius: 12, padding: "10px 12px", cursor: "pointer", textAlign: "left" }}>
+                        <span style={{ fontSize: 20, flexShrink: 0 }}>{opt.icon}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: active ? col : C.text, fontFamily: sans, margin: 0 }}>{opt.label}</p>
+                          <p style={{ fontSize: 10, color: C.muted, fontFamily: sans, margin: 0, lineHeight: 1.4 }}>{opt.sub}</p>
+                        </div>
+                        {active && <Check size={13} color={col} style={{ flexShrink: 0 }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* ── Read-only: only selected ─────────────────────── */
+                mobilityArr.length === 0
+                  ? <p style={{ fontSize: 13, color: C.mutedLight, fontFamily: sans, paddingBottom: 4 }}>None selected</p>
+                  : <div style={{ marginBottom: 12 }}>
+                      {mobilityArr.map((val, i) => {
+                        const opt = MOBILITY_OPTIONS.find(o => o.value === val);
+                        if (!opt) return null;
+                        return (
+                          <div key={val} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < mobilityArr.length - 1 ? `1px solid ${C.bg}` : "none" }}>
+                            <span style={{ fontSize: 18, flexShrink: 0 }}>{opt.icon}</span>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: C.text, fontFamily: sans, margin: 0 }}>{opt.label}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+              )}
 
               {/* ── Bedridden extras ───────────────────────────────── */}
               {mobilityArr.includes('bedridden') && (
@@ -2017,6 +2621,9 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
                 <SectionLabel>Conditions</SectionLabel>
                 <EditBtn col={col} onClick={() => startEdit("conditions", { newItem: "" })} />
               </div>
+              {data.conditions.length === 0 && editSection !== "conditions" && (
+                <p style={{ fontSize: 13, color: C.mutedLight, fontFamily: sans }}>No conditions added — tap Edit to add.</p>
+              )}
               {data.conditions.map((c, i) => (
                 <div key={i} style={rowStyle(i === data.conditions.length - 1 && editSection !== "conditions")}>
                   <div style={{ width: 7, height: 7, borderRadius: "50%", background: col, flexShrink: 0 }} />
@@ -2180,35 +2787,72 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
             <Card style={{ marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <SectionLabel>Doctors</SectionLabel>
-                <button onClick={() => startEdit("addDoctor", { name: "", specialty: "", phone: "", notes: "" })} style={{ background: "none", border: "none", color: col, fontSize: 12, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3, marginTop: -12 }}><Plus size={12} /> Add</button>
+                <button onClick={() => { setEditDoctorId("new"); setEditDoctorBuf({ name: "", specialty: "", practiceName: "", phone: "", notes: "" }); setEditSection(null); }} style={{ background: "none", border: "none", color: col, fontSize: 12, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3, marginTop: -12 }}><Plus size={12} /> Add</button>
               </div>
-              {myDoctors.map((d, i) => (
-                <div key={d.id} style={rowStyle(i === myDoctors.length - 1)}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans }}>{d.name}</p>
-                    <p style={{ fontSize: 12, color: col, fontFamily: sans }}>{d.specialty}</p>
-                    {d.notes && <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{d.notes}</p>}
+              {myDoctors.length === 0 && editDoctorId !== "new" && (
+              <p style={{ fontSize: 13, color: C.mutedLight, fontFamily: sans }}>No doctors added — tap Add to add a care team member.</p>
+            )}
+            {myDoctors.map((d, i) => {
+                const isEditing = editDoctorId === d.id;
+                const isDeleting = deleteDoctorId === d.id;
+                const isLast = i === myDoctors.length - 1 && editDoctorId !== "new";
+                return (
+                  <div key={d.id}>
+                    {isEditing ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "10px 0", borderBottom: isLast ? "none" : `1px solid ${C.bg}` }}>
+                        <EditInput value={editDoctorBuf.name ?? ""} onChange={v => setEditDoctorBuf(b => ({ ...b, name: v }))} placeholder="Doctor name" />
+                        <EditInput value={editDoctorBuf.specialty ?? ""} onChange={v => setEditDoctorBuf(b => ({ ...b, specialty: v }))} placeholder="Specialty" />
+                        <EditInput value={editDoctorBuf.practiceName ?? ""} onChange={v => setEditDoctorBuf(b => ({ ...b, practiceName: v }))} placeholder="Practice name (optional)" />
+                        <EditInput value={editDoctorBuf.phone ?? ""} onChange={v => setEditDoctorBuf(b => ({ ...b, phone: v }))} placeholder="Phone number" />
+                        <EditInput value={editDoctorBuf.notes ?? ""} onChange={v => setEditDoctorBuf(b => ({ ...b, notes: v }))} placeholder="Notes (optional)" />
+                        <SaveCancelRow col={col}
+                          onSave={() => { if (editDoctorBuf.name?.trim()) onUpdateDoctor?.(d.id, editDoctorBuf); setEditDoctorId(null); }}
+                          onCancel={() => setEditDoctorId(null)} />
+                      </div>
+                    ) : isDeleting ? (
+                      <div style={{ ...rowStyle(isLast), flexWrap: "wrap", gap: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.text, fontFamily: sans, flex: 1 }}>Remove <strong>{d.name}</strong>?</span>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => { onDeleteDoctor?.(d.id); setDeleteDoctorId(null); }} style={{ background: C.coral, color: "white", border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>Remove</button>
+                          <button onClick={() => setDeleteDoctorId(null)} style={{ background: C.bg, color: C.muted, border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontFamily: sans, cursor: "pointer" }}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={rowStyle(isLast)}>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans }}>{d.name}</p>
+                          {d.specialty && <p style={{ fontSize: 12, color: col, fontFamily: sans }}>{d.specialty}</p>}
+                          {d.practiceName && <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{d.practiceName}</p>}
+                          {d.notes && <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{d.notes}</p>}
+                        </div>
+                        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                          {d.phone && (
+                            <a href={`tel:${d.phone}`} style={{ width: 32, height: 32, background: col + "14", border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+                              <Phone size={13} color={col} />
+                            </a>
+                          )}
+                          <button onClick={() => { setEditDoctorId(d.id); setEditDoctorBuf({ name: d.name, specialty: d.specialty, practiceName: d.practiceName||"", phone: d.phone, notes: d.notes }); }} style={{ width: 32, height: 32, background: C.bg, border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                            <Pencil size={12} color={C.muted} />
+                          </button>
+                          <button onClick={() => setDeleteDoctorId(d.id)} style={{ width: 32, height: 32, background: C.bg, border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                            <Trash2 size={12} color={C.mutedLight} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <button style={{ width: 34, height: 34, background: col + "14", border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                    <Phone size={13} color={col} />
-                  </button>
-                </div>
-              ))}
-              {editSection === "addDoctor" && (
-                <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 7, borderTop: `1px solid ${C.bg}`, paddingTop: 12 }}>
-                  <EditInput value={buf.name || ""} onChange={v => setBuf(b => ({ ...b, name: v }))} placeholder="Doctor name" />
-                  <EditInput value={buf.specialty || ""} onChange={v => setBuf(b => ({ ...b, specialty: v }))} placeholder="Specialty" />
-                  <EditInput value={buf.phone || ""} onChange={v => setBuf(b => ({ ...b, phone: v }))} placeholder="Phone number" />
-                  <EditInput value={buf.notes || ""} onChange={v => setBuf(b => ({ ...b, notes: v }))} placeholder="Notes (optional)" />
+                );
+              })}
+              {editDoctorId === "new" && (
+                <div style={{ marginTop: myDoctors.length > 0 ? 10 : 0, display: "flex", flexDirection: "column", gap: 7, borderTop: myDoctors.length > 0 ? `1px solid ${C.bg}` : "none", paddingTop: myDoctors.length > 0 ? 12 : 0 }}>
+                  <EditInput value={editDoctorBuf.name ?? ""} onChange={v => setEditDoctorBuf(b => ({ ...b, name: v }))} placeholder="Doctor name" />
+                  <EditInput value={editDoctorBuf.specialty ?? ""} onChange={v => setEditDoctorBuf(b => ({ ...b, specialty: v }))} placeholder="Specialty" />
+                  <EditInput value={editDoctorBuf.practiceName ?? ""} onChange={v => setEditDoctorBuf(b => ({ ...b, practiceName: v }))} placeholder="Practice name (optional)" />
+                  <EditInput value={editDoctorBuf.phone ?? ""} onChange={v => setEditDoctorBuf(b => ({ ...b, phone: v }))} placeholder="Phone number" />
+                  <EditInput value={editDoctorBuf.notes ?? ""} onChange={v => setEditDoctorBuf(b => ({ ...b, notes: v }))} placeholder="Notes (optional)" />
                   <SaveCancelRow col={col}
-                    onSave={() => {
-                      if (buf.name?.trim()) {
-                        const updated = { ...data, _doctorBuf: buf };
-                        onUpdate && onUpdate({ ...data, _newDoctor: { ...buf, id: Date.now(), recipientId: data.id } });
-                      }
-                      setEditSection(null);
-                    }}
-                    onCancel={() => setEditSection(null)} />
+                    onSave={() => { if (editDoctorBuf.name?.trim()) onAddDoctor?.({ ...editDoctorBuf, recipientId: data.id }); setEditDoctorId(null); }}
+                    onCancel={() => setEditDoctorId(null)} />
                 </div>
               )}
             </Card>
@@ -2276,21 +2920,63 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
         {/* ── GUIDANCE ─────────────────────────────────────────────────── */}
         {tab === "guidance" && (
           <>
+            {/* Header + button */}
             <div style={{ background: "linear-gradient(135deg, #e8d8d4 0%, #d8c8e8 50%, #d4e0f0 100%)", borderRadius: 20, padding: 16, marginBottom: 16, boxShadow: CARD_SHADOW_SM }}>
               <p style={{ fontSize: 15, fontWeight: 600, fontFamily: serif, color: C.text }}>Caring for {data.name}</p>
-              <p style={{ fontSize: 12, color: C.muted, marginTop: 4, fontFamily: sans }}>Personalized guidance based on {data.nickname}'s profile</p>
+              <p style={{ fontSize: 12, color: C.muted, marginTop: 4, marginBottom: 14, fontFamily: sans, lineHeight: 1.5 }}>
+                AI-powered guidance drawn from trusted medical, government, and caregiving sources — personalized to {data.nickname || data.name.split(' ')[0]}'s profile.
+              </p>
+              <button
+                onClick={generateGuidance}
+                disabled={!guidanceDirty || guidanceLoading}
+                style={{ display: "flex", alignItems: "center", gap: 6, background: (!guidanceDirty || guidanceLoading) ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.85)", border: "none", borderRadius: 12, padding: "9px 16px", fontSize: 13, fontWeight: 700, fontFamily: sans, color: (!guidanceDirty || guidanceLoading) ? C.mutedLight : col, cursor: (!guidanceDirty || guidanceLoading) ? "default" : "pointer", transition: "all 0.15s" }}>
+                {guidanceLoading
+                  ? <><div style={{ width: 13, height: 13, border: `2px solid ${C.border}`, borderTopColor: col, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Generating…</>
+                  : <><Sparkles size={13} /> {guidance ? (guidanceDirty ? 'Refresh guidance' : 'Guidance up to date') : 'Get latest guidance'}</>}
+              </button>
             </div>
-            {data.conditions.map(cond => CAREGIVING_RECS[cond] ? (
-              <Card key={cond} style={{ marginBottom: 12 }}>
-                <p style={{ fontSize: 15, fontWeight: 600, color: C.text, fontFamily: serif, marginBottom: 12 }}>{cond}</p>
-                {CAREGIVING_RECS[cond].map((rec, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: i < CAREGIVING_RECS[cond].length - 1 ? `1px solid ${C.bg}` : "none", alignItems: "flex-start" }}>
+
+            {/* Error */}
+            {guidanceError && (
+              <div style={{ background: "#fdf5f5", borderRadius: 12, padding: "10px 14px", marginBottom: 12, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <AlertCircle size={14} color={C.coral} style={{ flexShrink: 0, marginTop: 1 }} />
+                <p style={{ fontSize: 12, color: C.coral, fontFamily: sans }}>{guidanceError}</p>
+              </div>
+            )}
+
+            {/* Loading skeleton */}
+            {guidanceLoading && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {[80, 60, 90, 70].map((w, i) => (
+                  <div key={i} style={{ background: C.card, borderRadius: 16, padding: "16px", boxShadow: CARD_SHADOW_SM }}>
+                    <div style={{ height: 14, width: `${w}%`, background: C.border, borderRadius: 6, marginBottom: 12, animation: "pulse 1.4s ease-in-out infinite" }} />
+                    {[1,2,3].map(j => <div key={j} style={{ height: 11, width: j === 3 ? '55%' : '100%', background: C.bg, borderRadius: 4, marginBottom: 8, animation: "pulse 1.4s ease-in-out infinite" }} />)}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* AI guidance sections */}
+            {!guidanceLoading && guidance && guidance.map((section, si) => (
+              <Card key={si} style={{ marginBottom: 12 }}>
+                <p style={{ fontSize: 15, fontWeight: 600, color: C.text, fontFamily: serif, marginBottom: 12 }}>{section.title}</p>
+                {section.items.map((item, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: i < section.items.length - 1 ? `1px solid ${C.bg}` : "none", alignItems: "flex-start" }}>
                     <Check size={13} color={C.sage} style={{ marginTop: 3, flexShrink: 0 }} />
-                    <p style={{ fontSize: 13, color: "#4a4038", lineHeight: 1.7, fontFamily: sans }}>{rec}</p>
+                    <p style={{ fontSize: 13, color: "#4a4038", lineHeight: 1.7, fontFamily: sans }}>{item}</p>
                   </div>
                 ))}
               </Card>
-            ) : null)}
+            ))}
+
+            {/* Empty state before first generation */}
+            {!guidanceLoading && !guidance && !guidanceError && (
+              <div style={{ textAlign: "center", padding: "32px 0", color: C.mutedLight }}>
+                <Sparkles size={32} style={{ marginBottom: 12, opacity: 0.3 }} />
+                <p style={{ fontSize: 14, fontWeight: 600, color: C.muted, fontFamily: sans, marginBottom: 4 }}>No guidance generated yet</p>
+                <p style={{ fontSize: 12, fontFamily: sans }}>Tap "Get latest guidance" above to generate personalized recommendations.</p>
+              </div>
+            )}
           </>
         )}
 
@@ -2355,6 +3041,9 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
               {openSections.has("numbers") && (
                 <>
                   <div style={{ marginBottom: 10 }}>
+                    {data.importantNumbers.length === 0 && editSection !== "addNumber" && (
+                      <p style={{ fontSize: 13, color: C.mutedLight, fontFamily: sans, paddingBottom: 8 }}>No numbers saved yet — tap Add number below.</p>
+                    )}
                     {data.importantNumbers.map((n, i) => (
                       <div key={i} style={{ ...rowStyle(i === data.importantNumbers.length - 1 && editSection !== "editNumber" + i), justifyContent: "space-between" }}>
                         <div style={{ flex: 1 }}>
@@ -2415,12 +3104,183 @@ function RecipientProfile({ r, onBack, onUpdate, onDelete, doctors, appointments
                   </>
                 ) : (
                   <div style={{ marginTop: 8 }}>
-                    <p style={{ fontSize: 14, color: "#4a4038", lineHeight: 1.8, fontFamily: sans, marginBottom: 12 }}>{data.notes}</p>
+                    {data.notes
+                      ? <p style={{ fontSize: 14, color: "#4a4038", lineHeight: 1.8, fontFamily: sans, marginBottom: 12 }}>{data.notes}</p>
+                      : <p style={{ fontSize: 13, color: C.mutedLight, fontFamily: sans, marginBottom: 12 }}>No notes yet — tap Edit to add.</p>
+                    }
                     <button onClick={() => startEdit("notes", { notes: data.notes })} style={{ background: col + "14", border: "none", borderRadius: 10, padding: "5px 14px", color: col, fontSize: 12, fontFamily: sans, fontWeight: 600, cursor: "pointer" }}>Edit</button>
                   </div>
                 )
               )}
             </Card>
+          </>
+        )}
+
+        {/* ── DOCS ─────────────────────────────────────────────────────── */}
+        {tab === "docs" && (
+          <>
+            <input ref={rdocFileRef} type="file" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx" style={{ display: "none" }} onChange={handleRdocUpload} />
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <p style={{ fontSize: 13, color: C.muted, fontFamily: sans, flex: 1 }}>Wills, directives & legal records.</p>
+              <button onClick={() => setRdocTypePick(true)} disabled={ruploading}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: ruploading ? C.border : `linear-gradient(135deg,${col},${col}cc)`, color: "white", border: "none", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, fontFamily: sans, cursor: ruploading ? "default" : "pointer", flexShrink: 0 }}>
+                <Upload size={13} /> {ruploading ? "Uploading…" : "Upload"}
+              </button>
+            </div>
+
+            {/* Document type picker sheet */}
+            {rdocTypePick && (
+              <div style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                <div style={{ position: "absolute", inset: 0, background: "rgba(38,32,26,0.5)" }} onClick={() => setRdocTypePick(false)} />
+                <div style={{ position: "relative", background: C.card, borderRadius: "22px 22px 0 0", padding: "22px 18px 44px", zIndex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                    <p style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: serif }}>What type of document?</p>
+                    <button onClick={() => setRdocTypePick(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color={C.muted} /></button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {DOC_TYPES.map(t => (
+                      <button key={t} onClick={() => { setPendingDocType(t); setRdocTypePick(false); rdocFileRef.current?.click(); }}
+                        style={{ width: "100%", textAlign: "left", background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 12, padding: "12px 16px", fontSize: 14, fontWeight: 500, color: C.text, fontFamily: sans, cursor: "pointer" }}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {rdocError && (
+              <div style={{ background: "#fdf5f5", borderRadius: 12, padding: "10px 14px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                <AlertCircle size={14} color={C.coral} style={{ flexShrink: 0 }} />
+                <p style={{ fontSize: 12, color: C.coral, fontFamily: sans }}>{rdocError}</p>
+              </div>
+            )}
+
+            {rdocsLoading && (
+              <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}>
+                <div style={{ width: 24, height: 24, border: `3px solid ${C.border}`, borderTopColor: col, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+              </div>
+            )}
+
+            {!rdocsLoading && rdocs.length === 0 && !rdocError && (
+              <div style={{ textAlign: "center", padding: "40px 0", color: C.mutedLight }}>
+                <FileText size={32} style={{ marginBottom: 12, opacity: 0.3 }} />
+                <p style={{ fontSize: 14, fontWeight: 600, fontFamily: sans, marginBottom: 4, color: C.muted }}>No documents yet</p>
+                <p style={{ fontSize: 12, fontFamily: sans }}>Upload a PDF, image, or Word doc above.</p>
+              </div>
+            )}
+
+            {!rdocsLoading && rdocs.map(d => {
+              const meta  = fileTypeMeta(d.name, d.contentType);
+              const isDel = rdeletingDoc === d.fullPath;
+              return (
+                <div key={d.fullPath} style={{ background: C.card, borderRadius: 16, padding: "12px 14px", marginBottom: 8, boxShadow: CARD_SHADOW_SM }}>
+                  {isDel ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <Trash2 size={13} color={C.coral} style={{ flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: C.text, fontFamily: sans, flex: 1 }}>Delete <strong>{d.name}</strong>?</span>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => handleRdocDelete(d)} style={{ background: C.coral, color: "white", border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, fontFamily: sans, cursor: "pointer" }}>Delete</button>
+                        <button onClick={() => setRdeletingDoc(null)} style={{ background: C.bg, color: C.muted, border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontFamily: sans, cursor: "pointer" }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 38, height: 38, background: meta.color + "16", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {meta.isImg ? <ImageIcon size={16} color={meta.color} /> : <FileText size={16} color={meta.color} />}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {d.docType && (
+                          <span style={{ display: "inline-block", background: col + "14", color: col, borderRadius: 6, padding: "2px 7px", fontSize: 10, fontWeight: 700, fontFamily: sans, marginBottom: 3, letterSpacing: 0.3 }}>{d.docType}</span>
+                        )}
+                        <p style={{ fontSize: 13, fontWeight: 500, color: C.text, fontFamily: sans, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</p>
+                        <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{meta.label}{d.size ? ` · ${fmtDocSize(d.size)}` : ""} · {fmtDocDate(d.uploadedAt)}</p>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => { const a = document.createElement("a"); a.href = d.url; a.download = d.name; a.target = "_blank"; a.rel = "noopener noreferrer"; document.body.appendChild(a); a.click(); document.body.removeChild(a); }}
+                          style={{ width: 32, height: 32, background: col + "18", border: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                          <Download size={14} color={col} />
+                        </button>
+                        <button onClick={() => setRdeletingDoc(d.fullPath)}
+                          style={{ width: 32, height: 32, background: C.bg, border: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                          <Trash2 size={14} color={C.mutedLight} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {!rdocsLoading && rdocs.length > 0 && (
+              <button onClick={() => setRdocTypePick(true)} disabled={ruploading}
+                style={{ width: "100%", border: `1.5px dashed ${col}`, borderRadius: 16, padding: 14, background: "none", color: col, fontSize: 13, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 4 }}>
+                <Plus size={15} /> Upload another
+              </button>
+            )}
+          </>
+        )}
+
+        {/* ── LIBRARY (Resource Links) ──────────────────────────────────── */}
+        {tab === "resources" && (
+          <>
+            {resourceSheet && (
+              <MobileResourceSheet
+                initial={resourceSheet === "new" ? null : resourceSheet}
+                onClose={() => setResourceSheet(null)}
+                onSave={d => {
+                  if (resourceSheet === "new") onAddResource?.({ ...d, recipientId: r.id });
+                  else onUpdateResource?.(resourceSheet.id, d);
+                  setResourceSheet(null);
+                }}
+              />
+            )}
+
+            {myResources.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <BookMarked size={32} color={C.mutedLight} style={{ marginBottom: 12, opacity: 0.4 }} />
+                <p style={{ fontSize: 14, fontWeight: 600, color: C.muted, fontFamily: sans, marginBottom: 4 }}>No links yet</p>
+                <p style={{ fontSize: 12, color: C.mutedLight, fontFamily: sans }}>Save useful websites, articles, or contacts for {data.nickname || data.name.split(" ")[0]}.</p>
+              </div>
+            )}
+
+            {myResources.map(res => {
+              const catColors = { Medical: "#4a7aaa", Legal: "#7a5aaa", 'Caregiver Support': C.rose, Financial: "#4a8a5a", Community: "#a07030", Other: "#7a7a8c" };
+              const catColor = catColors[res.category] || C.primary;
+              return (
+                <div key={res.id} style={{ background: C.card, borderRadius: 16, padding: "14px 16px", marginBottom: 10, boxShadow: CARD_SHADOW_SM }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {res.category && (
+                        <span style={{ display: "inline-block", background: catColor + "16", color: catColor, borderRadius: 6, padding: "2px 7px", fontSize: 10, fontWeight: 700, fontFamily: sans, marginBottom: 4 }}>{res.category}</span>
+                      )}
+                      <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans, marginBottom: 2 }}>{res.title}</p>
+                      {res.description && <p style={{ fontSize: 12, color: C.muted, fontFamily: sans, marginBottom: 4 }}>{res.description}</p>}
+                      <a href={res.url} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: 12, color: C.primary, fontFamily: sans, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                        <ExternalLink size={11} /> {res.url.replace(/^https?:\/\//, '').split('/')[0]}
+                      </a>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => setResourceSheet(res)}
+                        style={{ width: 32, height: 32, background: C.bgWarm, border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                        <Pencil size={13} color={C.muted} />
+                      </button>
+                      <button onClick={() => onDeleteResource?.(res.id)}
+                        style={{ width: 32, height: 32, background: C.bgWarm, border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                        <Trash2 size={13} color={C.mutedLight} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            <button onClick={() => setResourceSheet("new")}
+              style={{ width: "100%", border: `1.5px solid ${col}`, borderRadius: 18, padding: 14, background: "none", color: col, fontSize: 13, fontFamily: sans, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 4 }}>
+              <Plus size={15} /> Add resource link
+            </button>
           </>
         )}
       </div>
@@ -3034,14 +3894,14 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, onAddDoc
   }
 
   // ── Doctor modal state ───────────────────────────────────────────────────────
-  const BLANK_DR = { name: "", specialty: "", phone: "", address: "", notes: "", recipientId: "" };
+  const BLANK_DR = { name: "", specialty: "", practiceName: "", phone: "", address: "", notes: "", recipientId: "" };
   const [doctorModal, setDoctorModal] = useState(null); // null | 'add' | doctor-object
   const [doctorBuf, setDoctorBuf]     = useState(BLANK_DR);
   // removingDr: { id, phase: 'show' | 'collapse' }
   const [removingDr, setRemovingDr]   = useState(null);
 
   function openAddDr()   { setDoctorBuf(BLANK_DR); setDoctorModal("add"); }
-  function openEditDr(d) { setDoctorBuf({ name: d.name||"", specialty: d.specialty||"", phone: d.phone||"", address: d.address||"", notes: d.notes||"", recipientId: d.recipientId||"" }); setDoctorModal(d); }
+  function openEditDr(d) { setDoctorBuf({ name: d.name||"", specialty: d.specialty||"", practiceName: d.practiceName||"", phone: d.phone||"", address: d.address||"", notes: d.notes||"", recipientId: d.recipientId||"" }); setDoctorModal(d); }
   function closeDrModal() { setDoctorModal(null); }
   function saveDrModal() {
     if (!doctorBuf.name.trim()) return;
@@ -3088,7 +3948,7 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, onAddDoc
     setDocsLoading(true);
     setDocError("");
     try {
-      const folder = storageRef(storage, `documents/${user.uid}`);
+      const folder = storageRef(storage, `users/${user.uid}/documents`);
       const result = await listAll(folder);
       const items  = await Promise.all(
         result.items.map(async itemRef => {
@@ -3120,7 +3980,7 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, onAddDoc
     setUploading(true);
     setDocError("");
     try {
-      const path = `documents/${user.uid}/${Date.now()}_${file.name}`;
+      const path = `users/${user.uid}/documents/${Date.now()}_${file.name}`;
       const fRef = storageRef(storage, path);
       const customMeta = { originalName: file.name };
       if (uploadRecipId) customMeta.recipientId = String(uploadRecipId);
@@ -3369,6 +4229,7 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, onAddDoc
                         {recip && <MiniAvatar r={recip} size={20} />}
                       </div>
                       {d.specialty && <p style={{ fontSize: 12, color: col, fontFamily: sans, marginTop: 2 }}>{d.specialty}</p>}
+                      {d.practiceName && <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans, marginTop: 1 }}>{d.practiceName}</p>}
                       {d.phone && <a href={`tel:${d.phone}`} style={{ fontSize: 12, color: C.primary, marginTop: 4, fontFamily: sans, display: "block", textDecoration: "none", fontWeight: 500 }}>{d.phone}</a>}
                       {d.address && <p style={{ fontSize: 11, color: C.mutedLight, fontFamily: sans }}>{d.address}</p>}
                       {d.notes && <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginTop: 3, fontStyle: "italic" }}>{d.notes}</p>}
@@ -3401,11 +4262,12 @@ function ListTab({ logistics, onUpdateLogistic, onAddLogistic, doctors, onAddDoc
                   </div>
 
                   {[
-                    { key: "name",      label: "Name *",    placeholder: "Dr. Sarah Chen" },
-                    { key: "specialty", label: "Specialty", placeholder: "Cardiologist" },
-                    { key: "phone",     label: "Phone",     placeholder: "(555) 000-0000" },
-                    { key: "address",   label: "Address",   placeholder: "123 Main St, Atlanta, GA" },
-                    { key: "notes",     label: "Notes",     placeholder: "Any additional info…" },
+                    { key: "name",         label: "Name *",        placeholder: "Dr. Sarah Chen" },
+                    { key: "specialty",    label: "Specialty",     placeholder: "Cardiologist" },
+                    { key: "practiceName", label: "Practice name", placeholder: "Riverside Medical Group" },
+                    { key: "phone",        label: "Phone",         placeholder: "(555) 000-0000" },
+                    { key: "address",      label: "Address",       placeholder: "123 Main St, Atlanta, GA" },
+                    { key: "notes",        label: "Notes",         placeholder: "Any additional info…" },
                   ].map(({ key, label, placeholder }) => (
                     <div key={key} style={{ marginBottom: 14 }}>
                       <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: "uppercase", fontFamily: sans, marginBottom: 6 }}>{label}</p>
@@ -4287,16 +5149,17 @@ function SupportSection({ onBack }) {
 
 function CareTab({ recipients, onSelect, onAdd, onDelete }) {
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm]       = useState({ name:"", nickname:"", age:"", relationship:"", conditions:[], medications:[], insurancePlans:[], notes:"", importantNumbers:[], photo:null });
+  const BLANK_CT = { name:"", nickname:"", birthdate:"", relationship:"", address:"", facilityType:null, conditions:[], medications:[], insurancePlans:[], notes:"", importantNumbers:[], photo:null, mobility:[] };
+  const [form, setForm]       = useState(BLANK_CT);
   const [saving, setSaving]   = useState(false);
 
   async function handleAdd() {
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || !form.birthdate || !form.address.trim()) return;
     setSaving(true);
-    await onAdd({ ...form, age: form.age ? Number(form.age) : null });
+    await onAdd({ ...form });
     setSaving(false);
     setShowAdd(false);
-    setForm({ name:"", nickname:"", age:"", relationship:"", conditions:[], medications:[], insurancePlans:[], notes:"", importantNumbers:[], photo:null });
+    setForm(BLANK_CT);
   }
 
   return (
@@ -4319,7 +5182,7 @@ function CareTab({ recipients, onSelect, onAdd, onDelete }) {
                 {r.relationship && <span style={{ fontSize:10, color:C.muted, background:C.bg, borderRadius:10, padding:"2px 8px", fontWeight:600, fontFamily:sans }}>{r.relationship}</span>}
               </div>
               <p style={{ fontSize:12, color:C.muted, fontFamily:sans, marginBottom:4 }}>
-                {r.age ? `Age ${r.age}` : ""}{r.age && r.conditions?.length ? " · " : ""}{r.conditions?.[0] ?? ""}{r.conditions?.length > 1 ? ` +${r.conditions.length - 1}` : ""}
+                {(() => { const a = calcAge(r.birthdate) ?? r.age; return a ? `Age ${a}` : ""; })()}{(() => { const a = calcAge(r.birthdate) ?? r.age; return a && r.conditions?.length ? " · " : ""; })()}{r.conditions?.[0] ?? ""}{r.conditions?.length > 1 ? ` +${r.conditions.length - 1}` : ""}
               </p>
               <div style={{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center" }}>
                 {(r.insurancePlans ?? []).map(p => INSURANCE_INFO[p] ? <Pill key={p} label={INSURANCE_INFO[p].shortName} color={INSURANCE_INFO[p].color}/> : <Pill key={p} label={`🛡️ ${p}`} color={C.muted}/>)}
@@ -4350,17 +5213,56 @@ function CareTab({ recipients, onSelect, onAdd, onDelete }) {
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
               <EditInput value={form.name} onChange={v => setForm(f=>({...f,name:v}))} placeholder="Full name *"/>
+              <div>
+                <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginBottom:4 }}>Date of birth *</p>
+                <input type="date" value={form.birthdate} onChange={e => setForm(f=>({...f,birthdate:e.target.value}))} max={todayStr()} style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"8px 12px", fontSize:13, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
+              </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                 <EditInput value={form.nickname} onChange={v => setForm(f=>({...f,nickname:v}))} placeholder="Nickname"/>
-                <EditInput value={form.age} onChange={v => setForm(f=>({...f,age:v}))} placeholder="Age"/>
+                <EditInput value={form.relationship} onChange={v => setForm(f=>({...f,relationship:v}))} placeholder="Relationship"/>
               </div>
-              <EditInput value={form.relationship} onChange={v => setForm(f=>({...f,relationship:v}))} placeholder="Relationship (e.g. Parent)"/>
+              <div>
+                <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginBottom:4 }}>Home / facility address *</p>
+                <PlacesInput value={form.address} onChange={v => setForm(f=>({...f,address:v}))} placeholder="Start typing an address…" style={{ width:"100%", background:"#f7f5f2", border:`1px solid ${C.border}`, borderRadius:10, padding:"8px 12px", fontSize:13, fontFamily:sans, color:C.text, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+              <div>
+                <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginBottom:6 }}>Is {form.name.trim() || "this person"} at a care facility?</p>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                  {FACILITY_TYPES.map(f => {
+                    const active = form.facilityType === f.value;
+                    return (
+                      <button key={f.value} type="button" onClick={() => setForm(fm => ({ ...fm, facilityType: active ? null : f.value }))}
+                        style={{ background: active ? "#f0ece8" : C.bg, border:`1.5px solid ${active ? C.roseDark : C.border}`, borderRadius:20, padding:"5px 12px", fontSize:12, fontWeight: active ? 600 : 400, color: active ? C.roseDark : C.muted, fontFamily:sans, cursor:"pointer" }}>
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <EditInput value={form.notes} onChange={v => setForm(f=>({...f,notes:v}))} placeholder="Notes (optional)" multiline/>
+              <div>
+                <p style={{ fontSize:11, color:C.muted, fontFamily:sans, marginBottom:6 }}>Mobility <span style={{ fontWeight:400, color:C.mutedLight }}>(select all that apply)</span></p>
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {MOBILITY_OPTIONS.map(opt => {
+                    const active = (form.mobility ?? []).includes(opt.value);
+                    return (
+                      <button key={opt.value} type="button" onClick={() => setForm(f => ({ ...f, mobility: active ? (f.mobility ?? []).filter(v => v !== opt.value) : [...(f.mobility ?? []), opt.value] }))}
+                        style={{ display:"flex", alignItems:"center", gap:10, background: active ? "#f0ece8" : C.bg, border:`1.5px solid ${active ? C.roseDark : C.border}`, borderRadius:10, padding:"8px 12px", cursor:"pointer", textAlign:"left" }}>
+                        <span style={{ fontSize:16, flexShrink:0 }}>{opt.icon}</span>
+                        <span style={{ fontSize:13, fontWeight: active ? 600 : 400, color: active ? C.roseDark : C.text, fontFamily:sans, flex:1 }}>{opt.label}</span>
+                        {active && <Check size={13} color={C.roseDark} style={{ flexShrink:0 }}/>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
             <div style={{ display:"flex", gap:10, marginTop:20 }}>
-              <button onClick={handleAdd} disabled={saving || !form.name.trim()} style={{ flex:1, background:saving || !form.name.trim() ? C.border : `linear-gradient(135deg,${C.rose},${C.roseDark})`, color:"white", border:"none", borderRadius:14, padding:"13px 0", fontSize:14, fontWeight:600, fontFamily:sans, cursor:saving || !form.name.trim() ? "default" : "pointer" }}>
+              {(() => { const dis = saving || !form.name.trim() || !form.birthdate || !form.address.trim(); return (
+              <button onClick={handleAdd} disabled={dis} style={{ flex:1, background: dis ? C.border : `linear-gradient(135deg,${C.rose},${C.roseDark})`, color:"white", border:"none", borderRadius:14, padding:"13px 0", fontSize:14, fontWeight:600, fontFamily:sans, cursor: dis ? "default" : "pointer" }}>
                 {saving ? "Saving…" : "Add recipient"}
               </button>
+              ); })()}
               <button onClick={() => setShowAdd(false)} style={{ flex:1, background:C.bg, color:C.muted, border:"none", borderRadius:14, padding:"13px 0", fontSize:14, fontWeight:600, fontFamily:sans, cursor:"pointer" }}>Cancel</button>
             </div>
           </div>
@@ -4383,6 +5285,9 @@ const NAV = [
 ];
 
 export default function AidenApp() {
+  const [user, setUser]         = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const [tab, setTab] = useState("home");
   const [selRecipient, setSelRecipient] = useState(null);
   const [showRecipients, setShowRecipients] = useState(false);
@@ -4393,7 +5298,6 @@ export default function AidenApp() {
   const [doctors, setDoctors] = useState([]);
   const [logistics, setLogistics] = useState([]);
   const [resources, setResources] = useState([]);
-  const [showMsg, setShowMsg] = useState(true);
   const [medSchedules, setMedSchedules] = useState([]);
   const [careChanges, setCareChanges]   = useState([]);
   const [medications, setMedications]   = useState([]);
@@ -4414,10 +5318,77 @@ export default function AidenApp() {
     { role: "assistant", text: "Hi! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for your loved ones — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍" }
   ]);
 
-  // ── Auth state ───────────────────────────────────────────────────────────────
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [dataLoading, setDataLoading] = useState(false);
+  // ── Google Calendar OAuth callback ───────────────────────────────────────────
+  const [pendingGCalCode, setPendingGCalCode] = useState(null);
+
+  // Web: detect redirect back with ?code=...&state=gcal_connect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code   = params.get('code');
+    const state  = params.get('state');
+    if (code && state === 'gcal_connect') {
+      setPendingGCalCode(code);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Native: listen for deep-link back from the in-app browser
+  useEffect(() => {
+    let remove;
+    (async () => {
+      try {
+        const { App: CapApp } = await import('@capacitor/app');
+        const { Browser }     = await import('@capacitor/browser');
+        const handler = await CapApp.addListener('appUrlOpen', async ({ url }) => {
+          try {
+            const parsed = new URL(url);
+            const code   = parsed.searchParams.get('code');
+            const state  = parsed.searchParams.get('state');
+            if (code && state === 'gcal_connect') {
+              await Browser.close();
+              setPendingGCalCode(code);
+            }
+          } catch {}
+        });
+        remove = () => handler.remove();
+      } catch {}
+    })();
+    return () => remove?.();
+  }, []);
+
+  useEffect(() => {
+    if (!pendingGCalCode || !user) return;
+    (async () => {
+      try {
+        const tokens = await exchangeGCalCode(pendingGCalCode);
+        if (tokens.access_token) {
+          const email = await fetchGCalUserEmail(tokens.access_token);
+          const key   = email ? gcalTokenKey(email) : 'gcal_unknown';
+          await saveTokens(key, {
+            accessToken:  tokens.access_token,
+            refreshToken: tokens.refresh_token || null,
+            expiresAt:    Date.now() + (tokens.expires_in || 3600) * 1000,
+          });
+          // Only metadata (no tokens) written to Firestore; keyed by sanitized email
+          const accountMeta = { email: email || '', connectedAt: Date.now() };
+          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), {
+            googleCalendars: { [key]: accountMeta },
+          }, { merge: true });
+          setShowProfile(true);
+        }
+      } catch (e) { console.error('GCal token exchange error:', e); }
+      setPendingGCalCode(null);
+    })();
+  }, [pendingGCalCode, user]);
+
+  function handleGCalConnected(events, email) {
+    setAppointments(prev => {
+      const withoutThisAccount = email
+        ? prev.filter(a => a.gcalEmail !== email)
+        : prev.filter(a => a.source !== 'google_calendar');
+      return [...withoutThisAccount, ...events];
+    });
+  }
 
   useEffect(() => {
     // Safety timeout: if Firebase doesn't respond in 8s, stop showing the loading screen
@@ -4869,12 +5840,12 @@ export default function AidenApp() {
 
     // Care tab — recipients list, profiles, and resources (insurance etc.)
     if (tab === "care" || showRecipients) {
-      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => { setSelRecipient(null); }} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} careChanges={careChanges} onAddCareChange={addCareChange} onDeleteCareChange={deleteCareChange} medications={medications} onAddMed={addMedication} onUpdateMed={updateMedication} onDeleteMed={deleteMedication} />;
+      if (selRecipient) return <RecipientProfile r={selRecipient} onBack={() => { setSelRecipient(null); }} onUpdate={updateRecipient} onDelete={deleteRecipient} doctors={doctors} onAddDoctor={addDoctor} onUpdateDoctor={updateDoctor} onDeleteDoctor={deleteDoctor} appointments={appointments} medSchedules={medSchedules} onSaveMedSchedule={saveMedSchedule} onDeleteMedSchedule={deleteMedSchedule} onLogMedication={logMedication} careChanges={careChanges} onAddCareChange={addCareChange} onDeleteCareChange={deleteCareChange} medications={medications} onAddMed={addMedication} onUpdateMed={updateMedication} onDeleteMed={deleteMedication} resources={resources} onAddResource={addResource} onUpdateResource={updateResource} onDeleteResource={deleteResource} />;
       return <CareTab recipients={recipients} onSelect={r => setSelRecipient(r)} onAdd={addRecipient} onDelete={deleteRecipient} />;
     }
 
     if (showTodayMeds) return <TodayMedsView medications={medications} recipients={recipients} medLog={medLog} onToggle={toggleMedLog} onBack={() => setShowTodayMeds(false)} />;
-    if (tab === "home") return <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} medications={medications} medLog={medLog} onGoToMeds={() => setShowTodayMeds(true)} onSelect={r => { setSelRecipient(r); setTab("care"); }} onGoToList={() => setTab("todo")} showMsg={showMsg} setShowMsg={setShowMsg} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} reminderMethods={reminderMethods} onOpenSettings={() => setShowProfile(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
+    if (tab === "home") return <HomeTab recipients={recipients} appointments={appointments} logistics={logistics} medications={medications} medLog={medLog} onGoToMeds={() => setShowTodayMeds(true)} onSelect={r => { setSelRecipient(r); setTab("care"); }} onGoToList={() => setTab("todo")} onShowAddEvent={() => setShowAddEvent(true)} notificationRole={notificationRole} reminderMethods={reminderMethods} onOpenSettings={() => setShowProfile(true)} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} onShowAddEvent={(date) => { setAddEventDefaultDate(date || null); setShowAddEvent(true); }} onUpdateAppt={updateAppointment} onDeleteAppt={deleteAppointment} />;
     if (tab === "todo")      return <ListTab logistics={logistics} onUpdateLogistic={updateLogisticItem} onAddLogistic={addLogisticItem} doctors={doctors} onAddDoctor={addDoctor} onUpdateDoctor={updateDoctor} onDeleteDoctor={deleteDoctor} recipients={recipients} user={user} />;
     if (tab === "resources") return <ResourcesTab resources={resources} onAdd={addResource} onUpdate={updateResource} onDelete={deleteResource} recipients={recipients} />;
@@ -4956,6 +5927,7 @@ export default function AidenApp() {
           onClose={() => setShowProfile(false)}
           onSignOut={() => { signOut(auth); setShowProfile(false); }}
           onRefresh={() => setUser({ ...auth.currentUser })}
+          onGCalConnected={handleGCalConnected}
         />
       )}
 

@@ -13,4 +13,18 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, '../shared'),
     },
   },
+  server: {
+    proxy: {
+      '/api/anthropic': {
+        target: 'https://api.anthropic.com',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api\/anthropic/, '/v1'),
+      },
+      '/api/google-calendar': {
+        target: 'https://www.googleapis.com',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api\/google-calendar/, '/calendar/v3'),
+      },
+    },
+  },
 })
