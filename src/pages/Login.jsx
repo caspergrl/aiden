@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
+  sendPasswordResetEmail, sendEmailVerification,
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Eye, EyeOff } from 'lucide-react';
@@ -58,6 +58,7 @@ export default function Login() {
           uid: u.uid, email: u.email, name: name.trim() || '',
           role: 'user', status: 'active', createdAt: serverTimestamp(),
         });
+        await sendEmailVerification(u);
       }
       navigate('/home');
     } catch (e) {
@@ -171,6 +172,22 @@ export default function Login() {
                     {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {mode === 'signup' && password.length > 0 && (
+                  <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {[
+                      { label: 'At least 8 characters', ok: password.length >= 8 },
+                      { label: 'At least one uppercase letter', ok: /[A-Z]/.test(password) },
+                      { label: 'At least one number', ok: /[0-9]/.test(password) },
+                    ].map(({ label, ok }) => (
+                      <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', background: ok ? '#4a9e7a' : '#ede5d8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.2s' }}>
+                          {ok && <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <span style={{ fontSize: 12, color: ok ? '#3a7a5a' : '#8a8076', fontFamily: sans, transition: 'color 0.2s' }}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {mode === 'signin' && (
                   <div style={{ textAlign: 'right', marginTop: 6 }}>
                     <button type="button" onClick={() => switchMode('forgot')} style={{ background: 'none', border: 'none', color: '#904848', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '2px 0', fontFamily: sans }}>
@@ -182,8 +199,8 @@ export default function Login() {
 
               {error && <p style={{ fontSize: 12, color: '#904848', background: '#fdf6f5', padding: '8px 12px', borderRadius: 8, fontFamily: sans, margin: 0 }}>{error}</p>}
 
-              <button type="submit" disabled={loading || !email.trim() || !password.trim()}
-                style={{ width: '100%', background: loading || !email.trim() || !password.trim() ? '#ede5d8' : '#904848', color: '#fff', border: 'none', borderRadius: 14, padding: '15px 0', fontSize: 15, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s', fontFamily: sans, marginTop: 4 }}>
+              <button type="submit" disabled={loading || !email.trim() || !password.trim() || (mode === 'signup' && !(password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password)))}
+                style={{ width: '100%', background: loading || !email.trim() || !password.trim() || (mode === 'signup' && !(password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password))) ? '#ede5d8' : '#904848', color: '#fff', border: 'none', borderRadius: 14, padding: '15px 0', fontSize: 15, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s', fontFamily: sans, marginTop: 4 }}>
                 {loading ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
               </button>
             </form>
