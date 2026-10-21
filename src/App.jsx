@@ -125,8 +125,14 @@ function VerifyEmailWall({ user }) {
 
   async function checkVerified() {
     setChecking(true);
-    await user.reload();
-    // onAuthStateChanged will fire and re-render if now verified
+    try {
+      await user.reload();
+      // Force a token refresh — this triggers onAuthStateChanged with the updated
+      // user object (new reference), which causes ProtectedRoute to re-evaluate
+      // emailVerified. Without this, reload() mutates the user in place but React
+      // never sees a new reference so the wall doesn't dismiss.
+      await user.getIdToken(true);
+    } catch { /* ignore — onAuthStateChanged handles the rest */ }
     setChecking(false);
   }
 
