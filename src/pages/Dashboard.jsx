@@ -21,7 +21,7 @@ import {
 } from '../data';
 
 export default function Dashboard() {
-  const { user, profile } = useAuth();
+  const { user, profile, org } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const active = location.pathname.slice(1) || 'home';
@@ -104,8 +104,16 @@ export default function Dashboard() {
     setTimeout(() => setSaveError(null), 5000);
   }
 
+  // Personal accounts are limited to 3 care recipients; org/business accounts are unlimited
+  const PERSONAL_RECIPIENT_LIMIT = 3;
+  const canAddRecipient = !!(org) || recipients.length < PERSONAL_RECIPIENT_LIMIT;
+
   // ── Recipients ────────────────────────────────────────────────────────────────
   async function addRecipient(data) {
+    if (!org && recipients.length >= PERSONAL_RECIPIENT_LIMIT) {
+      setSaveError(`Individual accounts can have up to ${PERSONAL_RECIPIENT_LIMIT} care recipients. Upgrade to a Business account in Account Settings to add more.`);
+      return;
+    }
     // Optimistic update first so UI is instant
     const tempId = `temp_${Date.now()}`;
     setRecipients(prev => [...prev, { ...data, id: tempId }]);
@@ -273,6 +281,7 @@ export default function Dashboard() {
         return (
           <Care
             recipients={recipients}
+            canAddRecipient={canAddRecipient}
             onAddRecipient={addRecipient}
             onUpdateRecipient={updateRecipient}
             onDeleteRecipient={deleteRecipient}

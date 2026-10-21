@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Check, Phone, X,
   Search, Pencil, AlertTriangle, CalendarDays, Shield, Users,
@@ -1531,6 +1532,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
 // ─── Recipients list view ───────────────────────────────────────────────────────
 export default function Care({
   recipients,
+  canAddRecipient = true,
   onAddRecipient, onUpdateRecipient, onDeleteRecipient,
   doctors, onAddDoctor, onDeleteDoctor,
   appointments, onAddAppointment, onDeleteAppointment,
@@ -1587,10 +1589,25 @@ export default function Care({
           <p style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>People I'm Caring For</p>
           <h1 style={{ fontFamily: serif, fontSize: 30, color: C.text, letterSpacing: -0.5 }}>Care Recipients</h1>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseLight, border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.roseDark, cursor: 'pointer' }}>
-          <Plus size={14} /> Add recipient
-        </button>
+        {canAddRecipient ? (
+          <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseLight, border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.roseDark, cursor: 'pointer' }}>
+            <Plus size={14} /> Add recipient
+          </button>
+        ) : (
+          <Link to="/account" style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.muted, textDecoration: 'none' }} title="3-recipient limit reached — upgrade to Business">
+            <Plus size={14} /> Add recipient
+          </Link>
+        )}
       </div>
+      {!canAddRecipient && (
+        <div style={{ background: '#fffbeb', border: '1px solid #f0d060', borderRadius: 14, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 16 }}>⚠️</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#7a5a00', margin: 0 }}>3-recipient limit reached</p>
+            <p style={{ fontSize: 12, color: '#9a7a20', margin: 0 }}>Individual accounts support up to 3 care recipients. <Link to="/account" style={{ color: '#7a5a00', fontWeight: 700 }}>Upgrade to Business</Link> to add more.</p>
+          </div>
+        </div>
+      )}
 
       {recipients.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px 24px 40px' }}>
@@ -1620,7 +1637,7 @@ export default function Care({
             Add the people in your care — a parent, sibling, partner, or anyone you support. Aiden will help you track their appointments, medications, doctors, and more.
           </p>
           <p style={{ fontSize: 13, color: C.mutedLight, marginBottom: 32 }}>
-            You can add as many people as you need.
+            Individual accounts: up to 3 care recipients free.
           </p>
 
           <button
@@ -1674,9 +1691,15 @@ export default function Care({
             );
           })}
 
-          <button onClick={() => setShowModal(true)} style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 20, padding: 20, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Plus size={16} /> Add a care recipient
-          </button>
+          {canAddRecipient ? (
+            <button onClick={() => setShowModal(true)} style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 20, padding: 20, background: 'none', color: C.mutedLight, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Plus size={16} /> Add a care recipient
+            </button>
+          ) : (
+            <Link to="/account" style={{ width: '100%', border: `2px dashed ${C.border}`, borderRadius: 20, padding: 20, background: '#fffbeb', color: '#9a7a20', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none' }}>
+              Limit reached · <span style={{ fontWeight: 700, color: '#7a5a00' }}>Upgrade to Business</span> to add more
+            </Link>
+          )}
         </>
       )}
     </div>

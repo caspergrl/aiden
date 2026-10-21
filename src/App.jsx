@@ -4,8 +4,10 @@ import { onAuthStateChanged, signOut, sendEmailVerification } from 'firebase/aut
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
 
-import Landing       from './pages/Landing';
-import Org          from './pages/Org';
+import Landing         from './pages/Landing';
+import ForIndividuals  from './pages/ForIndividuals';
+import ForBusinesses   from './pages/ForBusinesses';
+import Org             from './pages/Org';
 import FAQ           from './pages/FAQ';
 import Contact       from './pages/Contact';
 import Login         from './pages/Login';
@@ -205,9 +207,11 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/"        element={<Landing />} />
-          <Route path="/faq"     element={<FAQ />} />
-          <Route path="/contact" element={<Contact />} />
+          <Route path="/"             element={<Landing />} />
+          <Route path="/individuals"  element={<ForIndividuals />} />
+          <Route path="/businesses"   element={<ForBusinesses />} />
+          <Route path="/faq"          element={<FAQ />} />
+          <Route path="/contact"      element={<Contact />} />
           <Route path="/login"   element={<Login />} />
           <Route path="/home"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/care"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

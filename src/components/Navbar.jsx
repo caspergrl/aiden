@@ -131,6 +131,12 @@ export default function Navbar() {
           {user && profile?.role === 'admin' && (
             <Link to="/admin" style={{ fontSize: 14, fontWeight: 600, color: C.muted, textDecoration: 'none' }}>Admin</Link>
           )}
+          {!user && (
+            <>
+              <Link to="/individuals" style={{ fontSize: 14, fontWeight: 600, color: location.pathname === '/individuals' ? C.roseDark : C.text, textDecoration: 'none' }}>For individuals</Link>
+              <Link to="/businesses"  style={{ fontSize: 14, fontWeight: 600, color: location.pathname === '/businesses'  ? C.primary   : C.text, textDecoration: 'none' }}>For businesses</Link>
+            </>
+          )}
         </div>
 
         {/* Desktop auth */}
@@ -181,9 +187,13 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <Link to="/login" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>Sign in</Link>
-                <Link to="/login?mode=signup" style={{ fontSize: 15, fontWeight: 700, color: C.roseDark, textDecoration: 'none' }}>Get started →</Link>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                <Link to="/individuals" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>For individuals</Link>
+                <Link to="/businesses"  style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>For businesses</Link>
+                <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
+                  <Link to="/login" style={{ fontSize: 15, fontWeight: 600, color: C.text, textDecoration: 'none' }}>Sign in</Link>
+                  <Link to="/login?mode=signup" style={{ fontSize: 15, fontWeight: 700, color: C.roseDark, textDecoration: 'none' }}>Get started →</Link>
+                </div>
               </div>
             )}
           </div>
