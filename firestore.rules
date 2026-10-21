@@ -14,6 +14,7 @@ service cloud.firestore {
                    && !request.resource.data.keys().hasAny(['role', 'status']);
 
       // Allow updating the user doc, but client cannot change role or status
+      // orgId, orgRole, and plan are all permitted to change
       allow update: if request.auth != null
                    && request.auth.uid == userId
                    && !request.resource.data.diff(resource.data).affectedKeys()
@@ -24,6 +25,55 @@ service cloud.firestore {
       match /{subcollection}/{docId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+    }
+
+    // ── Organizations ──────────────────────────────────────────────────────────
+    match /organizations/{orgId} {
+      function isMember() {
+        return request.auth != null &&
+          exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+      }
+      function memberRole() {
+        return get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role;
+      }
+      function isOrgAdmin() {
+        return request.auth != null && isMember() && memberRole() in ['owner', 'admin'];
+      }
+
+      allow read:   if isMember();
+      allow create: if request.auth != null;  // creator sets themselves as owner in client
+      allow update: if isOrgAdmin();
+      allow delete: if request.auth != null && isMember() && memberRole() == 'owner';
+
+      match /members/{memberId} {
+        allow read:   if isMember();
+        allow write:  if isOrgAdmin();
+        // Allow a member to delete their own record (leave org)
+        allow delete: if request.auth != null && request.auth.uid == memberId;
+      }
+    }
+
+    // ── Org invites ────────────────────────────────────────────────────────────
+    match /orgInvites/{inviteId} {
+      function invitedOrgAdmin() {
+        return request.auth != null &&
+          get(/databases/$(database)/documents/organizations/$(resource.data.orgId)/members/$(request.auth.uid)).data.role in ['owner', 'admin'];
+      }
+
+      // Any authenticated user can create an invite
+      allow create: if request.auth != null;
+
+      // The invited user (by email) or an org admin can read
+      allow read: if request.auth != null && (
+        resource.data.email == request.auth.token.email ||
+        invitedOrgAdmin()
+      );
+
+      // The invited user can accept; org admins can cancel
+      allow update: if request.auth != null && (
+        resource.data.email == request.auth.token.email ||
+        invitedOrgAdmin()
+      );
     }
 
   }

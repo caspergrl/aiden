@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updatePassword, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch, getDoc, setDoc } from 'firebase/firestore';
-import { User, Shield, Trash2, Save, ArrowRight, Heart, Check, Calendar, RefreshCw, Unlink } from 'lucide-react';
+import { User, Shield, Trash2, Save, ArrowRight, Heart, Check, Calendar, RefreshCw, Unlink, Building2, Users, ChevronRight } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { useAuth } from '../App';
 import Navbar from '../components/Navbar';
@@ -10,6 +10,7 @@ import Footer from '../components/Footer';
 import { C, serif, shadow } from '../theme';
 import { saveTokens, loadTokens, clearTokens } from '../secureTokens';
 import { gcalClientId, gcalTokenKey, startGoogleCalendarOAuth, exchangeGCalCode, fetchGCalUserEmail, refreshGCalToken, fetchGCalEvents } from '../gcal';
+import { UpgradeModal, RoleBadge, ORG_TYPES } from './Org';
 
 function Card({ children, style }) {
   return (
@@ -20,8 +21,9 @@ function Card({ children, style }) {
 }
 
 export default function Account() {
-  const { user, profile, setProfile } = useAuth();
+  const { user, profile, setProfile, org, orgRole } = useAuth();
   const navigate = useNavigate();
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const [name, setName]           = useState(profile?.name || '');
   const [savingName, setSavingName] = useState(false);
@@ -184,6 +186,12 @@ export default function Account() {
 
   return (
     <div style={{ minHeight: '100vh', background: C.bgWarm }}>
+      {showUpgrade && (
+        <UpgradeModal
+          onClose={() => setShowUpgrade(false)}
+          onUpgraded={() => { setShowUpgrade(false); navigate('/org'); }}
+        />
+      )}
       <Navbar />
       <div style={{ maxWidth: 680, margin: '0 auto', padding: '100px 24px 60px' }}>
 
@@ -312,6 +320,45 @@ export default function Account() {
             {gcalAccounts.length ? 'Add another account' : 'Connect with Google'}
           </button>
         </Card>
+
+        {/* Organization */}
+        {org ? (
+          <Card style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <Building2 size={17} color={C.primary} />
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Organization</h2>
+              <span style={{ marginLeft: 'auto', background: C.roseDark + '15', color: C.roseDark, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>BUSINESS</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 4 }}>{org.name}</p>
+                <p style={{ fontSize: 13, color: C.muted, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  {ORG_TYPES.find(t => t.value === org.type)?.label || org.type}
+                  {' · '}
+                  <RoleBadge role={orgRole} />
+                </p>
+              </div>
+              <button onClick={() => navigate('/org')}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                Manage <ChevronRight size={14} />
+              </button>
+            </div>
+          </Card>
+        ) : (
+          <Card style={{ marginBottom: 20, background: 'linear-gradient(135deg, #fdf6f5, #fff)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <Users size={17} color={C.roseDark} />
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Business account</h2>
+            </div>
+            <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.65, marginBottom: 16 }}>
+              Running a personal care home, assisted living facility, or skilled nursing facility? Upgrade to a Business account to manage your care team with role-based permissions.
+            </p>
+            <button onClick={() => setShowUpgrade(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, background: C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '11px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              <Building2 size={14} /> Upgrade to Business
+            </button>
+          </Card>
+        )}
 
         {/* Admin link */}
         {profile?.role === 'admin' && (
