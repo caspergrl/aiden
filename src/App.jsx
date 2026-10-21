@@ -4,7 +4,7 @@ import { saveTokens, loadTokens, clearTokens } from './secureTokens';
 import AuthScreen from './AuthScreen';
 import { auth, db, storage } from './firebase';
 import { onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
-import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, writeBatch, query, where, serverTimestamp } from 'firebase/firestore';
 import {
   ref as storageRef, listAll, getMetadata,
   getDownloadURL, uploadBytes, deleteObject,
@@ -769,6 +769,22 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
                 : <button onClick={handlePasswordReset} style={{ fontSize:14, color:C.rose, fontWeight:600, background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:sans }}>Send password reset email →</button>}
             </div>
           </div>
+
+          {/* Organization membership */}
+          {orgInfo && (
+            <div style={{ borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', marginBottom:20 }}>
+              <div style={{ padding:'12px 14px', background:C.roseLight, borderBottom:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <p style={{ fontSize:11, fontWeight:800, color:C.roseDark, letterSpacing:0.8, textTransform:'uppercase', fontFamily:sans }}>Business Account</p>
+                <span style={{ background:C.roseDark, color:'#fff', borderRadius:20, padding:'2px 8px', fontSize:10, fontWeight:800, fontFamily:sans }}>
+                  {orgRole ? orgRole.charAt(0).toUpperCase() + orgRole.slice(1) : ''}
+                </span>
+              </div>
+              <div style={{ padding:'12px 14px' }}>
+                <p style={{ fontSize:15, fontWeight:700, color:C.text, fontFamily:sans, marginBottom:3 }}>{orgInfo.name}</p>
+                <p style={{ fontSize:12, color:C.muted, fontFamily:sans }}>Manage your team at aidencare.co/org</p>
+              </div>
+            </div>
+          )}
 
           {/* Sign out */}
           <button onClick={onSignOut} style={{ width:'100%', background:C.roseLight, color:C.roseDark, border:'none', borderRadius:14, padding:'13px 0', fontSize:14, fontWeight:700, fontFamily:sans, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginBottom:20 }}>
@@ -5287,6 +5303,8 @@ const NAV = [
 export default function AidenApp() {
   const [user, setUser]         = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [orgInfo, setOrgInfo]   = useState(null);  // { id, name, type }
+  const [orgRole, setOrgRole]   = useState(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [tab, setTab] = useState("home");
   const [selRecipient, setSelRecipient] = useState(null);
@@ -5400,6 +5418,48 @@ export default function AidenApp() {
     );
     return () => { unsubscribe(); clearTimeout(timeout); };
   }, []);
+
+  // Load org membership when user signs in
+  useEffect(() => {
+    if (!user) { setOrgInfo(null); setOrgRole(null); return; }
+    (async () => {
+      try {
+        const userSnap = await getDoc(doc(db, 'users', user.uid));
+        const profile  = userSnap.exists() ? userSnap.data() : null;
+        if (profile?.orgId) {
+          const memSnap = await getDoc(doc(db, 'organizations', profile.orgId, 'members', user.uid));
+          if (memSnap.exists()) {
+            const orgSnap = await getDoc(doc(db, 'organizations', profile.orgId));
+            setOrgInfo(orgSnap.exists() ? { id: orgSnap.id, ...orgSnap.data() } : null);
+            setOrgRole(memSnap.data().role || null);
+            return;
+          }
+          // Removed from org — clean up
+          await updateDoc(doc(db, 'users', user.uid), { orgId: null, orgRole: null }).catch(() => {});
+        }
+        // Check for pending invites
+        const q = query(collection(db, 'orgInvites'), where('email', '==', user.email), where('status', '==', 'pending'));
+        const invSnap = await getDocs(q);
+        if (!invSnap.empty) {
+          const invDoc = invSnap.docs[0];
+          const inv    = invDoc.data();
+          const batch  = writeBatch(db);
+          batch.set(doc(db, 'organizations', inv.orgId, 'members', user.uid), {
+            uid: user.uid, email: user.email, name: profile?.name || user.displayName || '',
+            role: inv.role, addedAt: serverTimestamp(), addedBy: inv.invitedBy,
+          });
+          batch.update(doc(db, 'users', user.uid), { orgId: inv.orgId, orgRole: inv.role });
+          batch.update(invDoc.ref, { status: 'accepted', acceptedAt: serverTimestamp() });
+          await batch.commit();
+          const orgSnap = await getDoc(doc(db, 'organizations', inv.orgId));
+          setOrgInfo(orgSnap.exists() ? { id: orgSnap.id, ...orgSnap.data() } : null);
+          setOrgRole(inv.role);
+        } else {
+          setOrgInfo(null); setOrgRole(null);
+        }
+      } catch { setOrgInfo(null); setOrgRole(null); }
+    })();
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Session timeout: sign out after 30 min of inactivity ─────────────────
   const idleTimerRef = useRef(null);
