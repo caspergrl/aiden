@@ -52,7 +52,7 @@ export default function ForBusinesses() {
               Individual caregivers →
             </Link>
           </div>
-          <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 16 }}>Free during beta · No credit card · No limit on care recipients</p>
+          <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 16 }}>No limit on care recipients</p>
         </div>
       </section>
 

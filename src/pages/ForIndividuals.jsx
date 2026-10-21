@@ -47,7 +47,7 @@ export default function ForIndividuals() {
               Looking for a business plan?
             </Link>
           </div>
-          <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 16 }}>Free forever · No credit card · iOS & web</p>
+          <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 16 }}>iOS & web</p>
         </div>
       </section>
 

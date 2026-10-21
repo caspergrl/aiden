@@ -14,7 +14,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: '1', title: 'Create your account',     desc: 'Sign up in seconds. No credit card required to get started.' },
+  { n: '1', title: 'Create your account',     desc: 'Sign up in seconds and get started right away.' },
   { n: '2', title: 'Add your care recipients', desc: 'Enter your loved ones\' profiles — health conditions, medications, doctors.' },
   { n: '3', title: 'Stay organised, stay calm', desc: 'Manage appointments, track documents, and get AI-powered guidance whenever you need it.' },
 ];
@@ -51,7 +51,7 @@ export default function Landing() {
               Learn more
             </Link>
           </div>
-          <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 16 }}>No credit card required · Available on iOS & web</p>
+          <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 16 }}>Available on iOS & web</p>
         </div>
       </section>
 
