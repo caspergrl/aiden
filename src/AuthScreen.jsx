@@ -6,6 +6,7 @@ import { C, serif, sans } from '@shared/theme';
 
 export default function AuthScreen() {
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
+  const [audience, setAudience] = useState('individuals'); // 'individuals' | 'businesses'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -118,6 +119,34 @@ export default function AuthScreen() {
         </svg>
         <p style={{ fontSize: 13, color: '#b4aca2', fontFamily: sans, marginTop: 8, letterSpacing: 0.3 }}>your caregiving companion</p>
       </div>
+
+      {/* Audience toggle */}
+      {mode !== 'forgot' && (
+        <div style={{ display: 'flex', background: '#f0ebe5', borderRadius: 12, padding: 3, marginBottom: 28, width: '100%', maxWidth: 360 }}>
+          {[{ key: 'individuals', label: 'For individuals' }, { key: 'businesses', label: 'For businesses' }].map(({ key, label }) => (
+            <button key={key} onClick={() => setAudience(key)}
+              style={{ flex: 1, padding: '9px 0', borderRadius: 9, border: 'none', background: audience === key ? '#fff' : 'transparent', color: audience === key ? '#26201a' : '#8a8076', fontFamily: sans, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', boxShadow: audience === key ? '0 1px 4px rgba(80,40,20,0.1)' : 'none' }}
+            >{label}</button>
+          ))}
+        </div>
+      )}
+
+      {/* Audience context note */}
+      {mode !== 'forgot' && audience === 'businesses' && (
+        <div style={{ width: '100%', maxWidth: 360, background: '#edf3fe', borderRadius: 12, padding: '12px 14px', marginBottom: 20, border: '1px solid #c0d0f0' }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#2a4a8a', fontFamily: sans, marginBottom: 2 }}>For care facilities & agencies</p>
+          <p style={{ fontSize: 12, color: '#4a6aaa', fontFamily: sans, lineHeight: 1.55 }}>
+            Sign up or sign in below. After signing in, go to <strong>Account → Upgrade to Business</strong> to set up your organisation and invite your team.
+          </p>
+        </div>
+      )}
+      {mode !== 'forgot' && audience === 'individuals' && (
+        <div style={{ width: '100%', maxWidth: 360, marginBottom: 8 }}>
+          <p style={{ fontSize: 12, color: '#b4aca2', fontFamily: sans, textAlign: 'center', lineHeight: 1.5 }}>
+            Up to 3 care recipients, all features free
+          </p>
+        </div>
+      )}
 
       {/* Form */}
       <div style={{ width: '100%', maxWidth: 360 }}>
