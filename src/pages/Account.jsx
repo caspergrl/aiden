@@ -11,6 +11,7 @@ import { C, serif, shadow } from '../theme';
 import { saveTokens, loadTokens, clearTokens } from '../secureTokens';
 import { gcalClientId, gcalTokenKey, startGoogleCalendarOAuth, exchangeGCalCode, fetchGCalUserEmail, refreshGCalToken, fetchGCalEvents } from '../gcal';
 import { UpgradeModal, RoleBadge, ORG_TYPES } from './Org';
+import { isBusinessAllowed } from '../businessBeta';
 
 function Card({ children, style }) {
   return (
@@ -344,7 +345,7 @@ export default function Account() {
               </button>
             </div>
           </Card>
-        ) : (
+        ) : isBusinessAllowed(user?.email) ? (
           <Card style={{ marginBottom: 20, background: 'linear-gradient(135deg, #fdf6f5, #fff)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
               <Users size={17} color={C.roseDark} />
@@ -358,7 +359,7 @@ export default function Account() {
               <Building2 size={14} /> Upgrade to Business
             </button>
           </Card>
-        )}
+        ) : null}
 
         {/* Admin link */}
         {profile?.role === 'admin' && (
