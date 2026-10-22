@@ -275,7 +275,7 @@ export default function Account() {
               <div style={{ width: 72, height: 72, borderRadius: '50%', background: C.roseDark, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, fontWeight: 800, overflow: 'hidden' }}>
                 {avatarUrl
                   ? <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : (profile?.name || user?.email || '?')[0].toUpperCase()
+                  : (profile?.name || '?')[0].toUpperCase()
                 }
               </div>
               <label title="Upload photo" style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: '50%', background: '#fff', border: `1.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }}>
