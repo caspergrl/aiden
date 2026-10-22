@@ -1,4 +1,5 @@
 // ─── Shared app data (mirrors mobile app) ─────────────────────────────────────
+import { DEMO_INDIVIDUAL_RECIPIENTS, DEMO_INDIVIDUAL_APPOINTMENTS, DEMO_INDIVIDUAL_DOCTORS } from './demoData';
 
 export const COMMON_MEDICATIONS = [
   // Cardiovascular
@@ -92,11 +93,11 @@ export const DAILY_MESSAGES = [
   "You are doing sacred work. The love you give quietly sustains someone else's whole world.",
 ];
 
-export const INITIAL_RECIPIENTS = [];
+export const INITIAL_RECIPIENTS = DEMO_INDIVIDUAL_RECIPIENTS;
 
-export const INITIAL_APPOINTMENTS = [];
+export const INITIAL_APPOINTMENTS = DEMO_INDIVIDUAL_APPOINTMENTS;
 
-export const INITIAL_DOCTORS = [];
+export const INITIAL_DOCTORS = DEMO_INDIVIDUAL_DOCTORS;
 
 export const INITIAL_LOGISTICS = [
   { id: 1, title: "Will (ensure it's notarized)", completed: true, note: "Notarized March 2025", partnerLink: null },

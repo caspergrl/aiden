@@ -47,15 +47,18 @@ export default function Dashboard() {
 
   async function seedUserData(uid) {
     const batch = writeBatch(db);
+    // Pre-generate Firestore refs so we can map demo IDs → real Firestore IDs
+    const localIdMap = {};
     INITIAL_RECIPIENTS.forEach(r => {
       const ref = doc(collection(db, 'users', uid, 'recipients'));
+      localIdMap[r.id] = ref.id;
       const { id: _id, ...data } = r;
-      batch.set(ref, { ...data, _localId: r.id });
+      batch.set(ref, data);
     });
     INITIAL_APPOINTMENTS.forEach(a => {
       const ref = doc(collection(db, 'users', uid, 'appointments'));
       const { id: _id, ...data } = a;
-      batch.set(ref, data);
+      batch.set(ref, { ...data, recipientId: localIdMap[data.recipientId] || data.recipientId });
     });
     INITIAL_LOGISTICS.forEach(l => {
       const ref = doc(collection(db, 'users', uid, 'logistics'));
@@ -65,7 +68,7 @@ export default function Dashboard() {
     INITIAL_DOCTORS.forEach(d => {
       const ref = doc(collection(db, 'users', uid, 'doctors'));
       const { id: _id, ...data } = d;
-      batch.set(ref, data);
+      batch.set(ref, { ...data, recipientId: localIdMap[data.recipientId] || data.recipientId });
     });
     await setDoc(doc(db, 'users', uid), { seeded: true, createdAt: new Date().toISOString() }, { merge: true });
     await batch.commit();
