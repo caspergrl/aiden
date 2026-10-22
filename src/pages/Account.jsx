@@ -28,18 +28,26 @@ export default function Account() {
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   // Split stored name into first / last for the edit form
-  const [firstName, setFirstName] = useState(() => {
+  const origFirstName = (() => {
+    const parts = (profile?.firstName || profile?.name || '').trim().split(/\s+/);
+    return profile?.firstName || parts[0] || '';
+  })();
+  const origLastName = (() => {
     const parts = (profile?.name || '').trim().split(/\s+/);
-    return parts[0] || '';
-  });
-  const [lastName, setLastName] = useState(() => {
-    const parts = (profile?.name || '').trim().split(/\s+/);
-    return parts.slice(1).join(' ') || '';
-  });
+    return profile?.lastName || parts.slice(1).join(' ') || '';
+  })();
+  const [firstName, setFirstName] = useState(origFirstName);
+  const [lastName, setLastName]   = useState(origLastName);
   const [emailEdit, setEmailEdit] = useState(user?.email || '');
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileSaved, setProfileSaved] = useState(false);
-  const [profileError, setProfileError] = useState('');
+  const [profileSaved, setProfileSaved]   = useState(false);
+  const [profileError, setProfileError]   = useState('');
+
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEdit.trim());
+  const isDirty = firstName.trim() !== origFirstName
+    || lastName.trim() !== origLastName
+    || emailEdit.trim() !== (user?.email || '');
+  const canSave = isDirty && isEmailValid && !savingProfile;
 
   const [avatarUrl, setAvatarUrl]     = useState(profile?.avatarUrl || null);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -322,8 +330,8 @@ export default function Account() {
 
           {profileError && <p style={{ fontSize: 13, color: C.coral, marginBottom: 12 }}>{profileError}</p>}
 
-          <button onClick={saveProfile} disabled={savingProfile}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: profileSaved ? '#4a9e7a' : C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '11px 20px', fontSize: 13, fontWeight: 700, cursor: savingProfile ? 'default' : 'pointer', transition: 'background 0.3s' }}>
+          <button onClick={saveProfile} disabled={!canSave}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: profileSaved ? '#4a9e7a' : canSave ? C.roseDark : C.border, color: canSave || profileSaved ? '#fff' : C.mutedLight, border: 'none', borderRadius: 10, padding: '11px 20px', fontSize: 13, fontWeight: 700, cursor: canSave ? 'pointer' : 'default', transition: 'background 0.3s' }}>
             {profileSaved ? <><Check size={14} /> Saved</> : savingProfile ? 'Saving…' : <><Save size={14} /> Save changes</>}
           </button>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
