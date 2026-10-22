@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  collection, doc, getDocs, addDoc, updateDoc,
+  collection, doc, getDocs, getDoc, addDoc, updateDoc,
   deleteDoc, setDoc, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -21,6 +21,10 @@ import {
   DEMO_INDIVIDUAL_DOCTORS as INITIAL_DOCTORS,
   DEMO_INDIVIDUAL_LOGISTICS as INITIAL_LOGISTICS,
 } from '../demoData';
+
+// Module-level lock — prevents duplicate seeding from React StrictMode's
+// double-invocation of effects in development.
+let _seedLock = false;
 
 export default function Dashboard() {
   const { user, profile, org } = useAuth();
@@ -48,6 +52,10 @@ export default function Dashboard() {
   }, [user]);
 
   async function seedUserData(uid) {
+    if (_seedLock) return;
+    _seedLock = true;
+    // Write the seeded flag first so any concurrent call reading it will bail out
+    await setDoc(doc(db, 'users', uid), { seeded: true, createdAt: new Date().toISOString() }, { merge: true });
     const batch = writeBatch(db);
     // Pre-generate Firestore refs so we can map demo IDs → real Firestore IDs
     const localIdMap = {};
@@ -72,15 +80,19 @@ export default function Dashboard() {
       const { id: _id, ...data } = d;
       batch.set(ref, { ...data, recipientId: localIdMap[data.recipientId] || data.recipientId });
     });
-    await setDoc(doc(db, 'users', uid), { seeded: true, createdAt: new Date().toISOString() }, { merge: true });
     await batch.commit();
   }
 
   async function loadData(uid) {
     setDataLoading(true);
     try {
-      const checkSnap = await getDocs(collection(db, 'users', uid, 'recipients'));
-      if (checkSnap.empty && INITIAL_RECIPIENTS.length > 0) await seedUserData(uid);
+      const [userSnap, checkSnap] = await Promise.all([
+        getDoc(doc(db, 'users', uid)),
+        getDocs(collection(db, 'users', uid, 'recipients')),
+      ]);
+      if (checkSnap.empty && !userSnap.data()?.seeded && INITIAL_RECIPIENTS.length > 0) {
+        await seedUserData(uid);
+      }
 
       const [recSnap, apptSnap, logSnap, docSnap, resSnap, chgSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'recipients')),
