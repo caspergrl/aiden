@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { updatePassword, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail } from 'firebase/auth';
+import { updatePassword, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch, getDoc, setDoc } from 'firebase/firestore';
-import { User, Shield, Trash2, Save, ArrowRight, Heart, Check, Calendar, RefreshCw, Unlink, Building2, Users, ChevronRight } from 'lucide-react';
-import { auth, db } from '../firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { User, Shield, Trash2, Save, ArrowRight, Heart, Check, Calendar, RefreshCw, Unlink, Building2, Users, ChevronRight, Camera } from 'lucide-react';
+import { auth, db, storage } from '../firebase';
 import { useAuth } from '../App';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -26,9 +27,22 @@ export default function Account() {
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const [name, setName]           = useState(profile?.name || '');
-  const [savingName, setSavingName] = useState(false);
-  const [nameSaved, setNameSaved] = useState(false);
+  // Split stored name into first / last for the edit form
+  const [firstName, setFirstName] = useState(() => {
+    const parts = (profile?.name || '').trim().split(/\s+/);
+    return parts[0] || '';
+  });
+  const [lastName, setLastName] = useState(() => {
+    const parts = (profile?.name || '').trim().split(/\s+/);
+    return parts.slice(1).join(' ') || '';
+  });
+  const [emailEdit, setEmailEdit] = useState(user?.email || '');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState('');
+
+  const [avatarUrl, setAvatarUrl]     = useState(profile?.avatarUrl || null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const [resetSent, setResetSent] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -132,13 +146,65 @@ export default function Account() {
     setGcalSyncing(p => ({ ...p, [key]: false }));
   }
 
-  async function saveName() {
-    if (!name.trim() || savingName) return;
-    setSavingName(true);
-    await updateDoc(doc(db, 'users', user.uid), { name: name.trim() });
-    setProfile(p => ({ ...p, name: name.trim() }));
-    setSavingName(false); setNameSaved(true);
-    setTimeout(() => setNameSaved(false), 2500);
+  async function resizeImage(file, maxSize = 200) {
+    return new Promise(resolve => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(resolve, 'image/jpeg', 0.85);
+      };
+      img.src = url;
+    });
+  }
+
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    try {
+      const blob = await resizeImage(file, 200);
+      const sRef = storageRef(storage, `users/${user.uid}/avatar.jpg`);
+      await uploadBytes(sRef, blob, { contentType: 'image/jpeg' });
+      const url = await getDownloadURL(sRef);
+      await updateDoc(doc(db, 'users', user.uid), { avatarUrl: url });
+      setAvatarUrl(url);
+      setProfile(p => ({ ...p, avatarUrl: url }));
+    } catch { /* silently ignore upload errors */ }
+    setAvatarUploading(false);
+  }
+
+  async function saveProfile() {
+    if (savingProfile) return;
+    setSavingProfile(true); setProfileError(''); setProfileSaved(false);
+    try {
+      const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
+      const updates = { name: fullName, firstName: firstName.trim(), lastName: lastName.trim() };
+      await updateDoc(doc(db, 'users', user.uid), updates);
+      setProfile(p => ({ ...p, ...updates }));
+
+      if (emailEdit.trim() && emailEdit.trim() !== user.email) {
+        await updateEmail(auth.currentUser, emailEdit.trim());
+        await updateDoc(doc(db, 'users', user.uid), { email: emailEdit.trim() });
+      }
+
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2500);
+    } catch (e) {
+      const msgs = {
+        'auth/requires-recent-login': 'Please sign out and sign in again before changing your email.',
+        'auth/email-already-in-use': 'That email is already in use by another account.',
+        'auth/invalid-email': 'Please enter a valid email address.',
+      };
+      setProfileError(msgs[e.code] || 'Could not save — please try again.');
+    }
+    setSavingProfile(false);
   }
 
   async function sendReset() {
@@ -202,41 +268,65 @@ export default function Account() {
           <h1 style={{ fontFamily: serif, fontSize: 32, color: C.text, letterSpacing: -0.5 }}>Account settings</h1>
         </div>
 
-        {/* Profile summary */}
-        <Card style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 20 }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: C.roseDark, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 800, flexShrink: 0 }}>
-            {(profile?.name || user?.email || '?')[0].toUpperCase()}
-          </div>
-          <div>
-            <p style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{profile?.name || 'Your name not set'}</p>
-            <p style={{ fontSize: 13, color: C.muted }}>{user?.email}</p>
-            <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 2 }}>Member since {memberSince}</p>
-          </div>
-          {profile?.role === 'admin' && (
-            <span style={{ marginLeft: 'auto', background: C.roseDark + '15', color: C.roseDark, border: `1px solid ${C.roseDark}30`, borderRadius: 20, padding: '4px 12px', fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>ADMIN</span>
-          )}
-        </Card>
-
-        {/* Edit name */}
+        {/* Profile */}
         <Card style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-            <User size={17} color={C.primary} />
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Profile</h2>
+          {/* Avatar + summary row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, paddingBottom: 24, borderBottom: `1px solid ${C.border}` }}>
+            {/* Avatar with upload */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: C.roseDark, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, fontWeight: 800, overflow: 'hidden' }}>
+                {avatarUrl
+                  ? <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : (profile?.name || user?.email || '?')[0].toUpperCase()
+                }
+              </div>
+              <label title="Upload photo" style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: '50%', background: '#fff', border: `1.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }}>
+                {avatarUploading
+                  ? <div style={{ width: 10, height: 10, border: '2px solid #ccc', borderTopColor: C.roseDark, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                  : <Camera size={12} color={C.muted} />
+                }
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
+              </label>
+            </div>
+            {/* Name / email / since */}
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 17, fontWeight: 800, color: C.text, margin: 0 }}>
+                {[profile?.firstName || '', profile?.lastName || ''].filter(Boolean).join(' ') || profile?.name || 'Your name not set'}
+              </p>
+              <p style={{ fontSize: 13, color: C.muted, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</p>
+              <p style={{ fontSize: 12, color: C.mutedLight, margin: '2px 0 0' }}>Member since {memberSince}</p>
+            </div>
+            {profile?.role === 'admin' && (
+              <span style={{ marginLeft: 'auto', flexShrink: 0, background: C.roseDark + '15', color: C.roseDark, border: `1px solid ${C.roseDark}30`, borderRadius: 20, padding: '4px 12px', fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>ADMIN</span>
+            )}
           </div>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Display name</label>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name"
-              style={{ flex: 1, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none' }} />
-            <button onClick={saveName} disabled={savingName || !name.trim()}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: nameSaved ? C.sage : C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '11px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0, transition: 'background 0.3s' }}>
-              {nameSaved ? <><Check size={14} /> Saved</> : <><Save size={14} /> Save</>}
-            </button>
+
+          {/* Edit fields */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>First name</label>
+              <input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First"
+                style={{ width: '100%', background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Last name</label>
+              <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Last"
+                style={{ width: '100%', background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
           </div>
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Email address</label>
-            <p style={{ fontSize: 14, color: C.muted, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 14px' }}>{user?.email}</p>
-            <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 6 }}>Email cannot be changed here. Contact support if needed.</p>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Email address</label>
+            <input value={emailEdit} onChange={e => setEmailEdit(e.target.value)} type="email" placeholder="your@email.com"
+              style={{ width: '100%', background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' }} />
           </div>
+
+          {profileError && <p style={{ fontSize: 13, color: C.coral, marginBottom: 12 }}>{profileError}</p>}
+
+          <button onClick={saveProfile} disabled={savingProfile}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: profileSaved ? '#4a9e7a' : C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '11px 20px', fontSize: 13, fontWeight: 700, cursor: savingProfile ? 'default' : 'pointer', transition: 'background 0.3s' }}>
+            {profileSaved ? <><Check size={14} /> Saved</> : savingProfile ? 'Saving…' : <><Save size={14} /> Save changes</>}
+          </button>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </Card>
 
         {/* Password */}
