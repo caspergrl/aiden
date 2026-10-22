@@ -50,6 +50,26 @@ export default function Account() {
   const [deleting, setDeleting]   = useState(false);
   const [delError, setDelError]   = useState('');
 
+  const [demoResetting, setDemoResetting] = useState(false);
+  async function handleResetDemoData() {
+    if (!user) return;
+    setDemoResetting(true);
+    const SUBCOLS = ['recipients', 'appointments', 'doctors', 'logistics', 'resources', 'careChanges'];
+    try {
+      const batch = writeBatch(db);
+      for (const col of SUBCOLS) {
+        const snap = await getDocs(collection(db, 'users', user.uid, col));
+        snap.docs.forEach(d => batch.delete(d.ref));
+      }
+      batch.update(doc(db, 'users', user.uid), { seeded: false });
+      await batch.commit();
+      window.location.href = '/';
+    } catch (e) {
+      console.error('Reset failed:', e);
+      setDemoResetting(false);
+    }
+  }
+
   // ── Google Calendar connections ──────────────────────────────────────────────
   const [connStatus, setConnStatus]   = useState({});
   const [connLoading, setConnLoading] = useState(false);
@@ -464,6 +484,24 @@ export default function Account() {
                 Open admin <ArrowRight size={14} />
               </a>
             </div>
+          </Card>
+        )}
+
+        {/* Dev-only: reset to demo data */}
+        {import.meta.env.DEV && (
+          <Card style={{ marginBottom: 20, border: '1px solid #e0c060', background: '#fffdf0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <RefreshCw size={16} color="#b08000" />
+              <h2 style={{ fontSize: 15, fontWeight: 800, color: '#7a5c00' }}>Reset to demo data</h2>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#b08000', background: '#fff0c0', border: '1px solid #e0c060', borderRadius: 6, padding: '2px 7px' }}>DEV ONLY</span>
+            </div>
+            <p style={{ fontSize: 13, color: '#8a7020', lineHeight: 1.6, marginBottom: 14 }}>
+              Deletes all your Firestore data and reseeds with the current demo data. Redirects to home on completion.
+            </p>
+            <button onClick={handleResetDemoData} disabled={demoResetting}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, background: demoResetting ? C.border : '#c09000', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: demoResetting ? 'default' : 'pointer' }}>
+              <RefreshCw size={13} /> {demoResetting ? 'Resetting…' : 'Reset demo data'}
+            </button>
           </Card>
         )}
 
