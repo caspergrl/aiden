@@ -291,7 +291,7 @@ export default function Account() {
               <p style={{ fontSize: 17, fontWeight: 800, color: C.text, margin: 0 }}>
                 {profile?.name || 'Your name not set'}
               </p>
-              <p style={{ fontSize: 13, color: C.muted, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</p>
+              <p style={{ fontSize: 13, color: org ? C.primary : C.roseDark, fontWeight: 700, margin: '2px 0 0' }}>{org ? 'Business' : 'Individual'}</p>
               <p style={{ fontSize: 12, color: C.mutedLight, margin: '2px 0 0' }}>Member since {memberSince}</p>
             </div>
             {profile?.role === 'admin' && (
