@@ -92,6 +92,17 @@ export const DEMO_INDIVIDUAL_DOCTORS = [
   },
 ];
 
+export const DEMO_INDIVIDUAL_LOGISTICS = [
+  { id: 1, title: "Will (ensure it's notarized)",    completed: true,  note: "Notarized March 2025",             partnerLink: null, recipientId: 'demo-mom' },
+  { id: 2, title: "Advanced Directive / Living Will", completed: true,  note: "On file at City Medical Center",   partnerLink: null, recipientId: 'demo-mom' },
+  { id: 3, title: "HIPAA Authorization Forms",        completed: false, note: "",                                  partnerLink: null, recipientId: 'demo-mom' },
+  { id: 4, title: "Healthcare Proxy Designation",     completed: false, note: "",                                  partnerLink: null, recipientId: 'demo-mom' },
+  { id: 5, title: "Durable Power of Attorney",        completed: false, note: "",                                  partnerLink: null, recipientId: 'demo-dad' },
+  { id: 6, title: "Access to Financial Accounts",     completed: false, note: "Need to be added to bank accounts", partnerLink: null, recipientId: 'demo-dad' },
+  { id: 7, title: "Social Security Beneficiary Update", completed: false, note: "",                                partnerLink: null, recipientId: 'demo-dad' },
+  { id: 8, title: "Long-term Care Insurance Review",  completed: false, note: "",                                  partnerLink: null, recipientId: null },
+];
+
 export const DEMO_INDIVIDUAL_APPOINTMENTS = [
   {
     id: 'demo-appt-1',

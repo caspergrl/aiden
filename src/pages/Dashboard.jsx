@@ -15,11 +15,11 @@ import Resources   from './dashboard/Resources';
 import Chat        from './dashboard/Chat';
 import { useAuth } from '../App';
 
-import { INITIAL_LOGISTICS } from '../data';
 import {
   DEMO_INDIVIDUAL_RECIPIENTS as INITIAL_RECIPIENTS,
   DEMO_INDIVIDUAL_APPOINTMENTS as INITIAL_APPOINTMENTS,
   DEMO_INDIVIDUAL_DOCTORS as INITIAL_DOCTORS,
+  DEMO_INDIVIDUAL_LOGISTICS as INITIAL_LOGISTICS,
 } from '../demoData';
 
 export default function Dashboard() {
@@ -65,7 +65,7 @@ export default function Dashboard() {
     INITIAL_LOGISTICS.forEach(l => {
       const ref = doc(collection(db, 'users', uid, 'logistics'));
       const { id: _id, ...data } = l;
-      batch.set(ref, data);
+      batch.set(ref, { ...data, recipientId: localIdMap[data.recipientId] ?? data.recipientId ?? null });
     });
     INITIAL_DOCTORS.forEach(d => {
       const ref = doc(collection(db, 'users', uid, 'doctors'));

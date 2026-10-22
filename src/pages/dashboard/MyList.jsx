@@ -14,7 +14,11 @@ import { C, serif, shadowSm, shadowXs, radius } from '../../theme';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [C.rose, C.primary, C.sage, C.lavender, C.peach];
-function rColor(id) { return AVATAR_COLORS[(id - 1) % AVATAR_COLORS.length] ?? C.primary; }
+function rColor(id) {
+  if (!id) return C.primary;
+  const n = typeof id === 'number' ? id : String(id).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  return AVATAR_COLORS[Math.abs(n) % AVATAR_COLORS.length];
+}
 
 function RecipAvatar({ r, size = 24 }) {
   const col = rColor(r.id);
@@ -58,7 +62,7 @@ function FilterBar({ recipients, filterId, setFilterId }) {
 
 function RecipSelect({ recipients, value, onChange, label = 'For (optional)' }) {
   return (
-    <select value={value ?? ''} onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}
+    <select value={value ?? ''} onChange={e => onChange(e.target.value || null)}
       style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 12, color: value ? C.text : C.muted, background: '#fff', cursor: 'pointer', outline: 'none' }}>
       <option value="">{label}</option>
       {recipients.map(r => <option key={r.id} value={r.id}>{r.nickname || r.name.split(' ')[0]}</option>)}
