@@ -15,10 +15,12 @@ import Resources   from './dashboard/Resources';
 import Chat        from './dashboard/Chat';
 import { useAuth } from '../App';
 
+import { INITIAL_LOGISTICS } from '../data';
 import {
-  INITIAL_RECIPIENTS, INITIAL_APPOINTMENTS,
-  INITIAL_DOCTORS, INITIAL_LOGISTICS,
-} from '../data';
+  DEMO_INDIVIDUAL_RECIPIENTS as INITIAL_RECIPIENTS,
+  DEMO_INDIVIDUAL_APPOINTMENTS as INITIAL_APPOINTMENTS,
+  DEMO_INDIVIDUAL_DOCTORS as INITIAL_DOCTORS,
+} from '../demoData';
 
 export default function Dashboard() {
   const { user, profile, org } = useAuth();
