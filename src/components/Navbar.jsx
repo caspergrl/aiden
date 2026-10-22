@@ -16,12 +16,12 @@ const NAV_ITEMS = [
   { label: 'Ask Aiden',  path: '/chat'      },
 ];
 
-function UserAvatar({ user, onSignOut }) {
+function UserAvatar({ user, profile, onSignOut }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  const initial = (user?.displayName?.[0] || user?.email?.[0] || '?').toUpperCase();
-  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Account';
+  const initial = (profile?.name?.[0] || '?').toUpperCase();
+  const displayName = profile?.name || user?.email?.split('@')[0] || 'Account';
 
   useEffect(() => {
     function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
@@ -142,7 +142,7 @@ export default function Navbar() {
         {/* Desktop auth */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} className="nav-desktop">
           {user ? (
-            <UserAvatar user={user} onSignOut={handleSignOut} />
+            <UserAvatar user={user} profile={profile} onSignOut={handleSignOut} />
           ) : (
             <>
               <Link to="/login" style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none', padding: '7px 14px' }}>Sign in</Link>
@@ -171,11 +171,11 @@ export default function Navbar() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: `1px solid ${C.border}`, marginBottom: 4 }}>
                   <div style={{ width: 34, height: 34, borderRadius: '50%', background: C.rose, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <span style={{ color: '#fff', fontWeight: 700, fontFamily: serif, fontSize: 14 }}>
-                      {(user?.displayName?.[0] || user?.email?.[0] || '?').toUpperCase()}
+                      {(profile?.name?.[0] || '?').toUpperCase()}
                     </span>
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text, margin: 0 }}>{user?.displayName || user?.email?.split('@')[0]}</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text, margin: 0 }}>{profile?.name || user?.email?.split('@')[0]}</p>
                     <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{user?.email}</p>
                   </div>
                 </div>
