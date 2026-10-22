@@ -286,13 +286,17 @@ export default function Account() {
                 <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
               </label>
             </div>
-            {/* Name / email / since */}
+            {/* Name / type badge / since */}
             <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 17, fontWeight: 800, color: C.text, margin: 0 }}>
-                {profile?.name || 'Your name not set'}
-              </p>
-              <p style={{ fontSize: 13, color: org ? C.primary : C.roseDark, fontWeight: 700, margin: '2px 0 0' }}>{org ? 'Business' : 'Individual'}</p>
-              <p style={{ fontSize: 12, color: C.mutedLight, margin: '2px 0 0' }}>Member since {memberSince}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <p style={{ fontSize: 17, fontWeight: 800, color: C.text, margin: 0 }}>
+                  {profile?.name || 'Your name not set'}
+                </p>
+                <span style={{ background: org ? C.primary + '18' : C.rose + '30', color: org ? C.primary : C.roseDark, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 800, letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
+                  {org ? 'BUSINESS' : 'INDIVIDUAL'}
+                </span>
+              </div>
+              <p style={{ fontSize: 12, color: C.mutedLight, margin: '4px 0 0' }}>Member since {memberSince}</p>
             </div>
             {profile?.role === 'admin' && (
               <span style={{ marginLeft: 'auto', flexShrink: 0, background: C.roseDark + '15', color: C.roseDark, border: `1px solid ${C.roseDark}30`, borderRadius: 20, padding: '4px 12px', fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>ADMIN</span>
@@ -415,7 +419,6 @@ export default function Account() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Business</span>
-                    <span style={{ background: C.primary + '18', color: C.primary, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>BUSINESS</span>
                   </div>
                   <p style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>{org.name} · {ORG_TYPES.find(t => t.value === org.type)?.label || org.type}</p>
                 </div>
@@ -435,7 +438,6 @@ export default function Account() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Individual</span>
-                    <span style={{ background: C.rose + '30', color: C.roseDark, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>INDIVIDUAL</span>
                   </div>
                   <p style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>Up to 3 care recipients</p>
                 </div>
