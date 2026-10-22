@@ -322,44 +322,52 @@ export default function Account() {
           </button>
         </Card>
 
-        {/* Organization */}
-        {org ? (
-          <Card style={{ marginBottom: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <Building2 size={17} color={C.primary} />
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Organization</h2>
-              <span style={{ marginLeft: 'auto', background: C.roseDark + '15', color: C.roseDark, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>BUSINESS</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-              <div>
-                <p style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 4 }}>{org.name}</p>
-                <p style={{ fontSize: 13, color: C.muted, display: 'flex', alignItems: 'center', gap: 7 }}>
-                  {ORG_TYPES.find(t => t.value === org.type)?.label || org.type}
-                  {' · '}
-                  <RoleBadge role={orgRole} />
-                </p>
+        {/* Account type */}
+        <Card style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 11, fontWeight: 800, color: C.mutedLight, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 14 }}>Account type</p>
+          {org ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: C.primary + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Building2 size={18} color={C.primary} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Business</span>
+                    <span style={{ background: C.primary + '18', color: C.primary, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>BUSINESS</span>
+                  </div>
+                  <p style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>{org.name} · {ORG_TYPES.find(t => t.value === org.type)?.label || org.type}</p>
+                </div>
+                <RoleBadge role={orgRole} style={{ marginLeft: 'auto', flexShrink: 0 }} />
               </div>
               <button onClick={() => navigate('/org')}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                Manage <ChevronRight size={14} />
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.primary, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Manage team <ChevronRight size={14} />
               </button>
-            </div>
-          </Card>
-        ) : isBusinessAllowed(user?.email) ? (
-          <Card style={{ marginBottom: 20, background: 'linear-gradient(135deg, #fdf6f5, #fff)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <Users size={17} color={C.roseDark} />
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Business account</h2>
-            </div>
-            <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.65, marginBottom: 16 }}>
-              Running a personal care home, assisted living facility, or skilled nursing facility? Upgrade to a Business account to manage your care team with role-based permissions.
-            </p>
-            <button onClick={() => setShowUpgrade(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, background: C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '11px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-              <Building2 size={14} /> Upgrade to Business
-            </button>
-          </Card>
-        ) : null}
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: C.rose + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Heart size={18} color={C.roseDark} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Individual</span>
+                    <span style={{ background: C.rose + '30', color: C.roseDark, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 800, letterSpacing: 0.5 }}>INDIVIDUAL</span>
+                  </div>
+                  <p style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>Up to 3 care recipients</p>
+                </div>
+              </div>
+              {isBusinessAllowed(user?.email) && (
+                <button onClick={() => setShowUpgrade(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: `1px solid ${C.border}`, borderRadius: 10, padding: '9px 16px', fontSize: 13, fontWeight: 700, color: C.text, cursor: 'pointer' }}>
+                  <Building2 size={14} color={C.muted} /> Upgrade to Business
+                </button>
+              )}
+            </>
+          )}
+        </Card>
 
         {/* Admin link */}
         {profile?.role === 'admin' && (
