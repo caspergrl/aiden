@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { X, Pencil, Trash2, Check, MapPin, Clock, Tag, Share2, Copy, Mail, MessageSquare } from 'lucide-react';
+import { X, Pencil, Trash2, Check, MapPin, Clock, Tag, Share2, Copy, Mail, MessageSquare, Car } from 'lucide-react';
 import { C, serif, sans } from '../theme';
 import PlacesInput from './PlacesInput';
+import TransportSection, { MOBILITY_OPTIONS, EMPTY_TRANSPORT, detectMobility } from './TransportSection';
 
 const FI = 'https://cdn-icons-png.flaticon.com/512';
 const EVENT_TYPES = [
@@ -47,6 +48,8 @@ const labelStyle = {
   textTransform: 'uppercase', marginBottom: 6, fontFamily: sans,
 };
 
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 export default function AppointmentModal({ appt, recipients, onUpdate, onDelete, onClose }) {
   const [mode, setMode]           = useState('view'); // 'view' | 'edit'
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -64,6 +67,7 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
   );
   const [notes, setNotes]           = useState(appt.notes || '');
   const [recipientId, setRecipientId] = useState(appt.recipientId || 'myself');
+  const [transport, setTransport]   = useState(appt.transport || EMPTY_TRANSPORT);
 
   const r   = recipients?.find(rec => rec.id === appt.recipientId);
   const col = r ? (r.id === 1 ? C.rose : C.primary) : C.muted;
@@ -98,8 +102,14 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
       location:    location.trim() || null,
       notes:       notes.trim() || null,
       recipientId: recipientId === 'myself' ? null : recipientId,
+      transport,
     });
     onClose();
+  }
+
+  function handleRemoveTransport() {
+    onUpdate(appt.id, { transport: EMPTY_TRANSPORT });
+    setTransport(EMPTY_TRANSPORT);
   }
 
   function handleDelete() {
@@ -140,6 +150,40 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
               </div>
               {appt.doctor && <p style={{ fontSize: 13, color: col, fontWeight: 600, fontFamily: sans }}>{appt.doctor}</p>}
               {appt.notes  && <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, fontFamily: sans }}>{appt.notes}</p>}
+
+              {/* Transport summary */}
+              <div style={{ background: C.bgWarm, borderRadius: 12, padding: '12px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <Car size={13} color={C.muted} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: sans }}>Transportation</span>
+                  </div>
+                  {appt.transport?.needed ? (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => setMode('edit')} style={{ fontSize: 12, fontWeight: 700, color: C.primary, background: 'none', border: 'none', cursor: 'pointer', fontFamily: sans, padding: 0 }}>Edit</button>
+                      <button onClick={handleRemoveTransport} style={{ fontSize: 12, fontWeight: 700, color: C.coral, background: 'none', border: 'none', cursor: 'pointer', fontFamily: sans, padding: 0 }}>Remove</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setTransport({ needed: true, mobilityNeeds: detectMobility(r?.conditions), notes: '' }); setMode('edit'); }} style={{ fontSize: 12, fontWeight: 700, color: C.primary, background: 'none', border: 'none', cursor: 'pointer', fontFamily: sans, padding: 0 }}>+ Add</button>
+                  )}
+                </div>
+                {appt.transport?.needed ? (
+                  <div style={{ marginTop: 6 }}>
+                    <p style={{ fontSize: 12, color: C.muted, fontFamily: sans }}>
+                      {MOBILITY_OPTIONS.find(m => m.value === appt.transport.mobilityNeeds)?.label || 'Arranged'}
+                    </p>
+                    {appt.transport.notes && <p style={{ fontSize: 12, color: C.mutedLight, fontFamily: sans, marginTop: 2 }}>{appt.transport.notes}</p>}
+                    {appt.transport.customProvider?.name && (
+                      <p style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: sans, marginTop: 4 }}>
+                        Provider: {appt.transport.customProvider.name}
+                        {appt.transport.customProvider.contact && <span style={{ fontWeight: 400, color: C.muted }}> · {appt.transport.customProvider.contact}</span>}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 12, color: C.mutedLight, fontFamily: sans, marginTop: 4 }}>Not arranged</p>
+                )}
+              </div>
             </div>
 
             {/* Actions */}
@@ -178,10 +222,12 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
                     style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: '#eef3fb', borderRadius: 12, textDecoration: 'none', color: C.primaryDark, fontFamily: sans, fontSize: 13, fontWeight: 700 }}>
                     <Mail size={14} /> Email
                   </a>
-                  <a href={`sms:?&body=${encodeURIComponent(buildShareText())}`}
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: '#eef6f1', borderRadius: 12, textDecoration: 'none', color: '#3a6e58', fontFamily: sans, fontSize: 13, fontWeight: 700 }}>
-                    <MessageSquare size={14} /> Text
-                  </a>
+                  {isMobile && (
+                    <a href={`sms:?&body=${encodeURIComponent(buildShareText())}`}
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: '#eef6f1', borderRadius: 12, textDecoration: 'none', color: '#3a6e58', fontFamily: sans, fontSize: 13, fontWeight: 700 }}>
+                      <MessageSquare size={14} /> Text
+                    </a>
+                  )}
                   <button onClick={handleCopy}
                     style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: copied ? '#eef6f1' : '#fff', border: `1px solid ${C.border}`, borderRadius: 12, cursor: 'pointer', fontFamily: sans, fontSize: 13, fontWeight: 700, color: copied ? '#3a6e58' : C.muted }}>
                     {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -277,6 +323,14 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
                   <input value={location} onChange={e => setLocation(e.target.value)} placeholder="https://…" style={inputStyle} />
                 )}
               </div>
+
+              {/* Transport */}
+              <TransportSection
+                transport={transport}
+                onChange={setTransport}
+                conditions={r?.conditions}
+                apptDetails={{ title, date, time: from24h(time24), location, doctor: appt.doctor, recipientName: r?.name }}
+              />
 
               {/* Notes */}
               <div>

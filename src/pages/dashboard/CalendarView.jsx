@@ -4,6 +4,7 @@ import { C, serif, sans } from '../../theme';
 import { FULL_MONTHS, DAYS_OF_WEEK } from '../../data';
 import AppointmentModal from '../../components/AppointmentModal';
 import PlacesInput from '../../components/PlacesInput';
+import TransportSection, { EMPTY_TRANSPORT, detectMobility } from '../../components/TransportSection';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const RECIPIENT_PALETTE = ['#c07878','#5f9e9a','#9b87b8','#c49050','#7a9e72','#7a8abf'];
@@ -68,19 +69,22 @@ const labelStyle = {
 };
 
 // ── Add Appointment Modal ──────────────────────────────────────────────────────
-function AddAppointmentModal({ recipients, onSave, onClose }) {
+function AddAppointmentModal({ recipients, onSave, onClose, initialDate }) {
   const now = new Date();
 
   const [recipientId, setRecipientId] = useState(recipients[0]?.id || 'myself');
   const [type, setType]               = useState('');
   const [title, setTitle]             = useState('');
   const [autoTitle, setAutoTitle]     = useState(true);
-  const [date, setDate]               = useState(todayISO());
+  const [date, setDate]               = useState(initialDate || todayISO());
   const [time24, setTime24]           = useState('10:00');
   const [locMode, setLocMode]         = useState('inperson');
   const [location, setLocation]       = useState('');
   const [reminders, setReminders]     = useState(true);
   const [notes, setNotes]             = useState('');
+  const [transport, setTransport]     = useState(EMPTY_TRANSPORT);
+
+  const selectedRecipient = recipients.find(r => r.id === recipientId) || null;
 
   function pickType(t) {
     setType(t);
@@ -99,6 +103,7 @@ function AddAppointmentModal({ recipients, onSave, onClose }) {
       recipientId: recipientId === 'myself' ? null : recipientId,
       reminders,
       doctor:      null,
+      transport,
     });
     onClose();
   }
@@ -226,6 +231,14 @@ function AddAppointmentModal({ recipients, onSave, onClose }) {
             </button>
           </div>
 
+          {/* Transport */}
+          <TransportSection
+            transport={transport}
+            onChange={setTransport}
+            conditions={selectedRecipient?.conditions}
+            apptDetails={{ title, date, time: from24h(time24), location, recipientName: selectedRecipient?.name }}
+          />
+
           {/* Notes */}
           <div>
             <p style={labelStyle}>Notes <span style={{ fontWeight: 400, textTransform: 'none' }}>(optional)</span></p>
@@ -260,6 +273,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
   const [year, setYear]         = useState(today.getFullYear());
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd]   = useState(false);
+  const [addDate, setAddDate]   = useState(null);
   const [activeAppt, setActiveAppt] = useState(null);
 
   const days  = getDaysInMonth(month, year);
@@ -288,7 +302,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
           <p style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Appointments</p>
           <h1 style={{ fontFamily: serif, fontSize: 30, color: C.text, letterSpacing: -0.5 }}>Calendar</h1>
         </div>
-        <button onClick={() => setShowAdd(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseLight, border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.roseDark, cursor: 'pointer' }}>
+        <button onClick={() => { setAddDate(null); setShowAdd(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseLight, border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.roseDark, cursor: 'pointer' }}>
           <Plus size={14} /> Add appointment
         </button>
       </div>
@@ -320,8 +334,17 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
               const isToday = ds === todayISO();
               const isSel   = selected === ds;
               const aptsOnDay = appointments.filter(a => a.date === ds);
+              const isPast = ds < todayISO();
               return (
-                <button key={day} onClick={() => setSelected(isSel ? null : ds)}
+                <button key={day} onClick={() => {
+                  if (isPast) {
+                    setSelected(isSel ? null : ds);
+                  } else {
+                    setSelected(ds);
+                    setAddDate(ds);
+                    setShowAdd(true);
+                  }
+                }}
                   style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: isToday && !isSel ? `2px solid ${C.rose}` : '2px solid transparent', background: isSel ? C.roseDark : 'transparent', cursor: 'pointer', position: 'relative', gap: 2 }}>
                   <span style={{ fontSize: 13, fontWeight: (isToday || isSel) ? 800 : 400, color: isSel ? '#fff' : isToday ? C.roseDark : C.text }}>{day}</span>
                   {hasA && (
@@ -357,9 +380,11 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
             {upcoming.length === 0 && past.length === 0 ? (
               <div style={{ padding: 32, textAlign: 'center', color: C.mutedLight }}>
                 <p style={{ fontSize: 14 }}>No appointments {selected ? 'on this day' : 'this month'}</p>
-                <button onClick={() => setShowAdd(true)} style={{ marginTop: 12, background: C.roseLight, color: C.roseDark, border: 'none', borderRadius: 10, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                  + Add one
-                </button>
+                {(!selected || selected >= todayISO()) && (
+                  <button onClick={() => { setAddDate(selected || null); setShowAdd(true); }} style={{ marginTop: 12, background: C.roseLight, color: C.roseDark, border: 'none', borderRadius: 10, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    + Add one
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -434,7 +459,8 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
         <AddAppointmentModal
           recipients={recipients}
           onSave={onAddAppointment}
-          onClose={() => setShowAdd(false)}
+          onClose={() => { setShowAdd(false); setAddDate(null); }}
+          initialDate={addDate}
         />
       )}
 

@@ -308,6 +308,7 @@ export default function Dashboard() {
             appointments={appointments}
             onAddAppointment={addAppointment}
             onDeleteAppointment={deleteAppointment}
+            onUpdateAppointment={updateAppointment}
             changes={changes}
             onAddChange={addChange}
             onDeleteChange={deleteChange}

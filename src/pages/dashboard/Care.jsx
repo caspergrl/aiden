@@ -4,10 +4,11 @@ import {
   ChevronLeft, ChevronRight, Plus, Trash2, Check, Phone, X,
   Search, Pencil, AlertTriangle, CalendarDays, Shield, Users,
   Upload, Download, FileText, Image as ImageIcon, BookMarked,
-  ExternalLink, Link2, AlertCircle,
+  ExternalLink, Link2, AlertCircle, Car,
 } from 'lucide-react';
 import { C, serif, shadowSm, radius } from '../../theme';
 import { INSURANCE_INFO, CAREGIVING_RECS, COMMON_MEDICATIONS } from '../../data';
+import TransportSection, { MOBILITY_OPTIONS, EMPTY_TRANSPORT, detectMobility } from '../../components/TransportSection';
 import { useAuth } from '../../App';
 import { db } from '../../firebase';
 import { doc, getDoc, updateDoc, collection, addDoc, deleteDoc } from 'firebase/firestore';
@@ -30,6 +31,7 @@ function calcAge(birthdate) {
 const DOC_TYPES = ['Will', 'Power of Attorney', 'Advanced Directive', 'Insurance Card', 'Medical Record', 'Other'];
 const RESOURCE_CATEGORIES = ['Medical', 'Legal', 'Caregiver Support', 'Financial', 'Community', 'Other'];
 const CAT_COLORS = { Medical: '#4a7aaa', Legal: '#7a5aaa', 'Caregiver Support': C.rose, Financial: '#4a8a5a', Community: '#a07030', Other: '#7a7a8c' };
+
 
 function fileTypeMeta(name = '', contentType = '') {
   const ext = name.split('.').pop().toLowerCase();
@@ -710,14 +712,16 @@ function ManageInsuranceModal({ recipient, onClose, onSave }) {
 }
 
 // ─── Add Appointment Modal ──────────────────────────────────────────────────────
-function AddAppointmentModal({ recipientId, doctors, onClose, onAdd }) {
+function AddAppointmentModal({ recipient, doctors, onClose, onAdd }) {
+  const recipientId = recipient?.id;
   const [form, setForm] = useState({ title: '', date: '', time: '', doctor: '', location: '' });
+  const [transport, setTransport] = useState(EMPTY_TRANSPORT);
   const [error, setError] = useState('');
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
   function handleAdd() {
     if (!form.title.trim()) { setError('Title is required.'); return; }
     if (!form.date)         { setError('Date is required.'); return; }
-    onAdd({ id: Date.now(), recipientId, title: form.title.trim(), date: form.date, time: fmt24(form.time), doctor: form.doctor.trim(), location: form.location.trim() });
+    onAdd({ id: Date.now(), recipientId, title: form.title.trim(), date: form.date, time: fmt24(form.time), doctor: form.doctor.trim(), location: form.location.trim(), transport });
     onClose();
   }
   const listId = `doc-list-${recipientId}`;
@@ -736,9 +740,57 @@ function AddAppointmentModal({ recipientId, doctors, onClose, onAdd }) {
           <datalist id={listId}>{doctors.map(d => <option key={d.id} value={d.name} />)}</datalist>
         </div>
         <div>{lbl('Location')}<input value={form.location} onChange={e => set('location', e.target.value)} placeholder="City Medical Center, Suite 302" style={inp} /></div>
+        <TransportSection transport={transport} onChange={setTransport} conditions={recipient?.conditions} />
       </div>
       {error && <p style={{ fontSize: 13, color: C.coral, marginTop: 12 }}>{error}</p>}
       <ModalActions onConfirm={handleAdd} confirmLabel="Add appointment" onClose={onClose} />
+    </ModalWrap>
+  );
+}
+
+// ─── Edit Appointment Modal ─────────────────────────────────────────────────────
+function EditAppointmentModal({ appointment, doctors, recipient, onClose, onSave }) {
+  const [form, setForm] = useState({
+    title:    appointment.title    || '',
+    date:     appointment.date     || '',
+    time:     appointment.time     || '',
+    doctor:   appointment.doctor   || '',
+    location: appointment.location || '',
+  });
+  const [transport, setTransport] = useState(appointment.transport || EMPTY_TRANSPORT);
+  const [error, setError] = useState('');
+  function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
+  function handleSave() {
+    if (!form.title.trim()) { setError('Title is required.'); return; }
+    if (!form.date)         { setError('Date is required.'); return; }
+    onSave({ ...form, title: form.title.trim(), time: fmt24(form.time), doctor: form.doctor.trim(), location: form.location.trim(), transport });
+    onClose();
+  }
+  const listId = `doc-list-edit-${appointment.id}`;
+  return (
+    <ModalWrap onClose={onClose}>
+      <ModalHeader title="Edit appointment" onClose={onClose} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div>{lbl('Title *')}<input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Cardiology Follow-up" style={inp} /></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>{lbl('Date *')}<input type="date" value={form.date} onChange={e => set('date', e.target.value)} style={inp} /></div>
+          <div>{lbl('Time')}<input type="time" value={form.time} onChange={e => set('time', e.target.value)} style={inp} /></div>
+        </div>
+        <div>
+          {lbl('Doctor / Provider')}
+          <input value={form.doctor} onChange={e => set('doctor', e.target.value)} placeholder="Dr. Sarah Kim" list={listId} style={inp} />
+          <datalist id={listId}>{doctors.map(d => <option key={d.id} value={d.name} />)}</datalist>
+        </div>
+        <div>{lbl('Location')}<input value={form.location} onChange={e => set('location', e.target.value)} placeholder="City Medical Center, Suite 302" style={inp} /></div>
+        <TransportSection
+          transport={transport}
+          onChange={setTransport}
+          conditions={recipient?.conditions}
+          apptDetails={{ title: form.title, date: form.date, time: fmt24(form.time), location: form.location, doctor: form.doctor, recipientName: recipient?.name }}
+        />
+      </div>
+      {error && <p style={{ fontSize: 13, color: C.coral, marginTop: 12 }}>{error}</p>}
+      <ModalActions onConfirm={handleSave} confirmLabel="Save changes" onClose={onClose} />
     </ModalWrap>
   );
 }
@@ -986,7 +1038,7 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
 }
 
 // ─── Recipient detail view ──────────────────────────────────────────────────────
-function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, onDeleteDoctor, appointments, onAddAppointment, onDeleteAppointment, recipients, changes = [], onAddChange, onDeleteChange, resources = [], onAddResource, onUpdateResource, onDeleteResource }) {
+function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, onDeleteDoctor, appointments, onAddAppointment, onDeleteAppointment, onUpdateAppointment, recipients, changes = [], onAddChange, onDeleteChange, resources = [], onAddResource, onUpdateResource, onDeleteResource }) {
   const { user } = useAuth();
   const [tab, setTab]               = useState('overview');
   const [showEdit, setShowEdit]     = useState(false);
@@ -997,6 +1049,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
   const [showPhone, setShowPhone]   = useState(false);
   const [showAllAppts, setShowAllAppts] = useState(false);
   const [showAddChange, setShowAddChange] = useState(false);
+  const [editingAppt, setEditingAppt] = useState(null);
 
   // Docs state
   const [rdocs, setRdocs]               = useState([]);
@@ -1085,7 +1138,8 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
       {showDelete   && <DeleteConfirmModal recipient={r} onClose={() => setShowDelete(false)} onDelete={() => { onDelete(r.id); onBack(); }} />}
       {showDoctor   && <AddDoctorModal recipientId={r.id} onClose={() => setShowDoctor(false)} onAdd={d => { onAddDoctor(d); setShowDoctor(false); }} />}
       {showInsurance && <ManageInsuranceModal recipient={r} onClose={() => setShowInsurance(false)} onSave={onEdit} />}
-      {showAppt       && <AddAppointmentModal recipientId={r.id} doctors={myDoctors} onClose={() => setShowAppt(false)} onAdd={a => { onAddAppointment(a); setShowAppt(false); }} />}
+      {showAppt    && <AddAppointmentModal recipient={r} doctors={myDoctors} onClose={() => setShowAppt(false)} onAdd={a => { onAddAppointment(a); setShowAppt(false); }} />}
+      {editingAppt && <EditAppointmentModal appointment={editingAppt} doctors={myDoctors} recipient={r} onClose={() => setEditingAppt(null)} onSave={u => { onUpdateAppointment(editingAppt.id, u); setEditingAppt(null); }} />}
       {showPhone      && <AddPhoneModal onClose={() => setShowPhone(false)} onAdd={n => onEdit({ ...r, importantNumbers: [...(r.importantNumbers || []), n] })} />}
       {showAddChange  && <AddChangeModal recipientId={r.id} onClose={() => setShowAddChange(false)} onAdd={d => onAddChange(d)} />}
 
@@ -1285,8 +1339,23 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                   <p style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{a.date}{a.time ? ` · ${a.time}` : ''}</p>
                   {a.doctor && <p style={{ fontSize: 12, color: col, fontWeight: 600, marginTop: 2 }}>{a.doctor}</p>}
                   {a.location && <p style={{ fontSize: 12, color: C.mutedLight }}>{a.location}</p>}
+                  {a.transport?.needed && (
+                    <p style={{ fontSize: 11, color: C.muted, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Car size={11} color={C.muted} />
+                      {MOBILITY_OPTIONS.find(m => m.value === a.transport.mobilityNeeds)?.label || 'Transport arranged'}
+                      {a.transport.notes ? ` · ${a.transport.notes}` : ''}
+                    </p>
+                  )}
                 </div>
-                <DelBtn onClick={() => onDeleteAppointment(a.id)} />
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+                  <button onClick={() => setEditingAppt(a)}
+                    style={{ width: 30, height: 30, borderRadius: '50%', background: 'none', border: `1px solid ${C.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#f0f4ff'; e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.color = C.primary; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                    <Pencil size={13} />
+                  </button>
+                  <DelBtn onClick={() => onDeleteAppointment(a.id)} />
+                </div>
               </div>
             ))}
             {previousAppts.length > 0 && (
@@ -1299,7 +1368,15 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                       <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 2 }}>{a.date}{a.time ? ` · ${a.time}` : ''}</p>
                       {a.doctor && <p style={{ fontSize: 12, color: C.mutedLight, fontWeight: 600, marginTop: 2 }}>{a.doctor}</p>}
                     </div>
-                    <DelBtn onClick={() => onDeleteAppointment(a.id)} />
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+                      <button onClick={() => setEditingAppt(a)}
+                        style={{ width: 30, height: 30, borderRadius: '50%', background: 'none', border: `1px solid ${C.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#f0f4ff'; e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.color = C.primary; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                        <Pencil size={13} />
+                      </button>
+                      <DelBtn onClick={() => onDeleteAppointment(a.id)} />
+                    </div>
                   </div>
                 ))}
               </>
@@ -1584,7 +1661,7 @@ export default function Care({
   canAddRecipient = true,
   onAddRecipient, onUpdateRecipient, onDeleteRecipient,
   doctors, onAddDoctor, onDeleteDoctor,
-  appointments, onAddAppointment, onDeleteAppointment,
+  appointments, onAddAppointment, onDeleteAppointment, onUpdateAppointment,
   changes = [], onAddChange, onDeleteChange,
   resources = [], onAddResource, onUpdateResource, onDeleteResource,
 }) {
@@ -1616,6 +1693,7 @@ export default function Care({
           appointments={appointments}
           onAddAppointment={onAddAppointment}
           onDeleteAppointment={onDeleteAppointment}
+          onUpdateAppointment={onUpdateAppointment}
           recipients={recipients}
           changes={changes}
           onAddChange={onAddChange}
