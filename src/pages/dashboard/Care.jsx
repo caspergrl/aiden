@@ -263,8 +263,11 @@ function AllergiesPicker({ selected, onChange }) {
 
 // ─── Medication name lookahead input ────────────────────────────────────────────
 function MedNameInput({ value, onChange, customMeds, onAddCustomMed }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [open, setOpen]           = useState(false);
+  const [rxResults, setRxResults] = useState([]);   // RxNorm fallback results
+  const [rxLoading, setRxLoading] = useState(false);
+  const rxTimer                   = useRef(null);
+  const ref                       = useRef(null);
 
   useEffect(() => {
     function h(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
@@ -272,15 +275,41 @@ function MedNameInput({ value, onChange, customMeds, onAddCustomMed }) {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const trimmed = value.trim();
-  const allMeds = [...COMMON_MEDICATIONS, ...customMeds.filter(m => !COMMON_MEDICATIONS.includes(m))];
-  const filtered = allMeds.filter(m => m.toLowerCase().includes(trimmed.toLowerCase())).slice(0, 8);
+  const trimmed  = value.trim();
+  const allMeds  = [...COMMON_MEDICATIONS, ...customMeds.filter(m => !COMMON_MEDICATIONS.includes(m))];
+  // Show full list on empty focus; filter when typing
+  const localHits = trimmed.length === 0
+    ? allMeds.slice(0, 12)
+    : allMeds.filter(m => m.toLowerCase().includes(trimmed.toLowerCase())).slice(0, 10);
   const isCustom = trimmed.length > 1
     && !COMMON_MEDICATIONS.some(m => m.toLowerCase() === trimmed.toLowerCase())
     && !customMeds.some(m => m.toLowerCase() === trimmed.toLowerCase());
 
-  function pick(name) { onChange(name); setOpen(false); }
-  function addCustom() { onAddCustomMed(trimmed); onChange(trimmed); setOpen(false); }
+  // Fetch RxNorm when local list has fewer than 3 hits and query is long enough
+  useEffect(() => {
+    clearTimeout(rxTimer.current);
+    if (trimmed.length < 3 || localHits.length >= 3) { setRxResults([]); return; }
+    rxTimer.current = setTimeout(async () => {
+      setRxLoading(true);
+      try {
+        const res  = await fetch(`https://rxnav.nlm.nih.gov/REST/drugs.json?name=${encodeURIComponent(trimmed)}`);
+        const json = await res.json();
+        const names = (json.drugGroup?.conceptGroup || [])
+          .flatMap(g => g.conceptProperties || [])
+          .map(p => p.name)
+          .filter(n => n && !allMeds.some(m => m.toLowerCase() === n.toLowerCase()))
+          .slice(0, 6);
+        setRxResults(names);
+      } catch { setRxResults([]); }
+      setRxLoading(false);
+    }, 350);
+    return () => clearTimeout(rxTimer.current);
+  }, [trimmed]);
+
+  function pick(name) { onChange(name); setRxResults([]); setOpen(false); }
+  function addCustom() { onAddCustomMed(trimmed); onChange(trimmed); setRxResults([]); setOpen(false); }
+
+  const showDropdown = open && (localHits.length > 0 || rxResults.length > 0 || rxLoading || isCustom);
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
@@ -291,17 +320,20 @@ function MedNameInput({ value, onChange, customMeds, onAddCustomMed }) {
           onChange={e => { onChange(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onKeyDown={e => {
-            if (e.key === 'Enter') { e.preventDefault(); if (filtered[0] && !isCustom) pick(filtered[0]); else if (isCustom) addCustom(); }
+            if (e.key === 'Enter') { e.preventDefault(); if (localHits[0] && !isCustom) pick(localHits[0]); else if (isCustom) addCustom(); }
             if (e.key === 'Escape') setOpen(false);
           }}
-          placeholder="Search or type a medication name…"
+          placeholder="Search medications…"
           style={{ ...inp, fontSize: 13, padding: '8px 12px 8px 32px' }}
           autoFocus
         />
       </div>
-      {open && trimmed.length > 0 && (filtered.length > 0 || isCustom) && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(40,30,20,0.12)', zIndex: 500, maxHeight: 220, overflowY: 'auto' }}>
-          {filtered.map(m => (
+      {showDropdown && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(40,30,20,0.12)', zIndex: 500, maxHeight: 260, overflowY: 'auto' }}>
+          {trimmed.length === 0 && (
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.6, textTransform: 'uppercase', padding: '8px 14px 4px' }}>Common medications</p>
+          )}
+          {localHits.map(m => (
             <button key={m} onMouseDown={e => { e.preventDefault(); pick(m); }}
               style={{ width: '100%', background: 'none', border: 'none', padding: '9px 14px', textAlign: 'left', fontSize: 13, color: C.text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
               onMouseEnter={e => e.currentTarget.style.background = C.bgWarm}
@@ -310,9 +342,26 @@ function MedNameInput({ value, onChange, customMeds, onAddCustomMed }) {
               {customMeds.includes(m) && <span style={{ fontSize: 10, color: C.mutedLight, fontWeight: 600 }}>SAVED</span>}
             </button>
           ))}
+          {/* RxNorm results */}
+          {rxLoading && (
+            <p style={{ fontSize: 12, color: C.mutedLight, padding: '8px 14px', fontStyle: 'italic' }}>Searching drug database…</p>
+          )}
+          {rxResults.length > 0 && (
+            <>
+              <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.6, textTransform: 'uppercase', padding: '8px 14px 4px', borderTop: localHits.length ? `1px solid ${C.border}` : 'none' }}>From RxNorm database</p>
+              {rxResults.map(m => (
+                <button key={m} onMouseDown={e => { e.preventDefault(); pick(m); }}
+                  style={{ width: '100%', background: 'none', border: 'none', padding: '9px 14px', textAlign: 'left', fontSize: 13, color: C.text, cursor: 'pointer' }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.bgWarm}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                  {m}
+                </button>
+              ))}
+            </>
+          )}
           {isCustom && (
             <button onMouseDown={e => { e.preventDefault(); addCustom(); }}
-              style={{ width: '100%', background: 'none', border: 'none', borderTop: filtered.length ? `1px solid ${C.border}` : 'none', padding: '9px 14px', textAlign: 'left', fontSize: 13, color: C.roseDark, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              style={{ width: '100%', background: 'none', border: 'none', borderTop: (localHits.length || rxResults.length) ? `1px solid ${C.border}` : 'none', padding: '9px 14px', textAlign: 'left', fontSize: 13, color: C.roseDark, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               onMouseEnter={e => e.currentTarget.style.background = C.roseLight}
               onMouseLeave={e => e.currentTarget.style.background = 'none'}>
               <Plus size={13} /> Add "{trimmed}" as custom medication
