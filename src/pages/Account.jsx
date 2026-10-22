@@ -27,26 +27,17 @@ export default function Account() {
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  // Split stored name into first / last for the edit form
-  const origFirstName = (() => {
-    const parts = (profile?.firstName || profile?.name || '').trim().split(/\s+/);
-    return profile?.firstName || parts[0] || '';
-  })();
-  const origLastName = (() => {
-    const parts = (profile?.name || '').trim().split(/\s+/);
-    return profile?.lastName || parts.slice(1).join(' ') || '';
-  })();
-  const [firstName, setFirstName] = useState(origFirstName);
-  const [lastName, setLastName]   = useState(origLastName);
-  const [emailEdit, setEmailEdit] = useState(user?.email || '');
+  const origName  = profile?.name || '';
+  const origEmail = user?.email || '';
+
+  const [fullName,  setFullName]  = useState(origName);
+  const [emailEdit, setEmailEdit] = useState(origEmail);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved]   = useState(false);
   const [profileError, setProfileError]   = useState('');
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEdit.trim());
-  const isDirty = firstName.trim() !== origFirstName
-    || lastName.trim() !== origLastName
-    || emailEdit.trim() !== (user?.email || '');
+  const isDirty = fullName.trim() !== origName || emailEdit.trim() !== origEmail;
   const canSave = isDirty && isEmailValid && !savingProfile;
 
   const [avatarUrl, setAvatarUrl]     = useState(profile?.avatarUrl || null);
@@ -192,8 +183,7 @@ export default function Account() {
     if (savingProfile) return;
     setSavingProfile(true); setProfileError(''); setProfileSaved(false);
     try {
-      const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
-      const updates = { name: fullName, firstName: firstName.trim(), lastName: lastName.trim() };
+      const updates = { name: fullName.trim() };
       await updateDoc(doc(db, 'users', user.uid), updates);
       setProfile(p => ({ ...p, ...updates }));
 
@@ -299,7 +289,7 @@ export default function Account() {
             {/* Name / email / since */}
             <div style={{ minWidth: 0 }}>
               <p style={{ fontSize: 17, fontWeight: 800, color: C.text, margin: 0 }}>
-                {[profile?.firstName || '', profile?.lastName || ''].filter(Boolean).join(' ') || profile?.name || 'Your name not set'}
+                {profile?.name || 'Your name not set'}
               </p>
               <p style={{ fontSize: 13, color: C.muted, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</p>
               <p style={{ fontSize: 12, color: C.mutedLight, margin: '2px 0 0' }}>Member since {memberSince}</p>
@@ -310,17 +300,10 @@ export default function Account() {
           </div>
 
           {/* Edit fields */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>First name</label>
-              <input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First"
-                style={{ width: '100%', background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Last name</label>
-              <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Last"
-                style={{ width: '100%', background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' }} />
-            </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Full name</label>
+            <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your name"
+              style={{ width: '100%', background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' }} />
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Email address</label>
