@@ -113,7 +113,7 @@ function SendPanel({ transport, apptDetails }) {
           </a>
         )}
         {usePhone && isMobile && (
-          <a href={`sms:${contact.replace(/\s/g, '')}?&body=${body}`}
+          <a href={`sms:${contact.replace(/\s/g, '')}?body=${body}`}
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 0', background: '#eef6f1', borderRadius: 10, textDecoration: 'none', color: '#3a6e58', fontSize: 13, fontWeight: 700 }}>
             <MessageSquare size={13} /> Send text
           </a>

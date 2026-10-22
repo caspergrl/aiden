@@ -1,11 +1,12 @@
-const { onRequest } = require('firebase-functions/v2/https');
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { Resend } = require('resend');
 
 admin.initializeApp();
 
-exports.onUserSignup = functions.auth.user().onCreate(async (user) => {
+exports.onUserSignup = functions
+  .runWith({ secrets: ['RESEND_API_KEY'] })
+  .auth.user().onCreate(async (user) => {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.error('RESEND_API_KEY not set');
