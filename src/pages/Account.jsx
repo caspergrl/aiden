@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { updatePassword, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch, getDoc, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { User, Shield, Trash2, Save, ArrowRight, Heart, Check, Calendar, RefreshCw, Unlink, Building2, Users, ChevronRight, Camera } from 'lucide-react';
+import { User, Shield, Trash2, Save, ArrowRight, Heart, Check, Calendar, RefreshCw, Unlink, Building2, Users, ChevronRight, Camera, Bell } from 'lucide-react';
 import { auth, db, storage } from '../firebase';
 import { useAuth } from '../App';
 import Navbar from '../components/Navbar';
@@ -49,6 +49,25 @@ export default function Account() {
   const [delConfirm, setDelConfirm] = useState('');
   const [deleting, setDeleting]   = useState(false);
   const [delError, setDelError]   = useState('');
+
+  // ── Reminder preferences ─────────────────────────────────────────────────────
+  const [notifEmail, setNotifEmail] = useState(profile?.notifEmail ?? true);
+  const [notifSms,   setNotifSms]   = useState(profile?.notifSms   ?? false);
+  const [notifPhone, setNotifPhone] = useState(profile?.notifPhone  || '');
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifSaved,  setNotifSaved]  = useState(false);
+
+  async function saveNotifPrefs() {
+    setNotifSaving(true);
+    try {
+      const updates = { notifEmail, notifSms, notifPhone: notifPhone.trim() };
+      await updateDoc(doc(db, 'users', user.uid), updates);
+      setProfile(p => ({ ...p, ...updates }));
+      setNotifSaved(true);
+      setTimeout(() => setNotifSaved(false), 2500);
+    } catch (e) { console.error('Failed to save reminder prefs:', e); }
+    setNotifSaving(false);
+  }
 
   const [demoResetting, setDemoResetting] = useState(false);
   async function handleResetDemoData() {
@@ -424,6 +443,62 @@ export default function Account() {
             style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fff', color: '#444', border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: gcalAccounts.length ? 4 : 0 }}>
             <span style={{ fontWeight: 800, fontSize: 15 }}>G</span>
             {gcalAccounts.length ? 'Add another account' : 'Connect with Google'}
+          </button>
+        </Card>
+
+        {/* Reminders */}
+        <Card style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <Bell size={17} color={C.primary} />
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Appointment reminders</h2>
+          </div>
+          <p style={{ fontSize: 14, color: C.muted, marginBottom: 20, lineHeight: 1.65 }}>
+            Get notified 1 week and 1 day before upcoming appointments.
+          </p>
+
+          {/* Email toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '12px 14px', background: C.bgWarm, borderRadius: 12, border: `1px solid ${C.border}` }}>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Email reminders</p>
+              <p style={{ fontSize: 12, color: C.mutedLight, margin: '2px 0 0' }}>Sent to {user?.email}</p>
+            </div>
+            <button onClick={() => setNotifEmail(v => !v)}
+              style={{ width: 44, height: 24, borderRadius: 12, background: notifEmail ? C.roseDark : C.border, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+              <div style={{ position: 'absolute', top: 3, left: notifEmail ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+            </button>
+          </div>
+
+          {/* Phone number */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>
+              Phone number for text reminders
+            </label>
+            <input
+              value={notifPhone}
+              onChange={e => setNotifPhone(e.target.value)}
+              placeholder="+1 (555) 200-1000"
+              type="tel"
+              style={{ width: '100%', background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          {/* SMS toggle — only shown when a phone number is entered */}
+          {notifPhone.trim() && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '12px 14px', background: C.bgWarm, borderRadius: 12, border: `1px solid ${C.border}` }}>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Text reminders</p>
+                <p style={{ fontSize: 12, color: C.mutedLight, margin: '2px 0 0' }}>SMS to {notifPhone}</p>
+              </div>
+              <button onClick={() => setNotifSms(v => !v)}
+                style={{ width: 44, height: 24, borderRadius: 12, background: notifSms ? C.roseDark : C.border, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 3, left: notifSms ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+              </button>
+            </div>
+          )}
+
+          <button onClick={saveNotifPrefs} disabled={notifSaving}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: notifSaved ? '#4a9e7a' : C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '11px 20px', fontSize: 13, fontWeight: 700, cursor: notifSaving ? 'default' : 'pointer', transition: 'background 0.3s' }}>
+            {notifSaved ? <><Check size={14} /> Saved</> : notifSaving ? 'Saving…' : <><Save size={14} /> Save reminder settings</>}
           </button>
         </Card>
 
