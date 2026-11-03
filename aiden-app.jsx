@@ -3,7 +3,7 @@ import {
   Home, CalendarDays, ClipboardList, Shield, MessageCircle,
   Plus, ChevronRight, ChevronLeft, Phone, Heart,
   CheckSquare, Square, Send, Clock, FileText,
-  AlertCircle, Bell, Check, Info, ExternalLink, Eye, EyeOff,
+  AlertCircle, Bell, Check, Info, ExternalLink,
 } from "lucide-react";
 
 // ─── COLOR PALETTE (warm neutrals) ─────────────────────────────────────────────
@@ -219,10 +219,6 @@ function getFirstDay(month, year) { return new Date(year, month, 1).getDay(); }
 function recipientColor(id) { return id === 1 ? C.rose : C.blue; }
 function recipientLightColor(id) { return id === 1 ? C.roseLight : C.blueLight; }
 function initials(name) { return name.split(" ").map(n => n[0]).join("").slice(0, 2); }
-function getDailyMessage() {
-  const day = new Date("2026-03-25").getDate(); // day 25 → index 24
-  return DAILY_MESSAGES[(day - 1) % DAILY_MESSAGES.length];
-}
 
 function getResponse(text) {
   const t = text.toLowerCase();
@@ -264,40 +260,10 @@ function SectionLabel({ children }) {
   return <p style={{ fontSize: 11, fontWeight: 800, color: C.mutedLight, letterSpacing: 0.8, marginBottom: 10, textTransform: "uppercase" }}>{children}</p>;
 }
 
-// ─── DAILY MESSAGE CARD ────────────────────────────────────────────────────────
-
-function DailyMessageCard({ onHide }) {
-  const msg = getDailyMessage();
-  return (
-    <div style={{ background: "linear-gradient(135deg, #e8d8d4 0%, #d8e2ec 100%)", borderRadius: 20, padding: "16px 18px", marginBottom: 18, position: "relative", border: "1px solid #e0d4ce" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <span style={{ fontSize: 16 }}>✨</span>
-            <span style={{ fontSize: 11, fontWeight: 800, color: "#8a7870", letterSpacing: 0.8, textTransform: "uppercase" }}>Today's message for you</span>
-          </div>
-          <p style={{ fontSize: 14, color: "#3a3028", lineHeight: 1.75, fontStyle: "italic", fontWeight: 500 }}>"{msg.text}"</p>
-          <p style={{ fontSize: 11, color: "#9a8e86", marginTop: 8, fontWeight: 600 }}>— Aiden</p>
-        </div>
-        <button onClick={onHide} style={{ background: "rgba(255,255,255,0.45)", border: "none", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }} title="Hide daily message">
-          <EyeOff size={14} color="#8a7870" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ShowMessageButton({ onShow }) {
-  return (
-    <button onClick={onShow} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "1px dashed #c8bdb5", borderRadius: 12, padding: "7px 12px", color: C.muted, fontSize: 12, fontWeight: 600, cursor: "pointer", marginBottom: 18 }}>
-      <Eye size={14} /> Show today's message
-    </button>
-  );
-}
 
 // ─── HOME TAB ──────────────────────────────────────────────────────────────────
 
-function HomeTab({ recipients, onSelect, showMsg, setShowMsg }) {
+function HomeTab({ recipients, onSelect }) {
   const pending = INITIAL_LOGISTICS.filter(l => !l.completed).length;
   return (
     <div style={{ padding: 16, paddingBottom: 8 }}>
@@ -305,12 +271,6 @@ function HomeTab({ recipients, onSelect, showMsg, setShowMsg }) {
         <p style={{ color: C.muted, fontSize: 13 }}>Wednesday, March 25, 2026</p>
         <h1 style={{ fontSize: 22, fontWeight: 900, color: C.text, marginTop: 2, letterSpacing: -0.5 }}>Good morning, Holly 👋</h1>
       </div>
-
-      {/* Daily message toggle */}
-      {showMsg
-        ? <DailyMessageCard onHide={() => setShowMsg(false)} />
-        : <ShowMessageButton onShow={() => setShowMsg(true)} />
-      }
 
       {/* Quick stats */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
@@ -922,7 +882,6 @@ export default function AidenApp() {
   const [appointments] = useState(INITIAL_APPOINTMENTS);
   const [doctors] = useState(INITIAL_DOCTORS);
   const [logistics, setLogistics] = useState(INITIAL_LOGISTICS);
-  const [showMsg, setShowMsg] = useState(true);
   const [chatMessages, setChatMessages] = useState([
     { role: "assistant", text: "Hi Holly! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for Margaret and Thomas — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍" }
   ]);
@@ -934,7 +893,7 @@ export default function AidenApp() {
     if (tab === "home") {
       return selRecipient
         ? <RecipientProfile r={selRecipient} onBack={() => setSelRecipient(null)} doctors={doctors} appointments={appointments} />
-        : <HomeTab recipients={recipients} onSelect={r => setSelRecipient(r)} showMsg={showMsg} setShowMsg={setShowMsg} />;
+        : <HomeTab recipients={recipients} onSelect={r => setSelRecipient(r)} />;
     }
     if (tab === "calendar")  return <CalendarTab appointments={appointments} recipients={recipients} />;
     if (tab === "list")      return <ListTab logistics={logistics} setLogistics={setLogistics} doctors={doctors} />;
