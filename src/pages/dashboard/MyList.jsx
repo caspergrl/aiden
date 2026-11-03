@@ -36,8 +36,11 @@ function RecipAvatar({ r, size = 24 }) {
 }
 
 function FilterBar({ recipients, filterId, setFilterId }) {
-  if (!recipients?.length) return null;
-  const options = [{ id: null, label: 'All', r: null }, ...recipients.map(r => ({ id: r.id, label: r.nickname || r.name.split(' ')[0], r }))];
+  const options = [
+    { id: null,  label: 'All',  r: null },
+    { id: 'me',  label: 'Me',   r: null },
+    ...recipients.map(r => ({ id: r.id, label: r.nickname || r.name.split(' ')[0], r })),
+  ];
   return (
     <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
       {options.map(opt => {
@@ -65,6 +68,7 @@ function RecipSelect({ recipients, value, onChange, label = 'For (optional)' }) 
     <select value={value ?? ''} onChange={e => onChange(e.target.value || null)}
       style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 12, color: value ? C.text : C.muted, background: '#fff', cursor: 'pointer', outline: 'none' }}>
       <option value="">{label}</option>
+      <option value="me">Me</option>
       {recipients.map(r => <option key={r.id} value={r.id}>{r.nickname || r.name.split(' ')[0]}</option>)}
     </select>
   );
@@ -343,7 +347,8 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
             )}
             {incomplete.map(item => {
               const isEditing = editingId === item.id;
-              const recip = item.recipientId ? recipients.find(r => r.id === item.recipientId) : null;
+              const isMe = item.recipientId === 'me';
+              const recip = item.recipientId && !isMe ? recipients.find(r => r.id === item.recipientId) : null;
               return (
                 <div key={item.id} data-drag-item draggable={!isEditing}
                   onDragStart={e => !isEditing && onDragStart(e, item.id)} onDragOver={e => onDragOver(e, item.id)}
@@ -391,6 +396,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                   )}
                   {!isEditing && (
                     <>
+                      {isMe && <span style={{ fontSize: 11, fontWeight: 700, color: C.roseDark, background: C.roseLight, borderRadius: 10, padding: '2px 8px', flexShrink: 0 }}>Me</span>}
                       {recip && <RecipAvatar r={recip} size={26} />}
                       <button onClick={() => startEdit(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', flexShrink: 0, color: C.muted, opacity: 0.6 }} title="Edit">
                         <Pencil size={14} />
@@ -437,7 +443,8 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                   {complete.map(item => {
                     const isRestoring = restoreId === item.id;
-                    const recip = item.recipientId ? recipients.find(r => r.id === item.recipientId) : null;
+                    const isMe = item.recipientId === 'me';
+                    const recip = item.recipientId && !isMe ? recipients.find(r => r.id === item.recipientId) : null;
                     return (
                       <div key={item.id} style={{ background: isRestoring ? '#f9f6f3' : '#fafafa', borderRadius: 14, padding: '12px 18px', border: `1px solid ${C.border}`, opacity: 0.85 }}>
                         {isRestoring ? (
@@ -458,6 +465,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                               <p style={{ fontSize: 14, fontWeight: 500, color: C.mutedLight, textDecoration: 'line-through' }}>{item.title}</p>
                               {item.note && <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 2 }}>{item.note}</p>}
                             </div>
+                            {isMe && <span style={{ fontSize: 11, fontWeight: 700, color: C.roseDark, background: C.roseLight, borderRadius: 10, padding: '2px 8px', flexShrink: 0 }}>Me</span>}
                             {recip && <RecipAvatar r={recip} size={22} />}
                           </div>
                         )}
