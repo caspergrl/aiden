@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { CalendarDays, ClipboardList, ChevronRight, Plus, Eye, EyeOff, AlertCircle, Clock } from 'lucide-react';
+import { CalendarDays, ClipboardList, ChevronRight, Plus, AlertCircle, Clock } from 'lucide-react';
 import AppointmentModal from '../../components/AppointmentModal';
 import { C, serif, shadow, shadowSm, radius } from '../../theme';
-import { getDailyMessage, INSURANCE_INFO } from '../../data';
+import { INSURANCE_INFO } from '../../data';
 import { AddRecipientModal } from './Care';
 
 function rColor(id) { return id === 1 ? C.rose : C.primary; }
@@ -44,7 +44,6 @@ function todayStr() {
 }
 
 export default function Home({ recipients, appointments, logistics, onNavigate, onAddRecipient, onUpdateAppointment, onDeleteAppointment }) {
-  const [showMsg, setShowMsg]       = useState(true);
   const [activeAppt, setActiveAppt] = useState(null);
   const [showAddRecipient, setShowAddRecipient] = useState(false);
   const pending = logistics.filter(l => !l.completed).length;
@@ -69,21 +68,6 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
         {getGreeting()} 👋
       </h1>
 
-      {/* Daily message */}
-      {showMsg ? (
-        <div style={{ background: 'linear-gradient(135deg, #e8eff8, #f0eaf8, #f8eded)', borderRadius: 20, padding: '20px 24px', marginBottom: 24, border: `1px solid ${C.border}`, position: 'relative' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>✦ Today's message</p>
-          <p style={{ fontFamily: serif, fontSize: 16, color: C.text, lineHeight: 1.8, fontStyle: 'italic' }}>"{getDailyMessage()}"</p>
-          <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 10 }}>— Aiden</p>
-          <button onClick={() => setShowMsg(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.6)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-            <EyeOff size={13} color={C.muted} />
-          </button>
-        </div>
-      ) : (
-        <button onClick={() => setShowMsg(true)} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: `1px dashed ${C.border}`, borderRadius: 12, padding: '8px 16px', color: C.mutedLight, fontSize: 13, cursor: 'pointer', marginBottom: 24 }}>
-          <Eye size={14} /> Show today's message
-        </button>
-      )}
 
       {/* Alert */}
       {pending > 0 && (
