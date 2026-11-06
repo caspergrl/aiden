@@ -59,6 +59,14 @@ export default function Login() {
           role: 'user', status: 'active', createdAt: serverTimestamp(),
         });
         await sendEmailVerification(u);
+
+        // Track successful account creation
+        if (typeof pendo !== 'undefined') {
+          pendo.track('account_created', {
+            auth_provider: 'email',
+            has_name: Boolean(name.trim()),
+          });
+        }
       }
       navigate('/home');
     } catch (e) {

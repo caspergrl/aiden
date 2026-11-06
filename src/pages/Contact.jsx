@@ -47,6 +47,13 @@ export default function Contact() {
       if (res.ok) {
         setStatus('success');
         setForm({ name: '', email: '', message: '' });
+
+        // Track successful contact form submission
+        if (typeof pendo !== 'undefined') {
+          pendo.track('contact_form_submitted', {
+            message_length: form.message.length,
+          });
+        }
       } else {
         throw new Error('Server error');
       }

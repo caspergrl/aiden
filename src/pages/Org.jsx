@@ -75,6 +75,14 @@ export function UpgradeModal({ onClose, onUpgraded }) {
       batch.update(userRef, { orgId, orgRole: 'owner', plan: 'business' });
       await batch.commit();
 
+      // Track successful organization creation
+      if (typeof pendo !== 'undefined') {
+        pendo.track('organization_created', {
+          org_type: orgType,
+          org_name_length: orgName.trim().length,
+        });
+      }
+
       const newOrg = { id: orgId, name: orgName.trim(), type: orgType, ownerId: user.uid, plan: 'business' };
       setOrg(newOrg);
       setOrgRole('owner');
@@ -230,6 +238,17 @@ export default function Org() {
         role: inviteRole, invitedBy: user.uid, invitedByEmail: user.email,
         createdAt: serverTimestamp(), status: 'pending',
       });
+
+      // Track successful team member invitation
+      if (typeof pendo !== 'undefined') {
+        pendo.track('team_member_invited', {
+          invite_role: inviteRole,
+          org_type: org.type || '',
+          current_member_count: members.length,
+          pending_invite_count: pendingInvites.length,
+        });
+      }
+
       setPendingInvites(p => [...p, { id: ref.id, orgId: org.id, orgName: org.name, email, role: inviteRole, invitedBy: user.uid, invitedByEmail: user.email, status: 'pending' }]);
       setInviteMsg({ type: 'success', text: `Invite sent to ${email}. They'll join automatically when they sign in to Aiden.` });
       setInviteEmail('');
@@ -284,6 +303,16 @@ export default function Org() {
       for (const inv of pendingInvites) {
         await updateDoc(doc(db, 'orgInvites', inv.id), { status: 'cancelled' });
       }
+
+      // Track successful organization dissolution
+      if (typeof pendo !== 'undefined') {
+        pendo.track('organization_dissolved', {
+          member_count: members.length,
+          pending_invite_count: pendingInvites.length,
+          org_type: org.type || '',
+        });
+      }
+
       setOrg(null); setOrgRole(null);
       setProfile(p => ({ ...p, orgId: null, orgRole: null, plan: 'personal' }));
       navigate('/account');

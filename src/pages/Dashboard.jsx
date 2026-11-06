@@ -140,6 +140,21 @@ export default function Dashboard() {
       const ref = await addDoc(collection(db, 'users', user.uid, 'recipients'), firestoreData);
       // Replace temp id with real Firestore id
       setRecipients(prev => prev.map(r => r.id === tempId ? { ...r, id: ref.id } : r));
+
+      // Track successful care recipient addition
+      if (typeof pendo !== 'undefined') {
+        pendo.track('care_recipient_added', {
+          conditions_count: Array.isArray(data.conditions) ? data.conditions.length : 0,
+          medications_count: Array.isArray(data.medications) ? data.medications.length : 0,
+          insurance_plans_count: Array.isArray(data.insurance) ? data.insurance.length : 0,
+          has_allergies: Boolean(data.allergies && (Array.isArray(data.allergies) ? data.allergies.length > 0 : data.allergies)),
+          has_birthdate: Boolean(data.birthdate || data.dob),
+          has_phone: Boolean(data.phone),
+          has_email: Boolean(data.email),
+          total_recipients_count: recipients.length,
+          account_type: org ? 'business' : 'individual',
+        });
+      }
     } catch (e) {
       fsError('addRecipient', e);
       setRecipients(prev => prev.filter(r => r.id !== tempId)); // rollback
@@ -192,6 +207,20 @@ export default function Dashboard() {
       const { id: _localId, ...firestoreData } = data;
       const ref = await addDoc(collection(db, 'users', user.uid, 'appointments'), firestoreData);
       setAppointments(prev => prev.map(a => a.id === tempId ? { ...a, id: ref.id } : a));
+
+      // Track successful appointment creation
+      if (typeof pendo !== 'undefined') {
+        const loc = data.location || '';
+        const isVideo = /^https?:\/\//i.test(loc) || /zoom|meet|teams/i.test(loc);
+        pendo.track('appointment_created', {
+          appointment_type: data.type || '',
+          location_mode: isVideo ? 'video' : (loc ? 'in_person' : 'none'),
+          has_transport: Boolean(data.transport && (data.transport.mode || data.transport.needs)),
+          reminders_enabled: Boolean(data.reminders),
+          has_recipient: Boolean(data.recipientId),
+          has_notes: Boolean(data.notes),
+        });
+      }
     } catch (e) {
       fsError('addAppointment', e);
       setAppointments(prev => prev.filter(a => a.id !== tempId));
