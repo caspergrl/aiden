@@ -64,6 +64,16 @@ export default function Account() {
       await updateDoc(doc(db, 'users', user.uid), updates);
       setProfile(p => ({ ...p, ...updates }));
       setNotifSaved(true);
+
+      // Track notification preferences saved
+      if (typeof pendo !== 'undefined') {
+        pendo.track('notification_preferences_saved', {
+          email_reminders_enabled: notifEmail,
+          sms_reminders_enabled: notifSms,
+          has_phone_number: Boolean(notifPhone.trim()),
+        });
+      }
+
       setTimeout(() => setNotifSaved(false), 2500);
     } catch (e) { console.error('Failed to save reminder prefs:', e); }
     setNotifSaving(false);
@@ -128,6 +138,14 @@ export default function Account() {
             googleCalendars: { [key]: accountMeta },
           }, { merge: true });
           setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: accountMeta } }));
+
+          // Track successful Google Calendar connection
+          if (typeof pendo !== 'undefined') {
+            pendo.track('google_calendar_connected', {
+              has_refresh_token: Boolean(tokens.refresh_token),
+              existing_account_count: Object.keys(connStatus.googleCalendars || {}).length,
+            });
+          }
         }
       } catch (e) { setConnError('Could not connect Google Calendar — please try again.'); }
       setGcalExchanging(false);
@@ -169,7 +187,9 @@ export default function Account() {
       const stored = await loadTokens(key);
       if (!stored?.accessToken) throw new Error('Not connected — please reconnect Google Calendar.');
       let { accessToken, refreshToken, expiresAt } = stored;
+      let requiredTokenRefresh = false;
       if (Date.now() > (expiresAt || 0) - 60_000) {
+        requiredTokenRefresh = true;
         const refreshed = await refreshGCalToken(refreshToken);
         if (!refreshed.access_token) throw new Error('Session expired — please reconnect Google Calendar.');
         accessToken = refreshed.access_token;
@@ -180,6 +200,14 @@ export default function Account() {
       const meta = { email, connectedAt: connStatus.googleCalendars?.[key]?.connectedAt || Date.now(), lastSync: Date.now(), eventCount: events.length };
       await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { googleCalendars: { [key]: meta } }, { merge: true });
       setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: meta } }));
+
+      // Track successful Google Calendar sync
+      if (typeof pendo !== 'undefined') {
+        pendo.track('google_calendar_synced', {
+          event_count: events.length,
+          required_token_refresh: requiredTokenRefresh,
+        });
+      }
     } catch (e) { setConnError(e.message || 'Sync failed — try reconnecting.'); }
     setGcalSyncing(p => ({ ...p, [key]: false }));
   }
@@ -272,6 +300,18 @@ export default function Account() {
     try {
       await deleteAllSubcollections(user.uid); // wipe all PHI subcollections first
       await deleteDoc(doc(db, 'users', user.uid));
+
+      // Track account deletion before Firebase Auth removal ends the session
+      if (typeof pendo !== 'undefined') {
+        const createdAt = profile?.createdAt?.toDate ? profile.createdAt.toDate() : null;
+        const accountAgeDays = createdAt ? Math.floor((Date.now() - createdAt.getTime()) / 86400000) : null;
+        pendo.track('account_deleted', {
+          account_age_days: accountAgeDays,
+          had_org: Boolean(profile?.orgId),
+          recipient_count: 0, // subcollections already wiped
+        });
+      }
+
       await deleteUser(user);
       navigate('/');
     } catch (e) {
