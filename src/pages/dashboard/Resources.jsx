@@ -204,22 +204,18 @@ function ShareModal({ resource, recipients, onClose }) {
       setTimeout(() => window.open(`sms:${num}?body=${encoded}`), i * 300);
     });
 
-    setSent(true);
-
-    // Track resource share
+    // Track resource shared
     if (typeof pendo !== 'undefined') {
-      const methods = [];
-      if (smsTargets.length) methods.push('sms');
-      if (emailTargets.length) methods.push('email');
       pendo.track('resource_shared', {
-        share_method: methods.join(',') || 'none',
-        recipient_count: smsTargets.length + emailTargets.length,
+        share_method: emailTargets.length && smsTargets.length ? 'both' : emailTargets.length ? 'email' : 'sms',
+        recipient_count: selRecip.length + customList.length,
         custom_contact_count: customList.length,
         care_recipient_count: selRecip.length,
         resource_category: resource.category || '',
       });
     }
 
+    setSent(true);
     setTimeout(onClose, 1200);
   }
 

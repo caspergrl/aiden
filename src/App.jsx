@@ -86,15 +86,6 @@ function AuthProvider({ children }) {
               batch.update(doc(db, 'users', u.uid), { orgId: invite.orgId, orgRole: invite.role });
               batch.update(inviteDoc.ref, { status: 'accepted', acceptedAt: serverTimestamp() });
               await batch.commit();
-
-              // Track auto-accepted org invite during sign-in
-              if (typeof pendo !== 'undefined') {
-                pendo.track('org_invite_auto_accepted', {
-                  invite_role: invite.role,
-                  org_id: invite.orgId,
-                });
-              }
-
               const orgSnap = await getDoc(doc(db, 'organizations', invite.orgId));
               setOrg(orgSnap.exists() ? { id: orgSnap.id, ...orgSnap.data() } : null);
               setOrgRole(invite.role);

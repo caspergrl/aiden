@@ -59,7 +59,6 @@ export default function Login() {
           role: 'user', status: 'active', createdAt: serverTimestamp(),
         });
         await sendEmailVerification(u);
-
         // Track successful account creation
         if (typeof pendo !== 'undefined') {
           pendo.track('account_created', {
