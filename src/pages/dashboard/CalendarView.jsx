@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Clock, MapPin, X, Check, Video } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, MapPin, X, Check, Video, Share2 } from 'lucide-react';
 import { C, serif, sans } from '../../theme';
 import { FULL_MONTHS, DAYS_OF_WEEK } from '../../data';
 import AppointmentModal from '../../components/AppointmentModal';
 import PlacesInput from '../../components/PlacesInput';
 import TransportSection, { EMPTY_TRANSPORT, detectMobility } from '../../components/TransportSection';
+import ShareCalendarModal from '../../components/ShareCalendarModal';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const RECIPIENT_PALETTE = ['#c07878','#5f9e9a','#9b87b8','#c49050','#7a9e72','#7a8abf'];
@@ -275,6 +276,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
   const [showAdd, setShowAdd]   = useState(false);
   const [addDate, setAddDate]   = useState(null);
   const [activeAppt, setActiveAppt] = useState(null);
+  const [showShare, setShowShare] = useState(false);
 
   const days  = getDaysInMonth(month, year);
   const first = getFirstDay(month, year);
@@ -302,9 +304,14 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
           <p style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Appointments</p>
           <h1 style={{ fontFamily: serif, fontSize: 30, color: C.text, letterSpacing: -0.5 }}>Calendar</h1>
         </div>
-        <button onClick={() => { setAddDate(null); setShowAdd(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseLight, border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.roseDark, cursor: 'pointer' }}>
-          <Plus size={14} /> Add appointment
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setShowShare(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f0ece8', border: `1px solid ${C.border}`, borderRadius: 12, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
+            <Share2 size={14} /> Share
+          </button>
+          <button onClick={() => { setAddDate(null); setShowAdd(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseLight, border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.roseDark, cursor: 'pointer' }}>
+            <Plus size={14} /> Add appointment
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -461,6 +468,15 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
           onSave={onAddAppointment}
           onClose={() => { setShowAdd(false); setAddDate(null); }}
           initialDate={addDate}
+        />
+      )}
+
+      {/* Share modal */}
+      {showShare && (
+        <ShareCalendarModal
+          appointments={appointments}
+          recipients={recipients}
+          onClose={() => setShowShare(false)}
         />
       )}
 
