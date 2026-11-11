@@ -54,6 +54,9 @@ function AuthProvider({ children }) {
         const userProfile = snap.exists() ? snap.data() : null;
         setProfile(userProfile);
 
+        let resolvedOrg = null;
+        let resolvedOrgRole = null;
+
         if (userProfile?.orgId) {
           // Verify membership is still active (handles removed members)
           const memSnap = await getDoc(doc(db, 'organizations', userProfile.orgId, 'members', u.uid));
@@ -63,8 +66,10 @@ function AuthProvider({ children }) {
             setOrg(null); setOrgRole(null);
           } else {
             const orgSnap = await getDoc(doc(db, 'organizations', userProfile.orgId));
-            setOrg(orgSnap.exists() ? { id: orgSnap.id, ...orgSnap.data() } : null);
-            setOrgRole(memSnap.data().role || null);
+            resolvedOrg = orgSnap.exists() ? { id: orgSnap.id, ...orgSnap.data() } : null;
+            resolvedOrgRole = memSnap.data().role || null;
+            setOrg(resolvedOrg);
+            setOrgRole(resolvedOrgRole);
           }
         } else {
           // Check for a pending invite matching this email
@@ -87,8 +92,10 @@ function AuthProvider({ children }) {
               batch.update(inviteDoc.ref, { status: 'accepted', acceptedAt: serverTimestamp() });
               await batch.commit();
               const orgSnap = await getDoc(doc(db, 'organizations', invite.orgId));
-              setOrg(orgSnap.exists() ? { id: orgSnap.id, ...orgSnap.data() } : null);
-              setOrgRole(invite.role);
+              resolvedOrg = orgSnap.exists() ? { id: orgSnap.id, ...orgSnap.data() } : null;
+              resolvedOrgRole = invite.role;
+              setOrg(resolvedOrg);
+              setOrgRole(resolvedOrgRole);
             } else {
               setOrg(null); setOrgRole(null);
             }
@@ -96,7 +103,40 @@ function AuthProvider({ children }) {
             setOrg(null); setOrgRole(null);
           }
         }
+
+        // ── Identify visitor to Pendo ──────────────────────────────────────
+        const pendoVisitor = {
+          id: u.uid,
+          email: u.email || userProfile?.email || '',
+          full_name: userProfile?.name || '',
+          role: userProfile?.role || '',
+          status: userProfile?.status || '',
+          orgId: userProfile?.orgId || '',
+          orgRole: resolvedOrgRole || '',
+          plan: userProfile?.plan || '',
+          notifEmail: userProfile?.notifEmail ?? true,
+          notifSms: userProfile?.notifSms ?? false,
+        };
+        if (userProfile?.createdAt?.toMillis) {
+          pendoVisitor.createdAt = userProfile.createdAt.toMillis();
+        }
+        const pendoPayload = { visitor: pendoVisitor };
+        if (resolvedOrg) {
+          const pendoAccount = {
+            id: resolvedOrg.id,
+            name: resolvedOrg.name || '',
+            orgType: resolvedOrg.type || '',
+            ownerId: resolvedOrg.ownerId || '',
+            plan: resolvedOrg.plan || '',
+          };
+          if (resolvedOrg.createdAt?.toMillis) {
+            pendoAccount.createdAt = resolvedOrg.createdAt.toMillis();
+          }
+          pendoPayload.account = pendoAccount;
+        }
+        pendo.identify(pendoPayload);
       } else {
+        pendo.clearSession();
         setProfile(null);
         setOrg(null);
         setOrgRole(null);
