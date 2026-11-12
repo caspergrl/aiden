@@ -23,12 +23,22 @@ export function useAuth() { return useContext(AuthCtx); }
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30-minute inactivity logout
 
+// Firestore Timestamps (or ISO strings) → ISO 8601 string for Pendo metadata
+function toIsoDate(value) {
+  if (!value) return undefined;
+  if (typeof value.toDate === 'function') return value.toDate().toISOString();
+  if (typeof value === 'string') return value;
+  if (value instanceof Date) return value.toISOString();
+  return undefined;
+}
+
 function AuthProvider({ children }) {
   const [user,    setUser]    = useState(undefined); // undefined = loading
   const [profile, setProfile] = useState(null);
   const [org,     setOrg]     = useState(null);
   const [orgRole, setOrgRole] = useState(null);
   const idleTimer = useRef(null);
+  const pendoUid  = useRef(null);
 
   // ── Session timeout: sign out after 30 min of inactivity ─────────────────
   function resetIdleTimer() {
@@ -103,6 +113,51 @@ function AuthProvider({ children }) {
       }
     });
   }, []);
+
+  // ── Novus by Pendo: identify the signed-in visitor, clear on sign-out ─────
+  // Re-runs when the profile or org changes (e.g. Account or Org page edits).
+  useEffect(() => {
+    if (user === undefined) return; // auth state still loading
+    // clearSession isn't stubbed by the install snippet, so guard until the agent loads
+    const clearPendoSession = () => window.pendo?.clearSession?.();
+    if (!user) {
+      // Covers every sign-out path (menu, idle timeout, verify wall)
+      if (pendoUid.current) {
+        clearPendoSession();
+        pendoUid.current = null;
+      }
+      return;
+    }
+    if (pendoUid.current && pendoUid.current !== user.uid) clearPendoSession();
+    pendoUid.current = user.uid;
+    const identity = {
+      visitor: {
+        id:         user.uid,
+        email:      profile?.email || user.email,
+        full_name:  profile?.name,
+        role:       profile?.role,
+        status:     profile?.status,
+        createdAt:  toIsoDate(profile?.createdAt),
+        orgId:      profile?.orgId || null,
+        orgRole:    orgRole || profile?.orgRole || null,
+        plan:       profile?.plan,
+        notifEmail: profile?.notifEmail,
+        notifSms:   profile?.notifSms,
+        seeded:     profile?.seeded,
+      },
+    };
+    if (org?.id) {
+      identity.account = {
+        id:        org.id,
+        name:      org.name,
+        type:      org.type,
+        plan:      org.plan,
+        ownerId:   org.ownerId,
+        createdAt: toIsoDate(org.createdAt),
+      };
+    }
+    window.pendo.identify(identity);
+  }, [user, profile, org, orgRole]);
 
   return (
     <AuthCtx.Provider value={{ user, profile, setProfile, org, setOrg, orgRole, setOrgRole, loading: user === undefined }}>
