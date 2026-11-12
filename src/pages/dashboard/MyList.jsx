@@ -10,6 +10,7 @@ import {
 } from 'firebase/storage';
 import { storage } from '../../firebase';
 import { useAuth } from '../../App';
+import { trackEvent } from '../../pendo';
 import { C, serif, shadowSm, shadowXs, radius } from '../../theme';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
@@ -221,6 +222,12 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
       const customMeta = { originalName: file.name };
       if (uploadRecipId) customMeta.recipientId = String(uploadRecipId);
       await uploadBytes(fileRef, file, { customMetadata: customMeta });
+      // Track Event: document upload finished from the To Do documents area
+      trackEvent('document_uploaded', {
+        file_type:           file.type || 'unknown',
+        file_size:           file.size,
+        linked_to_recipient: !!uploadRecipId,
+      });
       await loadDocs();
     } catch {
       setDocError('Upload failed — please try again.');

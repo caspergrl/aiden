@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { trackEvent } from './pendo';
 
 import Landing         from './pages/Landing';
 import ForIndividuals  from './pages/ForIndividuals';
@@ -22,6 +23,9 @@ export const AuthCtx = createContext(null);
 export function useAuth() { return useContext(AuthCtx); }
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30-minute inactivity logout
+
+// Module-level guard so email_verified fires once per visitor per browser session
+const trackedVerifiedUids = new Set();
 
 function AuthProvider({ children }) {
   const [user,    setUser]    = useState(undefined); // undefined = loading
@@ -86,6 +90,12 @@ function AuthProvider({ children }) {
               batch.update(doc(db, 'users', u.uid), { orgId: invite.orgId, orgRole: invite.role });
               batch.update(inviteDoc.ref, { status: 'accepted', acceptedAt: serverTimestamp() });
               await batch.commit();
+              // Track Event: pending org invite accepted and membership added at sign-in
+              trackEvent('org_invite_accepted', {
+                orgId:     invite.orgId,
+                role:      invite.role,
+                invitedBy: invite.invitedBy || '',
+              });
               const orgSnap = await getDoc(doc(db, 'organizations', invite.orgId));
               setOrg(orgSnap.exists() ? { id: orgSnap.id, ...orgSnap.data() } : null);
               setOrgRole(invite.role);
@@ -116,10 +126,12 @@ function VerifyEmailWall({ user }) {
   const [sent, setSent]       = useState(false);
   const [checking, setChecking] = useState(false);
   const [cooldown, setCooldown] = useState(false);
+  const [resendCount, setResendCount] = useState(0);
 
   async function resend() {
     if (cooldown) return;
     try { await sendEmailVerification(user); } catch { /* rate-limited */ }
+    setResendCount(c => c + 1);
     setSent(true);
     setCooldown(true);
     setTimeout(() => setCooldown(false), 60000);
@@ -129,6 +141,14 @@ function VerifyEmailWall({ user }) {
     setChecking(true);
     try {
       await user.reload();
+      // Track Event: visitor passed the email verification wall
+      if (user.emailVerified && !trackedVerifiedUids.has(user.uid)) {
+        trackedVerifiedUids.add(user.uid);
+        trackEvent('email_verified', {
+          verification_resend_count: resendCount,
+          used_resend: resendCount > 0,
+        });
+      }
       // Force a token refresh — this triggers onAuthStateChanged with the updated
       // user object (new reference), which causes ProtectedRoute to re-evaluate
       // emailVerified. Without this, reload() mutates the user in place but React

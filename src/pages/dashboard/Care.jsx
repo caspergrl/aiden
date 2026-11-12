@@ -10,6 +10,7 @@ import { C, serif, shadowSm, radius } from '../../theme';
 import { INSURANCE_INFO, CAREGIVING_RECS, COMMON_MEDICATIONS } from '../../data';
 import TransportSection, { MOBILITY_OPTIONS, EMPTY_TRANSPORT, detectMobility } from '../../components/TransportSection';
 import { useAuth } from '../../App';
+import { trackEvent } from '../../pendo';
 import { db } from '../../firebase';
 import { doc, getDoc, updateDoc, collection, addDoc, deleteDoc } from 'firebase/firestore';
 import {
@@ -1101,6 +1102,12 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
       const path = `users/${user.uid}/documents/${Date.now()}_${file.name}`;
       const fRef = storageRef(storage, path);
       await uploadBytes(fRef, file, { customMetadata: { originalName: file.name, recipientId: String(r.id), docType: pendingDocType } });
+      // Track Event: document attached to a care recipient
+      trackEvent('recipient_document_uploaded', {
+        docType:   pendingDocType || 'none',
+        file_type: file.type || 'unknown',
+        file_size: file.size,
+      });
       setPendingDocType('');
       await loadRdocs();
     } catch { setRdocError('Upload failed — please try again.'); }

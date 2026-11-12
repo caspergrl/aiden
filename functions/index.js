@@ -17,6 +17,34 @@ function fmtDate(ds) {
   const [y, m, day] = ds.split('-').map(Number);
   return new Date(y, m - 1, day).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
+
+// ── Pendo server-side Track Events ─────────────────────────────────────────────
+// Reads the Track Event integration key from PENDO_TRACK_EVENT_SECRET. Tracking is
+// skipped when it isn't set, and failures are logged without breaking the caller.
+const PENDO_TRACK_URL = 'https://data.pendo-dev.pendo-dev.com/data/track';
+
+async function pendoTrack(event, visitorId, accountId, properties = {}) {
+  const key = process.env.PENDO_TRACK_EVENT_SECRET;
+  if (!key) return;
+  try {
+    const res = await fetch(PENDO_TRACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-pendo-integration-key': key },
+      body: JSON.stringify({
+        type: 'track',
+        event,
+        visitorId: visitorId || 'system',
+        accountId: accountId || 'system',
+        timestamp: Date.now(),
+        properties,
+      }),
+    });
+    if (!res.ok) console.error(`Pendo track ${event} failed: HTTP ${res.status}`);
+  } catch (e) {
+    console.error(`Pendo track ${event} failed:`, e.message);
+  }
+}
+
 function normalizePhone(phone) {
   const digits = phone.replace(/\D/g, '');
   if (phone.startsWith('+')) return '+' + digits;
@@ -117,6 +145,13 @@ async function sendRemindersForUser(userRecord, in7, in1, resend, twilio, twilio
     const apptTime    = appt.time || '';
     const apptLoc     = appt.location || '';
     const apptDoctor  = appt.doctor || '';
+    const trackProps  = {
+      days_out:         daysOut,
+      appointment_type: appt.type || 'none',
+      has_recipient:    !!appt.recipientId,
+    };
+    // Personal accounts have no orgId, so the visitor's uid doubles as the account
+    const accountId   = prefs.orgId || userRecord.uid;
 
     if (wantsEmail) {
       await resend.emails.send({
@@ -125,6 +160,8 @@ async function sendRemindersForUser(userRecord, in7, in1, resend, twilio, twilio
         subject: `Reminder: ${apptTitle} is ${label}`,
         html: buildReminderEmail({ apptTitle, apptDate, apptTime, apptLoc, apptDoctor, recipName, label }),
       });
+      // Track Event: email reminder sent for an upcoming appointment
+      await pendoTrack('appointment_reminder_sent', userRecord.uid, accountId, { channel: 'email', ...trackProps });
     }
 
     if (wantsSms && twilio) {
@@ -134,6 +171,8 @@ async function sendRemindersForUser(userRecord, in7, in1, resend, twilio, twilio
         to: normalizePhone(prefs.notifPhone),
         body: smsBody,
       });
+      // Track Event: SMS reminder sent for an upcoming appointment
+      await pendoTrack('appointment_reminder_sent', userRecord.uid, accountId, { channel: 'sms', ...trackProps });
     }
   }
 }

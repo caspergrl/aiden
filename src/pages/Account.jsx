@@ -13,6 +13,7 @@ import { saveTokens, loadTokens, clearTokens } from '../secureTokens';
 import { gcalClientId, gcalTokenKey, startGoogleCalendarOAuth, exchangeGCalCode, fetchGCalUserEmail, refreshGCalToken, fetchGCalEvents } from '../gcal';
 import { UpgradeModal, RoleBadge, ORG_TYPES } from './Org';
 import { isBusinessAllowed } from '../businessBeta';
+import { trackEvent } from '../pendo';
 
 function Card({ children, style }) {
   return (
@@ -62,6 +63,12 @@ export default function Account() {
     try {
       const updates = { notifEmail, notifSms, notifPhone: notifPhone.trim() };
       await updateDoc(doc(db, 'users', user.uid), updates);
+      // Track Event: reminder settings saved (has_phone flag only, never the number)
+      trackEvent('reminder_preferences_saved', {
+        notifEmail,
+        notifSms,
+        has_phone: !!updates.notifPhone,
+      });
       setProfile(p => ({ ...p, ...updates }));
       setNotifSaved(true);
       setTimeout(() => setNotifSaved(false), 2500);
@@ -127,6 +134,11 @@ export default function Account() {
           await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), {
             googleCalendars: { [key]: accountMeta },
           }, { merge: true });
+          // Track Event: Google Calendar OAuth callback finished and connection saved
+          trackEvent('google_calendar_connected', {
+            connected_account_count: Object.keys({ ...(connStatus.googleCalendars || {}), [key]: accountMeta }).length,
+            has_refresh_token:       !!tokens.refresh_token,
+          });
           setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: accountMeta } }));
         }
       } catch (e) { setConnError('Could not connect Google Calendar — please try again.'); }
@@ -169,16 +181,24 @@ export default function Account() {
       const stored = await loadTokens(key);
       if (!stored?.accessToken) throw new Error('Not connected — please reconnect Google Calendar.');
       let { accessToken, refreshToken, expiresAt } = stored;
+      let tokenRefreshed = false;
       if (Date.now() > (expiresAt || 0) - 60_000) {
         const refreshed = await refreshGCalToken(refreshToken);
         if (!refreshed.access_token) throw new Error('Session expired — please reconnect Google Calendar.');
         accessToken = refreshed.access_token;
         expiresAt   = Date.now() + (refreshed.expires_in || 3600) * 1000;
         await saveTokens(key, { accessToken, refreshToken, expiresAt });
+        tokenRefreshed = true;
       }
       const events = await fetchGCalEvents(accessToken, email);
       const meta = { email, connectedAt: connStatus.googleCalendars?.[key]?.connectedAt || Date.now(), lastSync: Date.now(), eventCount: events.length };
       await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { googleCalendars: { [key]: meta } }, { merge: true });
+      // Track Event: Google Calendar sync finished and metadata saved
+      trackEvent('google_calendar_synced', {
+        eventCount:              events.length,
+        token_refreshed:         tokenRefreshed,
+        connected_account_count: Object.keys(connStatus.googleCalendars || {}).length,
+      });
       setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: meta } }));
     } catch (e) { setConnError(e.message || 'Sync failed — try reconnecting.'); }
     setGcalSyncing(p => ({ ...p, [key]: false }));
@@ -251,27 +271,38 @@ export default function Account() {
   }
 
   // Delete all PHI subcollections before removing the user doc and auth record
+  // Returns the number of care recipients deleted (used for the account_deleted Track Event)
   async function deleteAllSubcollections(uid) {
     const subcolls = [
       'recipients', 'appointments', 'doctors',
       'medicationSchedules', 'medicationLogs',
       'logistics', 'resources',
     ];
+    let recipientCount = 0;
     for (const sub of subcolls) {
       const snap = await getDocs(collection(db, 'users', uid, sub));
+      if (sub === 'recipients') recipientCount = snap.size;
       if (snap.empty) continue;
       const batch = writeBatch(db);
       snap.docs.forEach(d => batch.delete(d.ref));
       await batch.commit();
     }
+    return recipientCount;
   }
 
   async function handleDelete() {
     if (delConfirm !== user.email) return;
     setDeleting(true); setDelError('');
     try {
-      await deleteAllSubcollections(user.uid); // wipe all PHI subcollections first
+      const recipientCount = await deleteAllSubcollections(user.uid); // wipe all PHI subcollections first
       await deleteDoc(doc(db, 'users', user.uid));
+      // Track Event: account data deleted. Fires before deleteUser so the visitor is still identified.
+      const created = profile?.createdAt?.toDate ? profile.createdAt.toDate() : profile?.createdAt ? new Date(profile.createdAt) : null;
+      trackEvent('account_deleted', {
+        is_business_account: !!org,
+        recipient_count:     recipientCount,
+        account_age_days:    created && !isNaN(created) ? Math.floor((Date.now() - created.getTime()) / 86400000) : null,
+      });
       await deleteUser(user);
       navigate('/');
     } catch (e) {
