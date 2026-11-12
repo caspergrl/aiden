@@ -9,6 +9,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { useAuth } from '../App';
 import { serif, sans } from '../theme';
+import { trackEvent } from '../pendo';
 
 const ERR = {
   'auth/user-not-found':      'No account found with that email.',
@@ -59,6 +60,12 @@ export default function Login() {
           role: 'user', status: 'active', createdAt: serverTimestamp(),
         });
         await sendEmailVerification(u);
+        // Track Event: a new account was created, its profile saved, and the verification email sent
+        trackEvent('account_created', {
+          signup_method: 'email_password',
+          has_name: !!name.trim(),
+          entry_mode_param: params.get('mode') || 'none',
+        });
       }
       navigate('/home');
     } catch (e) {
@@ -74,6 +81,8 @@ export default function Login() {
     try {
       await sendPasswordResetEmail(auth, email.trim());
       setResetSent(true);
+      // Track Event: the password reset email was sent from the forgot password form
+      trackEvent('password_reset_email_sent', { source: 'login' });
     } catch (e) {
       setError(ERR[e.code] || 'Something went wrong. Please try again.');
     }

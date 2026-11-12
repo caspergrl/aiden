@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Link2, Plus, Trash2, Share2, ExternalLink, X,
   Search, Mail, MessageSquare, Pencil, Check, BookMarked, ChevronDown, HelpCircle,
 } from 'lucide-react';
 import { C, serif, shadowSm, radius } from '../../theme';
+import { trackEvent } from '../../pendo';
 
 const CATEGORIES = ['Medical', 'Legal', 'Caregiver Support', 'Financial', 'Community', 'Other'];
 
@@ -205,6 +206,19 @@ function ShareModal({ resource, recipients, onClose }) {
     });
 
     setSent(true);
+    // Track Event: the resource was handed off to the email and SMS apps
+    const recipientTargetCount = selRecip.filter(id => {
+      const r = recipients.find(x => x.id === id);
+      return r?.phone || r?.email;
+    }).length;
+    trackEvent('resource_shared', {
+      share_method: method,
+      email_target_count: emailTargets.length,
+      sms_target_count: smsTargets.length,
+      recipient_target_count: recipientTargetCount,
+      custom_contact_count: customList.length,
+      resource_category: resource.category || 'none',
+    });
     setTimeout(onClose, 1200);
   }
 
@@ -334,6 +348,21 @@ export default function Resources({ resources, onAdd, onUpdate, onDelete, recipi
   });
 
   const usedCats = [...new Set(resources.map(r => r.category).filter(Boolean))];
+
+  // Track Event: a resource search settled (debounced so it fires once per search, not per keystroke)
+  useEffect(() => {
+    const term = search.trim();
+    if (!term) return;
+    const timer = setTimeout(() => {
+      trackEvent('resource_search_performed', {
+        search_term: term.slice(0, 100),
+        results_count: filtered.length,
+        category_filter: filterCat || 'all',
+        total_resources: resources.length,
+      });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ padding: 32, maxWidth: 800 }}>

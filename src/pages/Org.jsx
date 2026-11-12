@@ -13,6 +13,7 @@ import { useAuth } from '../App';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { C, serif, shadow } from '../theme';
+import { trackEvent } from '../pendo';
 
 export const ORG_TYPES = [
   { value: 'personal_care_home',    label: 'Personal care home' },
@@ -74,6 +75,8 @@ export function UpgradeModal({ onClose, onUpgraded }) {
       });
       batch.update(userRef, { orgId, orgRole: 'owner', plan: 'business' });
       await batch.commit();
+      // Track Event: the business upgrade finished and the organization was created
+      trackEvent('business_account_created', { org_type: orgType, org_id: orgId, plan: 'business' });
 
       const newOrg = { id: orgId, name: orgName.trim(), type: orgType, ownerId: user.uid, plan: 'business' };
       setOrg(newOrg);
@@ -230,6 +233,13 @@ export default function Org() {
         role: inviteRole, invitedBy: user.uid, invitedByEmail: user.email,
         createdAt: serverTimestamp(), status: 'pending',
       });
+      // Track Event: an org invite was created
+      trackEvent('org_invite_sent', {
+        invite_role: inviteRole,
+        member_count: members.length,
+        pending_invite_count: pendingInvites.length + 1,
+        org_type: org.type || 'unknown',
+      });
       setPendingInvites(p => [...p, { id: ref.id, orgId: org.id, orgName: org.name, email, role: inviteRole, invitedBy: user.uid, invitedByEmail: user.email, status: 'pending' }]);
       setInviteMsg({ type: 'success', text: `Invite sent to ${email}. They'll join automatically when they sign in to Aiden.` });
       setInviteEmail('');
@@ -249,6 +259,12 @@ export default function Org() {
     setChangingRole(p => ({ ...p, [memberId]: true }));
     try {
       await updateDoc(doc(db, 'organizations', org.id, 'members', memberId), { role: newRole });
+      // Track Event: a member's role was changed
+      trackEvent('org_member_role_changed', {
+        previous_role: members.find(m => m.id === memberId)?.role || 'unknown',
+        new_role: newRole,
+        changed_by_role: orgRole,
+      });
       setMembers(p => p.map(m => m.id === memberId ? { ...m, role: newRole } : m));
     } catch (e) { console.error('changeRole:', e); }
     setChangingRole(p => ({ ...p, [memberId]: false }));
@@ -258,6 +274,12 @@ export default function Org() {
     setRemoving(p => ({ ...p, [memberId]: true }));
     try {
       await deleteDoc(doc(db, 'organizations', org.id, 'members', memberId));
+      // Track Event: a member was removed or left the org
+      trackEvent('org_member_removed', {
+        is_self_leave: memberId === user.uid,
+        removed_member_role: members.find(m => m.id === memberId)?.role || 'unknown',
+        remaining_member_count: members.length - 1,
+      });
       setMembers(p => p.filter(m => m.id !== memberId));
       // If removing self, clear local org state
       if (memberId === user.uid) {
@@ -284,6 +306,12 @@ export default function Org() {
       for (const inv of pendingInvites) {
         await updateDoc(doc(db, 'orgInvites', inv.id), { status: 'cancelled' });
       }
+      // Track Event: the organization was dissolved (business plan downgrade)
+      trackEvent('org_dissolved', {
+        org_type: org.type || 'unknown',
+        member_count: members.length,
+        pending_invite_count: pendingInvites.length,
+      });
       setOrg(null); setOrgRole(null);
       setProfile(p => ({ ...p, orgId: null, orgRole: null, plan: 'personal' }));
       navigate('/account');

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { trackEvent } from './pendo';
 
 import Landing         from './pages/Landing';
 import ForIndividuals  from './pages/ForIndividuals';
@@ -86,6 +87,12 @@ function AuthProvider({ children }) {
               batch.update(doc(db, 'users', u.uid), { orgId: invite.orgId, orgRole: invite.role });
               batch.update(inviteDoc.ref, { status: 'accepted', acceptedAt: serverTimestamp() });
               await batch.commit();
+              // Track Event: a pending org invite was applied to this account at sign-in
+              trackEvent('org_invite_accepted', {
+                org_id: invite.orgId,
+                invite_role: invite.role,
+                is_new_account: u.metadata?.creationTime === u.metadata?.lastSignInTime,
+              });
               const orgSnap = await getDoc(doc(db, 'organizations', invite.orgId));
               setOrg(orgSnap.exists() ? { id: orgSnap.id, ...orgSnap.data() } : null);
               setOrgRole(invite.role);
@@ -112,14 +119,20 @@ function AuthProvider({ children }) {
 }
 
 // ─── Email verification wall ───────────────────────────────────────────────────
+// Module-level so the verification Track Event fires once per user per session
+const trackedVerifiedUids = new Set();
+
 function VerifyEmailWall({ user }) {
   const [sent, setSent]       = useState(false);
   const [checking, setChecking] = useState(false);
   const [cooldown, setCooldown] = useState(false);
+  const resendCount = useRef(0);
+  const checkAttempts = useRef(0);
 
   async function resend() {
     if (cooldown) return;
     try { await sendEmailVerification(user); } catch { /* rate-limited */ }
+    resendCount.current += 1;
     setSent(true);
     setCooldown(true);
     setTimeout(() => setCooldown(false), 60000);
@@ -127,6 +140,7 @@ function VerifyEmailWall({ user }) {
 
   async function checkVerified() {
     setChecking(true);
+    checkAttempts.current += 1;
     try {
       await user.reload();
       // Force a token refresh — this triggers onAuthStateChanged with the updated
@@ -134,6 +148,14 @@ function VerifyEmailWall({ user }) {
       // emailVerified. Without this, reload() mutates the user in place but React
       // never sees a new reference so the wall doesn't dismiss.
       await user.getIdToken(true);
+      // Track Event: the visitor finished email verification, ending the signup funnel
+      if (user.emailVerified && !trackedVerifiedUids.has(user.uid)) {
+        trackedVerifiedUids.add(user.uid);
+        trackEvent('email_verification_completed', {
+          resend_count: resendCount.current,
+          verification_check_attempts: checkAttempts.current,
+        });
+      }
     } catch { /* ignore — onAuthStateChanged handles the rest */ }
     setChecking(false);
   }

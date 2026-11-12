@@ -13,6 +13,7 @@ import { saveTokens, loadTokens, clearTokens } from '../secureTokens';
 import { gcalClientId, gcalTokenKey, startGoogleCalendarOAuth, exchangeGCalCode, fetchGCalUserEmail, refreshGCalToken, fetchGCalEvents } from '../gcal';
 import { UpgradeModal, RoleBadge, ORG_TYPES } from './Org';
 import { isBusinessAllowed } from '../businessBeta';
+import { trackEvent } from '../pendo';
 
 function Card({ children, style }) {
   return (
@@ -64,6 +65,12 @@ export default function Account() {
       await updateDoc(doc(db, 'users', user.uid), updates);
       setProfile(p => ({ ...p, ...updates }));
       setNotifSaved(true);
+      // Track Event: reminder channel choices were saved
+      trackEvent('reminder_preferences_saved', {
+        email_enabled: notifEmail,
+        sms_enabled: notifSms,
+        has_phone: !!notifPhone.trim(),
+      });
       setTimeout(() => setNotifSaved(false), 2500);
     } catch (e) { console.error('Failed to save reminder prefs:', e); }
     setNotifSaving(false);
@@ -128,6 +135,12 @@ export default function Account() {
             googleCalendars: { [key]: accountMeta },
           }, { merge: true });
           setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: accountMeta } }));
+          // Track Event: a Google Calendar account finished connecting after the OAuth redirect
+          const statusSnap = await getDoc(doc(db, 'users', user.uid, 'connections', 'status')).catch(() => null);
+          trackEvent('google_calendar_connected', {
+            connected_account_count: Object.keys(statusSnap?.data()?.googleCalendars || { [key]: accountMeta }).length,
+            has_refresh_token: !!tokens.refresh_token,
+          });
         }
       } catch (e) { setConnError('Could not connect Google Calendar — please try again.'); }
       setGcalExchanging(false);
@@ -165,6 +178,7 @@ export default function Account() {
 
   async function handleSyncGoogleCalendar(key, email) {
     setGcalSyncing(p => ({ ...p, [key]: true })); setConnError('');
+    let tokenRefreshed = false;
     try {
       const stored = await loadTokens(key);
       if (!stored?.accessToken) throw new Error('Not connected — please reconnect Google Calendar.');
@@ -175,12 +189,28 @@ export default function Account() {
         accessToken = refreshed.access_token;
         expiresAt   = Date.now() + (refreshed.expires_in || 3600) * 1000;
         await saveTokens(key, { accessToken, refreshToken, expiresAt });
+        tokenRefreshed = true;
       }
       const events = await fetchGCalEvents(accessToken, email);
       const meta = { email, connectedAt: connStatus.googleCalendars?.[key]?.connectedAt || Date.now(), lastSync: Date.now(), eventCount: events.length };
       await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { googleCalendars: { [key]: meta } }, { merge: true });
       setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: meta } }));
-    } catch (e) { setConnError(e.message || 'Sync failed — try reconnecting.'); }
+      // Track Event: a Google Calendar sync finished
+      trackEvent('google_calendar_sync_completed', {
+        event_count: events.length,
+        token_refreshed: tokenRefreshed,
+        success: true,
+      });
+    } catch (e) {
+      setConnError(e.message || 'Sync failed — try reconnecting.');
+      // Track Event: a Google Calendar sync finished with a failure
+      trackEvent('google_calendar_sync_completed', {
+        event_count: 0,
+        token_refreshed: tokenRefreshed,
+        success: false,
+        error_message: (e?.message || 'unknown').slice(0, 100),
+      });
+    }
     setGcalSyncing(p => ({ ...p, [key]: false }));
   }
 
@@ -212,6 +242,12 @@ export default function Account() {
       await uploadBytes(sRef, blob, { contentType: 'image/jpeg' });
       const url = await getDownloadURL(sRef);
       await updateDoc(doc(db, 'users', user.uid), { avatarUrl: url });
+      // Track Event: a profile photo was uploaded and saved
+      trackEvent('profile_photo_uploaded', {
+        original_file_type: file.type || 'unknown',
+        original_file_size: file.size,
+        is_replacement: !!avatarUrl,
+      });
       setAvatarUrl(url);
       setProfile(p => ({ ...p, avatarUrl: url }));
     } catch { /* silently ignore upload errors */ }
@@ -232,6 +268,11 @@ export default function Account() {
       }
 
       setProfileSaved(true);
+      // Track Event: profile changes were saved
+      trackEvent('profile_updated', {
+        name_changed: fullName.trim() !== origName,
+        email_changed: emailEdit.trim() !== origEmail,
+      });
       setTimeout(() => setProfileSaved(false), 2500);
     } catch (e) {
       const msgs = {
@@ -247,6 +288,8 @@ export default function Account() {
   async function sendReset() {
     setResetting(true);
     await sendPasswordResetEmail(auth, user.email);
+    // Track Event: the password reset email was sent from Account settings
+    trackEvent('password_reset_email_sent', { source: 'account_settings' });
     setResetSent(true); setResetting(false);
   }
 
@@ -257,21 +300,30 @@ export default function Account() {
       'medicationSchedules', 'medicationLogs',
       'logistics', 'resources',
     ];
+    let recipientCount = 0;
     for (const sub of subcolls) {
       const snap = await getDocs(collection(db, 'users', uid, sub));
+      if (sub === 'recipients') recipientCount = snap.size;
       if (snap.empty) continue;
       const batch = writeBatch(db);
       snap.docs.forEach(d => batch.delete(d.ref));
       await batch.commit();
     }
+    return recipientCount;
   }
 
   async function handleDelete() {
     if (delConfirm !== user.email) return;
     setDeleting(true); setDelError('');
     try {
-      await deleteAllSubcollections(user.uid); // wipe all PHI subcollections first
+      const recipientCount = await deleteAllSubcollections(user.uid); // wipe all PHI subcollections first
       await deleteDoc(doc(db, 'users', user.uid));
+      // Track Event: account data was deleted (sent before the auth record is removed)
+      trackEvent('account_deleted', {
+        account_type: org ? 'business' : 'individual',
+        member_since: memberSince,
+        recipient_count: recipientCount,
+      });
       await deleteUser(user);
       navigate('/');
     } catch (e) {

@@ -14,6 +14,7 @@ import Insurance   from './dashboard/Insurance';
 import Resources   from './dashboard/Resources';
 import Chat        from './dashboard/Chat';
 import { useAuth } from '../App';
+import { trackEvent } from '../pendo';
 
 import {
   DEMO_INDIVIDUAL_RECIPIENTS as INITIAL_RECIPIENTS,
@@ -25,6 +26,16 @@ import {
 // Module-level lock — prevents duplicate seeding from React StrictMode's
 // double-invocation of effects in development.
 let _seedLock = false;
+
+// Whole days from today (local time) to a 'YYYY-MM-DD' date, or null when there is no valid date
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const target = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target - today) / 86400000);
+}
 
 export default function Dashboard() {
   const { user, profile, org } = useAuth();
@@ -129,6 +140,12 @@ export default function Dashboard() {
   async function addRecipient(data) {
     if (!org && recipients.length >= PERSONAL_RECIPIENT_LIMIT) {
       setSaveError(`Individual accounts can have up to ${PERSONAL_RECIPIENT_LIMIT} care recipients. Upgrade to a Business account in Account Settings to add more.`);
+      // Track Event: an individual account hit the care recipient limit (business upgrade signal)
+      trackEvent('recipient_limit_reached', {
+        recipient_count: recipients.length,
+        recipient_limit: PERSONAL_RECIPIENT_LIMIT,
+        account_type: 'individual',
+      });
       return;
     }
     // Optimistic update first so UI is instant
@@ -140,6 +157,16 @@ export default function Dashboard() {
       const ref = await addDoc(collection(db, 'users', user.uid, 'recipients'), firestoreData);
       // Replace temp id with real Firestore id
       setRecipients(prev => prev.map(r => r.id === tempId ? { ...r, id: ref.id } : r));
+      // Track Event: a care recipient was saved. Only counts are sent, never health details.
+      trackEvent('care_recipient_added', {
+        recipient_count: recipients.length + 1,
+        account_type: org ? 'business' : 'individual',
+        condition_count: data.conditions?.length || 0,
+        medication_count: data.medications?.length || 0,
+        allergy_count: data.allergies?.length || 0,
+        has_birthdate: !!data.birthdate,
+        relationship: (data.relationship || '').slice(0, 50),
+      });
     } catch (e) {
       fsError('addRecipient', e);
       setRecipients(prev => prev.filter(r => r.id !== tempId)); // rollback
@@ -166,6 +193,14 @@ export default function Dashboard() {
       const { id: _localId, ...firestoreData } = data;
       const ref = await addDoc(collection(db, 'users', user.uid, 'doctors'), firestoreData);
       setDoctors(prev => prev.map(d => d.id === tempId ? { ...d, id: ref.id } : d));
+      // Track Event: a doctor was added to the care team
+      trackEvent('care_team_member_added', {
+        source: active,
+        has_specialty: !!data.specialty,
+        has_practice_name: !!data.practiceName,
+        has_recipient: !!data.recipientId,
+        doctor_count: doctors.length + 1,
+      });
     } catch (e) {
       fsError('addDoctor', e);
       setDoctors(prev => prev.filter(d => d.id !== tempId));
@@ -192,6 +227,18 @@ export default function Dashboard() {
       const { id: _localId, ...firestoreData } = data;
       const ref = await addDoc(collection(db, 'users', user.uid, 'appointments'), firestoreData);
       setAppointments(prev => prev.map(a => a.id === tempId ? { ...a, id: ref.id } : a));
+      // Track Event: an appointment was saved
+      trackEvent('appointment_created', {
+        appointment_type: data.type || 'none',
+        source: active,
+        has_location: !!data.location,
+        has_recipient: !!data.recipientId,
+        transport_needed: !!data.transport?.needed,
+        mobility_needs: data.transport?.mobilityNeeds || 'none',
+        has_custom_transport_provider: !!data.transport?.customProvider,
+        reminders_enabled: !!data.reminders,
+        days_until_appointment: daysUntil(data.date),
+      });
     } catch (e) {
       fsError('addAppointment', e);
       setAppointments(prev => prev.filter(a => a.id !== tempId));
@@ -218,6 +265,12 @@ export default function Dashboard() {
     try {
       const ref = await addDoc(collection(db, 'users', user.uid, 'careChanges'), data);
       setChanges(prev => prev.map(c => c.id === tempId ? { ...c, id: ref.id } : c));
+      // Track Event: a care change was logged
+      trackEvent('care_change_logged', {
+        change_type: data.type || 'other',
+        has_details: !!data.details,
+        is_backdated: !!data.date && data.date < new Date().toISOString().split('T')[0],
+      });
     } catch (e) {
       fsError('addChange', e);
       setChanges(prev => prev.filter(c => c.id !== tempId));
@@ -261,6 +314,14 @@ export default function Dashboard() {
     try {
       const ref = await addDoc(collection(db, 'users', user.uid, 'resources'), data);
       setResources(prev => prev.map(r => r.id === tempId ? { ...r, id: ref.id } : r));
+      // Track Event: a resource link was saved
+      trackEvent('resource_link_saved', {
+        category: data.category || 'none',
+        has_description: !!data.description,
+        source: active,
+        has_recipient: !!data.recipientId,
+        resource_count: resources.length + 1,
+      });
     } catch (e) {
       fsError('addResource', e);
       setResources(prev => prev.filter(r => r.id !== tempId));

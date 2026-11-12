@@ -11,6 +11,11 @@ import {
 import { storage } from '../../firebase';
 import { useAuth } from '../../App';
 import { C, serif, shadowSm, shadowXs, radius } from '../../theme';
+import { DEMO_INDIVIDUAL_LOGISTICS } from '../../demoData';
+import { trackEvent } from '../../pendo';
+
+// Titles of the starter checklist items seeded for new accounts
+const SEEDED_TITLES = new Set(DEMO_INDIVIDUAL_LOGISTICS.map(l => l.title));
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [C.rose, C.primary, C.sage, C.lavender, C.peach];
@@ -254,6 +259,15 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
   function handleToggle(item) {
     if (!item.completed) {
       onUpdateLogistic(item.id, { completed: true });
+      // Track Event: a checklist item was marked complete, with overall checklist progress
+      const completedCount = allComplete.length + 1;
+      trackEvent('todo_item_completed', {
+        completed_count: completedCount,
+        total_count: logistics.length,
+        completion_pct: logistics.length ? Math.round((completedCount / logistics.length) * 100) : 0,
+        has_recipient: item.recipientId != null,
+        is_seeded_item: SEEDED_TITLES.has(item.title),
+      });
     } else {
       setRestoreId(item.id);
     }

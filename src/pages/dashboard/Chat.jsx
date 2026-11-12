@@ -3,6 +3,7 @@ import { Send, Heart } from 'lucide-react';
 import { C, serif } from '../../theme';
 import { getResponse, SUGGESTIONS } from '../../data';
 import { useAuth } from '../../App';
+import { trackEvent } from '../../pendo';
 
 export default function Chat({ messages, setMessages }) {
   const { profile } = useAuth();
@@ -17,9 +18,18 @@ export default function Chat({ messages, setMessages }) {
     setMessages(p => [...p, { role: 'user', text }]);
     setInput('');
     setWaiting(true);
+    const isSuggestion = SUGGESTIONS.includes(text);
+    const conversationTurn = messages.filter(m => m.role === 'user').length + 1;
     setTimeout(() => {
       setMessages(p => [...p, { role: 'assistant', text: getResponse(text) }]);
       setWaiting(false);
+      // Track Event: Ask Aiden replied to a question. Typed question text is never sent.
+      trackEvent('ask_aiden_response_received', {
+        input_method: isSuggestion ? 'suggestion' : 'typed',
+        suggestion_text: isSuggestion ? text : '',
+        message_length: text.length,
+        conversation_turn: conversationTurn,
+      });
     }, 900);
   }
 

@@ -13,6 +13,7 @@ import { useAuth } from '../App';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { C, serif, shadow } from '../theme';
+import { trackEvent } from '../pendo';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const ROLES    = ['user', 'admin'];
@@ -65,6 +66,14 @@ function UserModal({ user: u, onClose, onSave }) {
         await updateDoc(doc(db, 'users', u.uid), { name: name.trim(), role, status, notes: notes.trim() });
         onSave({ ...u, name: name.trim(), role, status, notes: notes.trim() });
       }
+      // Track Event: an admin created or updated a user
+      trackEvent('admin_user_saved', {
+        is_new: isNew,
+        role,
+        status,
+        role_changed: !isNew && u?.role !== role,
+        status_changed: !isNew && u?.status !== status,
+      });
       onClose();
     } catch (e) {
       const msgs = {

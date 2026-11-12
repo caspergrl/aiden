@@ -17,6 +17,7 @@ import {
   getDownloadURL, uploadBytes, deleteObject,
 } from 'firebase/storage';
 import { storage } from '../../firebase';
+import { trackEvent } from '../../pendo';
 
 function calcAge(birthdate) {
   if (!birthdate) return null;
@@ -1101,6 +1102,13 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
       const path = `users/${user.uid}/documents/${Date.now()}_${file.name}`;
       const fRef = storageRef(storage, path);
       await uploadBytes(fRef, file, { customMetadata: { originalName: file.name, recipientId: String(r.id), docType: pendingDocType } });
+      // Track Event: a care document finished uploading (file metadata only, no file name)
+      trackEvent('care_document_uploaded', {
+        doc_type: pendingDocType || 'none',
+        file_type: file.type || 'unknown',
+        file_size: file.size,
+        document_count: rdocs.length + 1,
+      });
       setPendingDocType('');
       await loadRdocs();
     } catch { setRdocError('Upload failed — please try again.'); }
