@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { identifyPendo, clearPendoSession } from './pendo';
 
 import Landing         from './pages/Landing';
 import ForIndividuals  from './pages/ForIndividuals';
@@ -103,6 +104,20 @@ function AuthProvider({ children }) {
       }
     });
   }, []);
+
+  // ── Novus by Pendo: identify on sign-in, clear on sign-out ────────────────
+  // Every sign-out path (navbar, footer, dashboard, idle timeout) goes through
+  // onAuthStateChanged, so the session is cleared here.
+  const pendoIdentified = useRef(false);
+  useEffect(() => {
+    if (user) {
+      identifyPendo({ user, profile, org, orgRole });
+      pendoIdentified.current = true;
+    } else if (user === null && pendoIdentified.current) {
+      clearPendoSession();
+      pendoIdentified.current = false;
+    }
+  }, [user, profile, org, orgRole]);
 
   return (
     <AuthCtx.Provider value={{ user, profile, setProfile, org, setOrg, orgRole, setOrgRole, loading: user === undefined }}>
