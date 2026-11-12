@@ -4,7 +4,13 @@ import { C, serif } from '../../theme';
 import { getResponse, SUGGESTIONS } from '../../data';
 import { useAuth } from '../../App';
 
-export default function Chat({ messages, setMessages }) {
+const AGENT_ID = 'YyDQbe2g0wvyaQLp2r1VFIx9RFI';
+
+function trackAgent(eventType, metadata) {
+  window.pendo?.trackAgent?.(eventType, { agentId: AGENT_ID, ...metadata });
+}
+
+export default function Chat({ messages, setMessages, conversationId }) {
   const { profile } = useAuth();
   const [input, setInput]     = useState('');
   const [waiting, setWaiting] = useState(false);
@@ -12,14 +18,19 @@ export default function Chat({ messages, setMessages }) {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, waiting]);
 
-  function send(text) {
+  function send(text, suggestedPrompt = false) {
     if (!text.trim() || waiting) return;
-    setMessages(p => [...p, { role: 'user', text }]);
+    const promptId = crypto.randomUUID();
+    trackAgent('prompt', { conversationId, messageId: promptId, content: text, suggestedPrompt, fileUploaded: false });
+    setMessages(p => [...p, { id: promptId, role: 'user', text }]);
     setInput('');
     setWaiting(true);
     setTimeout(() => {
-      setMessages(p => [...p, { role: 'assistant', text: getResponse(text) }]);
+      const responseId = crypto.randomUUID();
+      const responseText = getResponse(text);
+      setMessages(p => [...p, { id: responseId, role: 'assistant', text: responseText }]);
       setWaiting(false);
+      trackAgent('agent_response', { conversationId, messageId: responseId, content: responseText });
     }, 900);
   }
 
@@ -71,7 +82,7 @@ export default function Chat({ messages, setMessages }) {
           <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>Suggested questions</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {SUGGESTIONS.map((s, i) => (
-              <button key={i} onClick={() => send(s)} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: C.text, cursor: 'pointer', fontWeight: 500, transition: 'border-color 0.2s' }}
+              <button key={i} onClick={() => send(s, true)} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: C.text, cursor: 'pointer', fontWeight: 500, transition: 'border-color 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = C.rose}
                 onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
                 {s}
