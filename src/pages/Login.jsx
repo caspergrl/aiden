@@ -9,6 +9,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { useAuth } from '../App';
 import { serif, sans } from '../theme';
+import { trackEvent } from '../pendo';
 
 const ERR = {
   'auth/user-not-found':      'No account found with that email.',
@@ -59,6 +60,12 @@ export default function Login() {
           role: 'user', status: 'active', createdAt: serverTimestamp(),
         });
         await sendEmailVerification(u);
+        // Track Event: sign-up succeeded (account, profile, and verification email all written)
+        trackEvent('account_created', {
+          signup_method: 'email_password',
+          mode,
+          has_name: !!name.trim(),
+        });
       }
       navigate('/home');
     } catch (e) {

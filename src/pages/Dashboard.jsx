@@ -14,6 +14,7 @@ import Insurance   from './dashboard/Insurance';
 import Resources   from './dashboard/Resources';
 import Chat        from './dashboard/Chat';
 import { useAuth } from '../App';
+import { trackEvent } from '../pendo';
 
 import {
   DEMO_INDIVIDUAL_RECIPIENTS as INITIAL_RECIPIENTS,
@@ -21,6 +22,16 @@ import {
   DEMO_INDIVIDUAL_DOCTORS as INITIAL_DOCTORS,
   DEMO_INDIVIDUAL_LOGISTICS as INITIAL_LOGISTICS,
 } from '../demoData';
+
+// Whole days from today until an appointment date (YYYY-MM-DD); null if unknown
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const target = new Date(dateStr + 'T00:00:00');
+  if (isNaN(target)) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target - today) / 86400000);
+}
 
 // Module-level lock — prevents duplicate seeding from React StrictMode's
 // double-invocation of effects in development.
@@ -129,6 +140,11 @@ export default function Dashboard() {
   async function addRecipient(data) {
     if (!org && recipients.length >= PERSONAL_RECIPIENT_LIMIT) {
       setSaveError(`Individual accounts can have up to ${PERSONAL_RECIPIENT_LIMIT} care recipients. Upgrade to a Business account in Account Settings to add more.`);
+      // Track Event: add blocked by the personal recipient limit (upgrade signal)
+      trackEvent('recipient_limit_reached', {
+        recipient_count:          recipients.length,
+        personal_recipient_limit: PERSONAL_RECIPIENT_LIMIT,
+      });
       return;
     }
     // Optimistic update first so UI is instant
@@ -138,6 +154,15 @@ export default function Dashboard() {
       // Strip local id so Firestore auto-generates the document ID
       const { id: _localId, ...firestoreData } = data;
       const ref = await addDoc(collection(db, 'users', user.uid, 'recipients'), firestoreData);
+      // Track Event: care recipient saved (counts only, never health values)
+      trackEvent('care_recipient_added', {
+        relationship:        String(data.relationship || '').slice(0, 100),
+        conditions_count:    data.conditions?.length || 0,
+        medications_count:   data.medications?.length || 0,
+        allergies_count:     data.allergies?.length || 0,
+        recipient_count:     recipients.length + 1,
+        is_business_account: !!org,
+      });
       // Replace temp id with real Firestore id
       setRecipients(prev => prev.map(r => r.id === tempId ? { ...r, id: ref.id } : r));
     } catch (e) {
@@ -191,6 +216,16 @@ export default function Dashboard() {
     try {
       const { id: _localId, ...firestoreData } = data;
       const ref = await addDoc(collection(db, 'users', user.uid, 'appointments'), firestoreData);
+      // Track Event: appointment saved (from Calendar, Care, or Home)
+      const loc = firestoreData.location || '';
+      trackEvent('appointment_created', {
+        type:                   firestoreData.type || 'none',
+        has_recipient:          !!firestoreData.recipientId,
+        location_mode:          !loc ? 'none' : loc.startsWith('http') ? 'video' : 'inperson',
+        has_transport:          !!firestoreData.transport?.needed,
+        has_reminders:          firestoreData.reminders === true,
+        days_until_appointment: daysUntil(firestoreData.date),
+      });
       setAppointments(prev => prev.map(a => a.id === tempId ? { ...a, id: ref.id } : a));
     } catch (e) {
       fsError('addAppointment', e);
@@ -217,6 +252,12 @@ export default function Dashboard() {
     setChanges(prev => [{ ...data, id: tempId }, ...prev]);
     try {
       const ref = await addDoc(collection(db, 'users', user.uid, 'careChanges'), data);
+      // Track Event: care change saved (never send title or details text)
+      trackEvent('care_change_logged', {
+        type:        data.type || 'other',
+        has_details: !!data.details,
+        recipientId: data.recipientId != null ? String(data.recipientId) : '',
+      });
       setChanges(prev => prev.map(c => c.id === tempId ? { ...c, id: ref.id } : c));
     } catch (e) {
       fsError('addChange', e);
@@ -260,6 +301,12 @@ export default function Dashboard() {
     setResources(prev => [...prev, { ...data, id: tempId }]);
     try {
       const ref = await addDoc(collection(db, 'users', user.uid, 'resources'), data);
+      // Track Event: resource link saved
+      trackEvent('resource_added', {
+        category:        data.category || 'none',
+        has_description: !!data.description,
+        resource_count:  resources.length + 1,
+      });
       setResources(prev => prev.map(r => r.id === tempId ? { ...r, id: ref.id } : r));
     } catch (e) {
       fsError('addResource', e);

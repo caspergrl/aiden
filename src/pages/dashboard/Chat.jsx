@@ -3,6 +3,7 @@ import { Send, Heart } from 'lucide-react';
 import { C, serif } from '../../theme';
 import { getResponse, SUGGESTIONS } from '../../data';
 import { useAuth } from '../../App';
+import { trackEvent } from '../../pendo';
 
 export default function Chat({ messages, setMessages }) {
   const { profile } = useAuth();
@@ -12,7 +13,7 @@ export default function Chat({ messages, setMessages }) {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, waiting]);
 
-  function send(text) {
+  function send(text, source = 'typed') {
     if (!text.trim() || waiting) return;
     setMessages(p => [...p, { role: 'user', text }]);
     setInput('');
@@ -20,6 +21,12 @@ export default function Chat({ messages, setMessages }) {
     setTimeout(() => {
       setMessages(p => [...p, { role: 'assistant', text: getResponse(text) }]);
       setWaiting(false);
+      // Track Event: Ask Aiden reply added (covers Enter key and suggestion sends)
+      trackEvent('ask_aiden_question_answered', {
+        source,
+        message_length:      text.length,
+        conversation_length: messages.length + 2,
+      });
     }, 900);
   }
 
@@ -71,7 +78,7 @@ export default function Chat({ messages, setMessages }) {
           <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>Suggested questions</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {SUGGESTIONS.map((s, i) => (
-              <button key={i} onClick={() => send(s)} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: C.text, cursor: 'pointer', fontWeight: 500, transition: 'border-color 0.2s' }}
+              <button key={i} onClick={() => send(s, 'suggestion')} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: C.text, cursor: 'pointer', fontWeight: 500, transition: 'border-color 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = C.rose}
                 onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
                 {s}

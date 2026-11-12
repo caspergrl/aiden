@@ -4,6 +4,7 @@ import {
   Search, Mail, MessageSquare, Pencil, Check, BookMarked, ChevronDown, HelpCircle,
 } from 'lucide-react';
 import { C, serif, shadowSm, radius } from '../../theme';
+import { trackEvent } from '../../pendo';
 
 const CATEGORIES = ['Medical', 'Legal', 'Caregiver Support', 'Financial', 'Community', 'Other'];
 
@@ -202,6 +203,16 @@ function ShareModal({ resource, recipients, onClose }) {
     smsTargets.forEach((phone, i) => {
       const num = fmtPhone(phone);
       setTimeout(() => window.open(`sms:${num}?body=${encoded}`), i * 300);
+    });
+
+    // Track Event: resource handed off to email and/or SMS (counts only, no contact details)
+    trackEvent('resource_shared', {
+      method:                   emailTargets.length && smsTargets.length ? 'both' : emailTargets.length ? 'email' : smsTargets.length ? 'sms' : 'none',
+      email_target_count:       emailTargets.length,
+      sms_target_count:         smsTargets.length,
+      recipient_selected_count: selRecip.length,
+      custom_contact_count:     customList.length,
+      category:                 resource.category || 'none',
     });
 
     setSent(true);

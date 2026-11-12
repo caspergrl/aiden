@@ -3,6 +3,7 @@ import { Send, CheckCircle, Mail } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { C, serif } from '../theme';
+import { trackEvent } from '../pendo';
 
 const FORMSPREE_ID = 'mojbqabj'; // ← replace with your Formspree form ID
 
@@ -45,6 +46,11 @@ export default function Contact() {
       });
 
       if (res.ok) {
+        // Track Event: contact form accepted by Formspree (no name, email, or message content)
+        trackEvent('contact_form_submitted', {
+          message_length: form.message.trim().length,
+          status:         'success',
+        });
         setStatus('success');
         setForm({ name: '', email: '', message: '' });
       } else {
