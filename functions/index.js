@@ -1,6 +1,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { Resend } = require('resend');
+const Anthropic = require('@anthropic-ai/sdk');
 
 admin.initializeApp();
 
@@ -172,3 +173,118 @@ function buildReminderSms({ apptTitle, apptDate, apptTime, apptLoc, recipName, l
   if (apptLoc) parts.push(`Location: ${apptLoc}`);
   return parts.join('\n');
 }
+
+// ── Ask Aiden (Claude-powered chat) ───────────────────────────────────────────
+exports.askAiden = functions
+  .runWith({ secrets: ['ANTHROPIC_API_KEY'] })
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const uid = context.auth.uid;
+    const { messages = [], conversationId = 'askaiden' } = data;
+
+    // Load user context from Firestore
+    const [userDoc, recSnap, apptSnap, docSnap] = await Promise.all([
+      admin.firestore().doc(`users/${uid}`).get(),
+      admin.firestore().collection(`users/${uid}/recipients`).get(),
+      admin.firestore().collection(`users/${uid}/appointments`).get(),
+      admin.firestore().collection(`users/${uid}/doctors`).get(),
+    ]);
+
+    const userProfile = userDoc.data() || {};
+    const recipients  = recSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const appointments = apptSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const doctors     = docSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Build system prompt with full recipient context
+    const caregiverName = userProfile.name ? userProfile.name.split(' ')[0] : 'there';
+
+    const recipientContext = recipients.length === 0
+      ? 'No care recipients have been added yet.'
+      : recipients.map(r => {
+          const myDoctors = doctors.filter(d => d.recipientId === r.id);
+          const today = new Date();
+          const upcoming = appointments
+            .filter(a => a.recipientId === r.id && a.date >= today.toISOString().slice(0, 10))
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(0, 10);
+
+          const lines = [
+            `**${r.nickname || r.name.split(' ')[0]} (${r.name})**`,
+            `Relationship: ${r.relationship || 'Care recipient'}`,
+          ];
+          if (r.birthdate) {
+            const age = Math.floor((Date.now() - new Date(r.birthdate)) / (1000 * 60 * 60 * 24 * 365.25));
+            lines.push(`Age: ${age} (born ${r.birthdate})`);
+          }
+          if (r.conditions?.length)  lines.push(`Conditions: ${r.conditions.join(', ')}`);
+          if (r.allergies?.length)   lines.push(`Allergies: ${r.allergies.join(', ')}`);
+          if (r.medications?.length) lines.push(`Medications: ${r.medications.join(', ')}`);
+          if (r.notes)               lines.push(`Notes: ${r.notes}`);
+          if (myDoctors.length) {
+            lines.push('Care team: ' + myDoctors.map(d =>
+              [d.name, d.specialty, d.phone].filter(Boolean).join(' · ')
+            ).join('; '));
+          }
+          if (upcoming.length) {
+            lines.push('Upcoming appointments:');
+            upcoming.forEach(a => {
+              const loc = a.location ? ` at ${a.location}` : '';
+              lines.push(`  - ${a.date} ${a.time || ''}: ${a.title}${loc}`);
+            });
+          }
+          return lines.join('\n');
+        }).join('\n\n');
+
+    const systemPrompt = `You are Aiden, a warm, knowledgeable, and compassionate AI caregiving assistant. You help family caregivers navigate the challenges of caring for their loved ones — from medical questions to legal documents, insurance, emotional support, and daily logistics.
+
+The caregiver you're speaking with is named ${caregiverName}.
+
+Here is the full context about the people they care for:
+
+${recipientContext}
+
+---
+
+Guidelines:
+- Be warm, human, and genuinely supportive — caregiving is exhausting and emotionally demanding
+- Give specific, practical answers that account for each person's actual conditions, medications, and situation
+- When discussing medical decisions or symptoms, always recommend consulting their healthcare provider — but still give genuinely useful, specific information rather than just deflecting
+- For legal or insurance questions, give clear guidance while suggesting they verify specifics with the relevant professional
+- Keep responses clear and concise — caregivers are often tired and overwhelmed; bullet points and short paragraphs work better than dense walls of text
+- If you notice something in their care recipient's profile that seems relevant to a question (a drug interaction, a condition-specific concern, an upcoming appointment), mention it
+- Don't start every response with "I" — vary your openings
+- Never claim to be a doctor or give a diagnosis`;
+
+    // Convert to Claude API message format
+    const claudeMessages = messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.text,
+    }));
+
+    const anthropic = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-5-5',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: claudeMessages,
+    });
+
+    const assistantText = response.content.find(b => b.type === 'text')?.text || 'Sorry, I had trouble generating a response.';
+
+    // Save conversation to Firestore
+    const convRef = admin.firestore().doc(`users/${uid}/conversations/${conversationId}`);
+    const updatedMessages = [
+      ...messages,
+      { role: 'assistant', text: assistantText, ts: Date.now() },
+    ];
+    await convRef.set({
+      messages: updatedMessages,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { text: assistantText };
+  });

@@ -1,29 +1,76 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Heart } from 'lucide-react';
+import { Send } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { C, serif } from '../../theme';
-import { getResponse, SUGGESTIONS } from '../../data';
+import { SUGGESTIONS } from '../../data';
 import { useAuth } from '../../App';
 
-export default function Chat({ messages, setMessages }) {
-  const { profile } = useAuth();
-  const [input, setInput]     = useState('');
-  const [waiting, setWaiting] = useState(false);
+const CONVERSATION_ID = 'askaiden';
+
+const GREETING = (name) =>
+  `Hi${name ? ` ${name}` : ''}! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for your loved ones — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍`;
+
+export default function Chat() {
+  const { user, profile } = useAuth();
+  const [messages, setMessages] = useState(null); // null = loading
+  const [input, setInput]       = useState('');
+  const [waiting, setWaiting]   = useState(false);
+  const [error, setError]       = useState(null);
   const bottomRef = useRef(null);
+
+  const firstName = profile?.name?.split(' ')[0] || '';
+
+  // Load conversation history from Firestore on mount
+  useEffect(() => {
+    if (!user) return;
+    const db = getFirestore();
+    getDoc(doc(db, 'users', user.uid, 'conversations', CONVERSATION_ID))
+      .then(snap => {
+        if (snap.exists() && snap.data().messages?.length) {
+          setMessages(snap.data().messages);
+        } else {
+          setMessages([{ role: 'assistant', text: GREETING(firstName) }]);
+        }
+      })
+      .catch(() => {
+        setMessages([{ role: 'assistant', text: GREETING(firstName) }]);
+      });
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, waiting]);
 
-  function send(text) {
-    if (!text.trim() || waiting) return;
-    setMessages(p => [...p, { role: 'user', text }]);
+  async function send(text) {
+    if (!text.trim() || waiting || !messages) return;
+    setError(null);
+    const userMsg = { role: 'user', text, ts: Date.now() };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
     setInput('');
     setWaiting(true);
-    setTimeout(() => {
-      setMessages(p => [...p, { role: 'assistant', text: getResponse(text) }]);
+
+    try {
+      const fn = httpsCallable(getFunctions(), 'askAiden');
+      const result = await fn({ messages: updated, conversationId: CONVERSATION_ID });
+      setMessages(prev => [...prev, { role: 'assistant', text: result.data.text, ts: Date.now() }]);
+    } catch (e) {
+      console.error('askAiden error:', e);
+      setError('Something went wrong. Please try again.');
+      setMessages(prev => prev.filter(m => m !== userMsg));
+      setInput(text);
+    } finally {
       setWaiting(false);
-    }, 900);
+    }
   }
 
-  const firstName = profile?.name?.split(' ')[0] || 'there';
+  if (!messages) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <div style={{ width: 28, height: 28, border: '3px solid #ebe2d8', borderTopColor: '#c85c55', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 0px)', maxHeight: '100vh' }}>
@@ -43,12 +90,12 @@ export default function Chat({ messages, setMessages }) {
             {m.role === 'assistant' && (
               <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #c8d5e4, #d8cad4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>🤍</div>
             )}
-            <div style={{ maxWidth: '68%', background: m.role === 'user' ? C.roseDark : '#fff', color: m.role === 'user' ? '#fff' : C.text, borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '12px 16px', fontSize: 14, lineHeight: 1.75, border: m.role === 'assistant' ? `1px solid ${C.border}` : 'none', boxShadow: '0 2px 8px rgba(80,60,40,0.06)' }}>
+            <div style={{ maxWidth: '68%', background: m.role === 'user' ? C.roseDark : '#fff', color: m.role === 'user' ? '#fff' : C.text, borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '12px 16px', fontSize: 14, lineHeight: 1.75, border: m.role === 'assistant' ? `1px solid ${C.border}` : 'none', boxShadow: '0 2px 8px rgba(80,60,40,0.06)', whiteSpace: 'pre-wrap' }}>
               {m.text}
             </div>
             {m.role === 'user' && (
               <div style={{ width: 32, height: 32, background: C.roseLight, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13, fontWeight: 800, color: C.roseDark }}>
-                {firstName[0].toUpperCase()}
+                {(firstName[0] || '?').toUpperCase()}
               </div>
             )}
           </div>
@@ -62,6 +109,13 @@ export default function Chat({ messages, setMessages }) {
             </div>
           </div>
         )}
+
+        {error && (
+          <div style={{ textAlign: 'center', fontSize: 13, color: '#c0392b', background: '#fdf2f2', border: '1px solid #fac5c5', borderRadius: 10, padding: '10px 16px' }}>
+            {error}
+          </div>
+        )}
+
         <div ref={bottomRef} />
       </div>
 
