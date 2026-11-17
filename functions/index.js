@@ -186,12 +186,13 @@ exports.askAiden = functions
     const { messages = [], conversationId = 'askaiden' } = data;
 
     // Load user context from Firestore
-    const [userDoc, recSnap, apptSnap, docSnap, chgSnap] = await Promise.all([
+    const [userDoc, recSnap, apptSnap, docSnap, chgSnap, logSnap] = await Promise.all([
       admin.firestore().doc(`users/${uid}`).get(),
       admin.firestore().collection(`users/${uid}/recipients`).get(),
       admin.firestore().collection(`users/${uid}/appointments`).get(),
       admin.firestore().collection(`users/${uid}/doctors`).get(),
       admin.firestore().collection(`users/${uid}/careChanges`).limit(50).get(),
+      admin.firestore().collection(`users/${uid}/logistics`).get(),
     ]);
 
     const userProfile  = userDoc.data() || {};
@@ -199,6 +200,15 @@ exports.askAiden = functions
     const appointments = apptSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const doctors      = docSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const careChanges  = chgSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const logistics    = logSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Insurance plan display names (mirrors src/data.js INSURANCE_INFO)
+    const PLAN_NAMES = {
+      medicare: 'Medicare (Parts A, B, D)',
+      humana:   'Humana Medicare Advantage (Part C)',
+      medicaid: 'Medicaid',
+      bcbs:     'Blue Cross Blue Shield',
+    };
 
     // Build system prompt with full recipient context
     const caregiverName = userProfile.name ? userProfile.name.split(' ')[0] : 'there';
@@ -216,6 +226,11 @@ exports.askAiden = functions
             .sort((a, b) => a.date.localeCompare(b.date))
             .slice(0, 10);
 
+          // Logistics items linked to this recipient or unlinked (global)
+          const myLogistics = logistics.filter(l => !l.recipientId || l.recipientId === r.id);
+          const doneTasks   = myLogistics.filter(l => l.completed);
+          const pendingTasks = myLogistics.filter(l => !l.completed);
+
           const lines = [
             `**${r.nickname || r.name.split(' ')[0]} (${r.name})**`,
             `Relationship: ${r.relationship || 'Care recipient'}`,
@@ -224,30 +239,68 @@ exports.askAiden = functions
             const age = Math.floor((Date.now() - new Date(r.birthdate)) / (1000 * 60 * 60 * 24 * 365.25));
             lines.push(`Age: ${age} (born ${r.birthdate})`);
           }
+          if (r.phone || r.email) {
+            const contact = [r.phone, r.email].filter(Boolean).join(' · ');
+            lines.push(`Contact: ${contact}`);
+          }
+
           if (r.conditions?.length)  lines.push(`Conditions: ${r.conditions.join(', ')}`);
           if (r.allergies?.length)   lines.push(`Allergies: ${r.allergies.join(', ')}`);
           if (r.medications?.length) lines.push(`Medications: ${r.medications.join(', ')}`);
-          if (r.notes)               lines.push(`Notes: ${r.notes}`);
-          if (myDoctors.length) {
-            lines.push('Care team: ' + myDoctors.map(d =>
-              [d.name, d.specialty, d.phone].filter(Boolean).join(' · ')
-            ).join('; '));
+
+          if (r.insurancePlans?.length) {
+            const plans = r.insurancePlans.map(p => PLAN_NAMES[p] || p).join('; ');
+            lines.push(`Insurance: ${plans}`);
           }
+
+          if (r.importantNumbers?.length) {
+            lines.push('Important numbers: ' + r.importantNumbers.map(n => `${n.label}: ${n.number}`).join('; '));
+          }
+
+          if (r.notes) lines.push(`Caregiver notes: ${r.notes}`);
+
+          if (myDoctors.length) {
+            lines.push('Care team:');
+            myDoctors.forEach(d => {
+              const parts = [d.name, d.specialty, d.phone, d.address].filter(Boolean).join(' · ');
+              const note  = d.notes ? ` (${d.notes})` : '';
+              lines.push(`  - ${parts}${note}`);
+            });
+          }
+
           if (upcoming.length) {
             lines.push('Upcoming appointments:');
             upcoming.forEach(a => {
               const loc = a.location ? ` at ${a.location}` : '';
-              lines.push(`  - ${a.date} ${a.time || ''}: ${a.title}${loc}`);
+              const doc = a.doctor ? ` with ${a.doctor}` : '';
+              lines.push(`  - ${a.date} ${a.time || ''}${doc}: ${a.title}${loc}`);
             });
           }
+
+          if (pendingTasks.length) {
+            lines.push('Legal/admin tasks still pending:');
+            pendingTasks.forEach(l => {
+              const note = l.note ? ` (${l.note})` : '';
+              lines.push(`  - ${l.title}${note}`);
+            });
+          }
+          if (doneTasks.length) {
+            lines.push('Legal/admin tasks completed:');
+            doneTasks.forEach(l => {
+              const note = l.note ? ` (${l.note})` : '';
+              lines.push(`  - ✓ ${l.title}${note}`);
+            });
+          }
+
           if (myChanges.length) {
             lines.push('Recent care changes (newest first):');
             myChanges.forEach(c => {
               const when = c.date || '';
               const who  = c.reportedBy ? ` (noted by ${c.reportedBy})` : '';
-              lines.push(`  - ${when}${who}: ${c.title || c.type || 'Change'}${c.notes ? ` — ${c.notes}` : ''}`);
+              lines.push(`  - ${when}${who}: ${c.title || c.type || 'Change'}${c.details ? ` — ${c.details}` : ''}`);
             });
           }
+
           return lines.join('\n');
         }).join('\n\n');
 
