@@ -16,8 +16,8 @@ function renderMarkdown(text) {
   function flushBullets() {
     if (!bulletBuf.length) return;
     out.push(
-      <ul key={`ul-${out.length}`} style={{ margin: '6px 0 10px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {bulletBuf.map((item, i) => <li key={i} style={{ fontSize: 14, color: 'inherit', lineHeight: 1.65 }}>{inlineFormat(item)}</li>)}
+      <ul key={`ul-${out.length}`} style={{ margin: '6px 0 10px', paddingLeft: 20, listStyleType: 'disc' }}>
+        {bulletBuf.map((item, i) => <li key={i} style={{ fontSize: 14, color: 'inherit', lineHeight: 1.65, marginBottom: 3 }}>{inlineFormat(item)}</li>)}
       </ul>
     );
     bulletBuf = [];
