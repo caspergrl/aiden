@@ -42,7 +42,7 @@ function renderMarkdown(text) {
     if (/^#{1,3}\s/.test(line)) {
       flushBullets();
       const txt = line.replace(/^#{1,3}\s+/, '');
-      out.push(<p key={i} style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: '14px 0 4px', textTransform: 'none', letterSpacing: 0 }}>{inlineFormat(txt)}</p>);
+      out.push(<p key={i} style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: '14px 0 4px' }}>{inlineFormat(txt)}</p>);
     } else if (/^[-•]\s/.test(line)) {
       bulletBuf.push(line.replace(/^[-•]\s+/, ''));
     } else if (line.trim() === '') {
