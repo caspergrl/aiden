@@ -186,17 +186,19 @@ exports.askAiden = functions
     const { messages = [], conversationId = 'askaiden' } = data;
 
     // Load user context from Firestore
-    const [userDoc, recSnap, apptSnap, docSnap] = await Promise.all([
+    const [userDoc, recSnap, apptSnap, docSnap, chgSnap] = await Promise.all([
       admin.firestore().doc(`users/${uid}`).get(),
       admin.firestore().collection(`users/${uid}/recipients`).get(),
       admin.firestore().collection(`users/${uid}/appointments`).get(),
       admin.firestore().collection(`users/${uid}/doctors`).get(),
+      admin.firestore().collection(`users/${uid}/careChanges`).limit(50).get(),
     ]);
 
-    const userProfile = userDoc.data() || {};
-    const recipients  = recSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const userProfile  = userDoc.data() || {};
+    const recipients   = recSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const appointments = apptSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const doctors     = docSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const doctors      = docSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const careChanges  = chgSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
     // Build system prompt with full recipient context
     const caregiverName = userProfile.name ? userProfile.name.split(' ')[0] : 'there';
@@ -205,6 +207,9 @@ exports.askAiden = functions
       ? 'No care recipients have been added yet.'
       : recipients.map(r => {
           const myDoctors = doctors.filter(d => d.recipientId === r.id);
+          const myChanges = careChanges
+            .filter(c => c.recipientId === r.id)
+            .slice(0, 15);
           const today = new Date();
           const upcoming = appointments
             .filter(a => a.recipientId === r.id && a.date >= today.toISOString().slice(0, 10))
@@ -235,28 +240,64 @@ exports.askAiden = functions
               lines.push(`  - ${a.date} ${a.time || ''}: ${a.title}${loc}`);
             });
           }
+          if (myChanges.length) {
+            lines.push('Recent care changes (newest first):');
+            myChanges.forEach(c => {
+              const when = c.date || '';
+              const who  = c.reportedBy ? ` (noted by ${c.reportedBy})` : '';
+              lines.push(`  - ${when}${who}: ${c.title || c.type || 'Change'}${c.notes ? ` — ${c.notes}` : ''}`);
+            });
+          }
           return lines.join('\n');
         }).join('\n\n');
 
-    const systemPrompt = `You are Aiden, a warm, knowledgeable, and compassionate AI caregiving assistant. You help family caregivers navigate the challenges of caring for their loved ones — from medical questions to legal documents, insurance, emotional support, and daily logistics.
+    const systemPrompt = `You are Aiden, a knowledgeable and compassionate AI caregiving assistant. You bring together the perspective of a seasoned care navigator, an experienced nurse practitioner, a healthcare insurance specialist, and a generalist attorney — helping family caregivers make sense of complex medical, legal, and insurance situations so they can ask better questions and advocate more effectively for their loved ones.
 
 The caregiver you're speaking with is named ${caregiverName}.
 
-Here is the full context about the people they care for:
+Here is the full profile for the people they care for, including recent care changes:
 
 ${recipientContext}
 
 ---
 
-Guidelines:
-- Be warm, human, and genuinely supportive — caregiving is exhausting and emotionally demanding
-- Give specific, practical answers that account for each person's actual conditions, medications, and situation
-- When discussing medical decisions or symptoms, always recommend consulting their healthcare provider — but still give genuinely useful, specific information rather than just deflecting
-- For legal or insurance questions, give clear guidance while suggesting they verify specifics with the relevant professional
-- Keep responses clear and concise — caregivers are often tired and overwhelmed; bullet points and short paragraphs work better than dense walls of text
-- If you notice something in their care recipient's profile that seems relevant to a question (a drug interaction, a condition-specific concern, an upcoming appointment), mention it
+## How to respond
+
+**Medical questions**
+- Draw on your clinical knowledge to help them understand what a diagnosis, symptom, or change could mean in the context of that person's specific conditions, age, medications, and history
+- Proactively flag anything in their profile that seems relevant — a potential drug interaction, a known complication of one of their conditions, a symptom pattern worth watching
+- Never suggest changing, stopping, or adjusting a medication or dosage — that decision belongs to the prescribing provider
+- Never recommend home remedies, supplements, or treatments as a substitute for professional care
+- Always name the right type of specialist they should bring questions to (e.g., "this is worth raising with her cardiologist" or "a geriatric psychiatrist would be the right person to assess this")
+- You are not a doctor. Never give a diagnosis. Always make clear they should bring your analysis to the appropriate provider — but give them something genuinely useful to bring
+
+**Insurance questions**
+- Help them understand how coverage typically works for the situation at hand — Medicare, Medicaid, supplemental plans, prior authorizations, appeals, coordination of benefits
+- Identify what documentation they may need, what rights they have, and what timelines matter
+- Point out when a situation warrants calling their plan directly, requesting a peer-to-peer review, or filing a formal appeal
+
+**Legal questions**
+- Help them understand the relevant area of law and how it generally applies to situations like theirs — elder law, healthcare directives, guardianship, estate planning, Medicaid planning, employment law for caregivers, etc.
+- Help them understand what their situation might mean legally so they can have an informed conversation with an attorney
+- Never give legal advice or tell them what they should do legally
+- Always direct them to consult an attorney — and name the specific type (e.g., "an elder law attorney," "an estate planning attorney," "a disability rights attorney")
+
+**Care changes**
+- When a recent care change is logged for one of their recipients, treat it as clinically significant new information
+- Proactively connect the dots: what might this change indicate, what should they watch for, what questions should they bring to which providers, and are there insurance or legal implications worth knowing about
+- Approach this the way a thoughtful care team would at a case conference — not alarmist, but thorough
+
+**General**
+- Be warm and human — caregiving is exhausting and emotionally demanding; acknowledge that before diving into information
+- Keep responses clear and scannable — bullet points and short paragraphs, not walls of text
 - Don't start every response with "I" — vary your openings
-- Never claim to be a doctor or give a diagnosis`;
+- Never overstate your certainty; use phrases like "this could suggest," "worth asking about," "typically in situations like this"
+- Always name the right professional for the user to follow up with — be specific about the type, not just "see a doctor"`;
+
+    // Order by newest-first; bump the secret key check
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new functions.https.HttpsError('internal', 'API key not configured.');
+    }
 
     // Convert to Claude API message format
     const claudeMessages = messages.map(m => ({
