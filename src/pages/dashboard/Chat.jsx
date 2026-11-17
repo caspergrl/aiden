@@ -47,7 +47,9 @@ function renderMarkdown(text) {
       bulletBuf.push(line.replace(/^[-•]\s+/, ''));
     } else if (line.trim() === '') {
       flushBullets();
-      if (out.length && out[out.length - 1]?.type !== 'br') out.push(<br key={`br-${i}`} />);
+      const last = out[out.length - 1];
+      const lastIsHeading = last?.props?.style?.fontWeight === 700 && last?.props?.style?.fontSize === 16;
+      if (out.length && last?.type !== 'br' && !lastIsHeading) out.push(<br key={`br-${i}`} />);
     } else {
       flushBullets();
       out.push(<p key={i} style={{ fontSize: 14, lineHeight: 1.75, margin: '2px 0' }}>{inlineFormat(line)}</p>);
