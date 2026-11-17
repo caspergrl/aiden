@@ -6,6 +6,57 @@ import { C, serif } from '../../theme';
 import { SUGGESTIONS } from '../../data';
 import { useAuth } from '../../App';
 
+// Lightweight markdown → React renderer
+// Handles: ## headings, - bullets, **bold**, *italic*
+function renderMarkdown(text) {
+  const lines = text.split('\n');
+  const out = [];
+  let bulletBuf = [];
+
+  function flushBullets() {
+    if (!bulletBuf.length) return;
+    out.push(
+      <ul key={`ul-${out.length}`} style={{ margin: '6px 0 10px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {bulletBuf.map((item, i) => <li key={i} style={{ fontSize: 14, color: 'inherit', lineHeight: 1.65 }}>{inlineFormat(item)}</li>)}
+      </ul>
+    );
+    bulletBuf = [];
+  }
+
+  function inlineFormat(str) {
+    // Split on **bold** and *italic* markers
+    const parts = [];
+    const re = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+    let last = 0, m;
+    while ((m = re.exec(str)) !== null) {
+      if (m.index > last) parts.push(str.slice(last, m.index));
+      if (m[0].startsWith('**')) parts.push(<strong key={m.index}>{m[2]}</strong>);
+      else parts.push(<em key={m.index}>{m[3]}</em>);
+      last = m.index + m[0].length;
+    }
+    if (last < str.length) parts.push(str.slice(last));
+    return parts.length === 1 && typeof parts[0] === 'string' ? parts[0] : parts;
+  }
+
+  lines.forEach((line, i) => {
+    if (/^#{1,3}\s/.test(line)) {
+      flushBullets();
+      const txt = line.replace(/^#{1,3}\s+/, '');
+      out.push(<p key={i} style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: '14px 0 4px', textTransform: 'none', letterSpacing: 0 }}>{inlineFormat(txt)}</p>);
+    } else if (/^[-•]\s/.test(line)) {
+      bulletBuf.push(line.replace(/^[-•]\s+/, ''));
+    } else if (line.trim() === '') {
+      flushBullets();
+      if (out.length && out[out.length - 1]?.type !== 'br') out.push(<br key={`br-${i}`} />);
+    } else {
+      flushBullets();
+      out.push(<p key={i} style={{ fontSize: 14, lineHeight: 1.75, margin: '2px 0' }}>{inlineFormat(line)}</p>);
+    }
+  });
+  flushBullets();
+  return out;
+}
+
 const CONVERSATION_ID = 'askaiden';
 
 const GREETING = (name) =>
@@ -90,8 +141,8 @@ export default function Chat() {
             {m.role === 'assistant' && (
               <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #c8d5e4, #d8cad4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>🤍</div>
             )}
-            <div style={{ maxWidth: '68%', background: m.role === 'user' ? C.roseDark : '#fff', color: m.role === 'user' ? '#fff' : C.text, borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '12px 16px', fontSize: 14, lineHeight: 1.75, border: m.role === 'assistant' ? `1px solid ${C.border}` : 'none', boxShadow: '0 2px 8px rgba(80,60,40,0.06)', whiteSpace: 'pre-wrap' }}>
-              {m.text}
+            <div style={{ maxWidth: '68%', background: m.role === 'user' ? C.roseDark : '#fff', color: m.role === 'user' ? '#fff' : C.text, borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '12px 16px', border: m.role === 'assistant' ? `1px solid ${C.border}` : 'none', boxShadow: '0 2px 8px rgba(80,60,40,0.06)' }}>
+              {m.role === 'assistant' ? renderMarkdown(m.text) : <span style={{ fontSize: 14, lineHeight: 1.75 }}>{m.text}</span>}
             </div>
             {m.role === 'user' && (
               <div style={{ width: 32, height: 32, background: C.roseLight, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13, fontWeight: 800, color: C.roseDark }}>
