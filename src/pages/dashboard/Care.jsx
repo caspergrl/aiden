@@ -120,20 +120,27 @@ function apptMs(a) {
 }
 function initials(name) { return name.split(' ').map(n => n[0]).join('').slice(0, 2); }
 function resizeImage(file, maxPx, quality) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (val) => { if (!settled) { settled = true; resolve(val); } };
+    // Fall back to original file after 8 seconds if canvas stalls
+    const timer = setTimeout(() => done(file), 8000);
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', quality);
+      clearTimeout(timer);
+      try {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(b => done(b || file), 'image/jpeg', quality);
+      } catch { done(file); }
     };
-    img.onerror = reject;
+    img.onerror = () => { clearTimeout(timer); done(file); };
     img.src = url;
   });
 }
@@ -630,9 +637,10 @@ function EditRecipientModal({ recipient, onClose, onSave }) {
     setPhotoUploading(true);
     try {
       const blob = await resizeImage(file, 600, 0.85);
+      const isResized = blob !== file;
       const path = `users/${user.uid}/photos/${recipient.id}`;
       const ref = storageRef(storage, path);
-      await uploadBytes(ref, blob, { contentType: 'image/jpeg' });
+      await uploadBytes(ref, blob, { contentType: isResized ? 'image/jpeg' : file.type });
       const url = await getDownloadURL(ref);
       set('photo', url);
     } catch { setError('Photo upload failed — please try again.'); }
