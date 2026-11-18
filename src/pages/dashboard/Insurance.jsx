@@ -23,7 +23,7 @@ export default function Insurance({ recipients }) {
           </button>
           <div style={{ background: `${CUSTOM_COLOR}18`, borderRadius: 20, padding: '24px 28px', marginBottom: 24, border: `1px solid ${CUSTOM_COLOR}30` }}>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <span style={{ fontSize: 44 }}>🛡️</span>
+              <Shield size={44} color={C.border} />
               <div>
                 <h1 style={{ fontFamily: serif, fontSize: 26, color: C.text, marginBottom: 8 }}>{sel}</h1>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -50,7 +50,7 @@ export default function Insurance({ recipients }) {
 
         <div style={{ background: `linear-gradient(135deg, ${info.color}22, ${info.color}10)`, borderRadius: 20, padding: '24px 28px', marginBottom: 24, border: `1px solid ${info.color}30` }}>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <span style={{ fontSize: 44 }}>{info.emoji}</span>
+            <Shield size={44} color={info.color} />
             <div>
               <h1 style={{ fontFamily: serif, fontSize: 26, color: C.text, marginBottom: 8 }}>{info.name}</h1>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -101,15 +101,14 @@ export default function Insurance({ recipients }) {
           const covered = recipients.filter(r => r.insurancePlans.includes(planId));
           const color   = info ? info.color : CUSTOM_COLOR;
           const bg      = info ? info.bg    : CUSTOM_BG;
-          const emoji   = info ? info.emoji : '🛡️';
           const name    = info ? info.name  : planId;
           return (
             <button key={planId} onClick={() => setSel(planId)}
               style={{ width: '100%', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '18px 22px', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 18, transition: 'box-shadow 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(80,60,40,0.1)'}
               onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-              <div style={{ width: 60, height: 60, background: bg, border: `2px solid ${color}22`, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>
-                {emoji}
+              <div style={{ width: 60, height: 60, background: bg, border: `2px solid ${color}22`, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Shield size={28} color={color} />
               </div>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 8 }}>{name}</p>

@@ -79,8 +79,8 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
   function buildShareText() {
     return [
       appt.title,
-      `📅 ${fmtDate(appt.date)} · ${appt.time}`,
-      appt.location ? `📍 ${appt.location}` : null,
+      `${fmtDate(appt.date)} · ${appt.time}`,
+      appt.location ? `${appt.location}` : null,
       r             ? `For: ${r.name}` : null,
       appt.notes    ? `\n${appt.notes}` : null,
       '\nSent via Aiden',
@@ -310,7 +310,7 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
               <div>
                 <p style={labelStyle}>Location</p>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  {[{ id: 'inperson', label: '📍 In person' }, { id: 'video', label: '📹 Video' }].map(m => (
+                  {[{ id: 'inperson', label: 'In person' }, { id: 'video', label: 'Video' }].map(m => (
                     <button key={m.id} onClick={() => { setLocMode(m.id); setLocation(''); }} style={{ flex: 1, padding: '8px 0', borderRadius: 10, border: `2px solid ${locMode === m.id ? C.rose : C.border}`, background: locMode === m.id ? C.roseLight : 'white', color: locMode === m.id ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       {m.label}
                     </button>

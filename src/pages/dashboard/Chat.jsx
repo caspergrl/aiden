@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Heart } from 'lucide-react';
 import { ScrollArea } from '@base-ui-components/react/scroll-area';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
@@ -63,7 +63,7 @@ function renderMarkdown(text) {
 const CONVERSATION_ID = 'askaiden';
 
 const GREETING = (name) =>
-  `Hi${name ? ` ${name}` : ''}! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for your loved ones — from medical questions to legal documents, insurance, and emotional support. What can I help you with? 🤍`;
+  `Hi${name ? ` ${name}` : ''}! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for your loved ones — from medical questions to legal documents, insurance, and emotional support. What can I help you with?`;
 
 export default function Chat() {
   const { user, profile } = useAuth();
@@ -130,7 +130,7 @@ export default function Chat() {
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 0px)', maxHeight: '100vh' }}>
       {/* Header */}
       <div style={{ background: `linear-gradient(135deg, ${C.roseLight}, #f0eaf8)`, padding: '20px 32px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-        <div style={{ width: 48, height: 48, background: 'rgba(255,255,255,0.6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, boxShadow: '0 2px 12px rgba(120,100,80,0.1)' }}>🤍</div>
+        <div style={{ width: 48, height: 48, background: 'rgba(255,255,255,0.6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(120,100,80,0.1)' }}><Heart size={22} color={C.roseDark} /></div>
         <div>
           <h2 style={{ fontFamily: serif, fontSize: 20, color: C.text }}>Ask Aiden</h2>
           <p style={{ fontSize: 13, color: C.muted }}>Your AI caregiving assistant · Always available</p>
@@ -143,7 +143,7 @@ export default function Chat() {
         {messages.map((m, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 10, alignItems: 'flex-end', maxWidth: '100%' }}>
             {m.role === 'assistant' && (
-              <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #c8d5e4, #d8cad4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>🤍</div>
+              <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #c8d5e4, #d8cad4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Heart size={14} color={C.roseDark} /></div>
             )}
             <div style={{ maxWidth: '68%', background: m.role === 'user' ? C.roseDark : '#fff', color: m.role === 'user' ? '#fff' : C.text, borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '12px 16px', border: m.role === 'assistant' ? `1px solid ${C.border}` : 'none', boxShadow: '0 2px 8px rgba(80,60,40,0.06)' }}>
               {m.role === 'assistant' ? renderMarkdown(m.text) : <span style={{ fontSize: 14, lineHeight: 1.75 }}>{m.text}</span>}
@@ -158,7 +158,7 @@ export default function Chat() {
 
         {waiting && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-            <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #c8d5e4, #d8cad4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🤍</div>
+            <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #c8d5e4, #d8cad4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Heart size={14} color={C.roseDark} /></div>
             <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: '18px 18px 18px 4px', padding: '13px 18px', display: 'flex', gap: 5 }}>
               {[0, 1, 2].map(j => <div key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: C.mutedLight, animation: 'pulse 1.2s infinite', animationDelay: `${j * 0.2}s` }} />)}
             </div>

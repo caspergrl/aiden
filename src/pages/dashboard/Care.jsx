@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Plus, Trash2, Check, Phone, X,
   Search, Pencil, AlertTriangle, CalendarDays, Shield, Users,
   Upload, Download, FileText, Image as ImageIcon, BookMarked,
-  ExternalLink, Link2, AlertCircle, Car, ScrollText,
+  ExternalLink, Link2, AlertCircle, Car, ScrollText, Heart,
 } from 'lucide-react';
 import { C, serif, shadowSm, radius } from '../../theme';
 import { INSURANCE_INFO, CAREGIVING_RECS, COMMON_MEDICATIONS } from '../../data';
@@ -468,8 +468,8 @@ function MedicationBuilder({ value, onChange }) {
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{name}</p>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {dosage       && <span style={{ fontSize: 12, color: C.muted }}>💊 {dosage}</span>}
-                    {frequency    && <span style={{ fontSize: 12, color: C.muted }}>🕐 {frequency}</span>}
+                    {dosage       && <span style={{ fontSize: 12, color: C.muted }}>{dosage}</span>}
+                    {frequency    && <span style={{ fontSize: 12, color: C.muted }}>{frequency}</span>}
                     {instructions && <span style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>{instructions}</span>}
                   </div>
                 </div>
@@ -673,7 +673,7 @@ function ManageInsuranceModal({ recipient, onClose, onSave }) {
           return (
             <button key={key} onClick={() => togglePredefined(key)}
               style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: active ? info.bg : '#fafafa', border: `2px solid ${active ? info.color : C.border}`, borderRadius: 14, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', width: '100%' }}>
-              <span style={{ fontSize: 22, flexShrink: 0 }}>{info.emoji}</span>
+              <Shield size={22} color={info.color} style={{ flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{info.name}</p>
                 <p style={{ fontSize: 12, color: C.muted }}>{info.parts[0].name}</p>
@@ -693,7 +693,7 @@ function ManageInsuranceModal({ recipient, onClose, onSave }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             {customPlans.map(name => (
               <span key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: C.text }}>
-                🛡️ {name}
+                {name}
                 <button onClick={() => removeCustom(name)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: C.muted }}>
                   <X size={13} />
                 </button>
@@ -842,10 +842,10 @@ function DelBtn({ onClick }) {
 
 // ─── Care changes ───────────────────────────────────────────────────────────────
 const TYPE_META = {
-  health:     { label: 'Health',     emoji: '🩺', color: '#7a9dc2' },
-  location:   { label: 'Location',   emoji: '📍', color: '#a08ac0' },
-  medication: { label: 'Medication', emoji: '💊', color: '#7daa94' },
-  other:      { label: 'Other',      emoji: '📝', color: '#b8ada6' },
+  health:     { label: 'Health',     color: '#7a9dc2' },
+  location:   { label: 'Location',   color: '#a08ac0' },
+  medication: { label: 'Medication', color: '#7daa94' },
+  other:      { label: 'Other',      color: '#b8ada6' },
 };
 
 function fmtLongDate(d) {
@@ -903,7 +903,7 @@ function CareTimelineModal({ changes, recipient, onClose }) {
               return (
                 <div key={c.id} style={{ display: 'flex', gap: 0 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 44, flexShrink: 0 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: meta.color + '22', border: `2px solid ${meta.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{meta.emoji}</div>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: meta.color + '22', border: `2px solid ${meta.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ fontSize: 12, fontWeight: 800, color: meta.color }}>{meta.label[0]}</span></div>
                     {i < sorted.length - 1 && <div style={{ width: 2, background: C.border, flex: 1, minHeight: 20, margin: '4px 0' }} />}
                   </div>
                   <div style={{ flex: 1, paddingLeft: 16, paddingBottom: i < sorted.length - 1 ? 28 : 0 }}>
@@ -925,7 +925,7 @@ function CareTimelineModal({ changes, recipient, onClose }) {
               Close
             </button>
             <button onClick={() => handlePrint(false)} style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 20px', fontSize: 14, color: C.text, cursor: 'pointer', fontWeight: 600 }}>
-              🖨 Print
+              Print
             </button>
             <button onClick={() => handlePrint(true)} style={{ display: 'flex', alignItems: 'center', gap: 7, background: C.roseDark, border: 'none', borderRadius: 12, padding: '10px 20px', fontSize: 14, color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
               <Download size={14} /> Save as PDF
@@ -938,10 +938,10 @@ function CareTimelineModal({ changes, recipient, onClose }) {
 }
 
 const CHANGE_TYPES = [
-  { id: 'health',     label: 'Health',     emoji: '🩺', color: '#7a9dc2', hint: 'Lab results, condition change, doctor report' },
-  { id: 'location',   label: 'Location',   emoji: '📍', color: '#a08ac0', hint: 'Hospital, facility, home transition' },
-  { id: 'medication', label: 'Medication', emoji: '💊', color: '#7daa94', hint: 'New meds, dosage change, side effects' },
-  { id: 'other',      label: 'Other',      emoji: '📝', color: '#b8ada6', hint: 'Any other notable change' },
+  { id: 'health',     label: 'Health',     color: '#7a9dc2', hint: 'Lab results, condition change, doctor report' },
+  { id: 'location',   label: 'Location',   color: '#a08ac0', hint: 'Hospital, facility, home transition' },
+  { id: 'medication', label: 'Medication', color: '#7daa94', hint: 'New meds, dosage change, side effects' },
+  { id: 'other',      label: 'Other',      color: '#b8ada6', hint: 'Any other notable change' },
 ];
 
 function buildAidenGuidance(change) {
@@ -951,7 +951,7 @@ function buildAidenGuidance(change) {
       headline: 'Understanding assisted living',
       paragraphs: [
         'Assisted living is designed for people who need help with daily activities — bathing, dressing, meals, and medication management — but don\'t yet need around-the-clock medical care. It can be a meaningful transition for both your loved one and you.',
-        'How it compares to other care settings:\n\n🏡 Assisted Living — Private or semi-private apartments with daily support, meals, and activities. Best for moderate daily living needs without complex nursing care.\n\n🏥 Skilled Nursing Facility (SNF) — 24/7 nursing care for serious medical needs or post-surgery recovery. More clinical than assisted living.\n\n🧠 Memory Care — A specialized unit (often inside an AL or SNF) for Alzheimer\'s and dementia. Secured environment, structured routines, staff trained in cognitive care.\n\n🏃 Short-Term Rehab — After a hospital stay, a rehab stay focuses on therapy and recovery before transitioning to permanent care.\n\n🏠 In-Home Care — If staying home is the goal: non-medical aides for daily tasks, or home health services for skilled nursing and therapy.',
+        'How it compares to other care settings:\n\nAssisted Living — Private or semi-private apartments with daily support, meals, and activities. Best for moderate daily living needs without complex nursing care.\n\nSkilled Nursing Facility (SNF) — 24/7 nursing care for serious medical needs or post-surgery recovery. More clinical than assisted living.\n\nMemory Care — A specialized unit (often inside an AL or SNF) for Alzheimer\'s and dementia. Secured environment, structured routines, staff trained in cognitive care.\n\nShort-Term Rehab — After a hospital stay, a rehab stay focuses on therapy and recovery before transitioning to permanent care.\n\nIn-Home Care — If staying home is the goal: non-medical aides for daily tasks, or home health services for skilled nursing and therapy.',
         'When touring facilities, ask:\n• Staff-to-resident ratio and staff turnover rate\n• What\'s included in the base cost vs. billed separately\n• What happens if care needs increase significantly — can they stay?\n• How do they handle memory or behavioral changes?\n• Can they provide a higher level of care on-site if needed?',
         'Financially: Assisted living is generally not covered by Medicare (which only covers short-term skilled care). Medicaid may help in some states. Long-term care insurance often covers it. Costs typically range from $3,000–$7,000/month depending on location and level of care.',
       ],
@@ -960,7 +960,7 @@ function buildAidenGuidance(change) {
       headline: 'Navigating skilled nursing care',
       paragraphs: [
         'Skilled nursing facilities (SNFs) provide round-the-clock medical and nursing care. They\'re the right fit when someone needs ongoing clinical monitoring, wound care, IV medications, or therapy that can\'t be managed at home or in assisted living.',
-        'SNFs compared to other options:\n\n🏥 Skilled Nursing Facility — 24/7 nursing staff, physician oversight, and therapy services (PT, OT, speech). Covers both short-term rehab and long-term care.\n\n🏡 Assisted Living — Lower medical intensity; best for daily living support without complex nursing needs.\n\n🏠 Home Health — For people who are homebound, Medicare can cover skilled nursing and therapy visits at home.\n\n🧠 Memory Care — If dementia is the primary driver, a dedicated memory care unit may be more appropriate.',
+        'SNFs compared to other options:\n\nSkilled Nursing Facility — 24/7 nursing staff, physician oversight, and therapy services (PT, OT, speech). Covers both short-term rehab and long-term care.\n\nAssisted Living — Lower medical intensity; best for daily living support without complex nursing needs.\n\nHome Health — For people who are homebound, Medicare can cover skilled nursing and therapy visits at home.\n\nMemory Care — If dementia is the primary driver, a dedicated memory care unit may be more appropriate.',
         'Questions to ask:\n• What is your Medicare/state inspection rating? (Check Medicare Care Compare at medicare.gov)\n• What\'s the nurse-to-patient ratio during day and night shifts?\n• How are care plans created and how often are they reviewed?\n• What does discharge planning look like?\n• What activities and rehab programs do you offer?',
         'Medicare covers SNF care after a qualifying 3-night inpatient hospital stay — up to 100 days (days 1–20 at 100%; days 21–100 with a daily copay). After day 100, you\'re responsible for the full cost unless Medicaid or a supplemental policy applies.',
       ],
@@ -969,7 +969,7 @@ function buildAidenGuidance(change) {
       headline: 'What to know about memory care',
       paragraphs: [
         'Memory care communities are specifically designed for people living with Alzheimer\'s or other forms of dementia. They offer a higher level of supervision, a structured environment, and staff trained in cognitive and behavioral care — all within a secured setting.',
-        'What sets memory care apart:\n\n🔒 Secured environment — Prevents wandering, one of the leading safety risks for people with dementia.\n\n📋 Structured routine — Consistency reduces confusion and anxiety significantly.\n\n👩‍⚕️ Specialized staff — Trained in dementia-related behaviors, communication strategies, and de-escalation.\n\n🎨 Therapeutic activities — Music therapy, reminiscence activities, and sensory engagement tailored to cognitive abilities.',
+        'What sets memory care apart:\n\nSecured environment — Prevents wandering, one of the leading safety risks for people with dementia.\n\nStructured routine — Consistency reduces confusion and anxiety significantly.\n\nSpecialized staff — Trained in dementia-related behaviors, communication strategies, and de-escalation.\n\nTherapeutic activities — Music therapy, reminiscence activities, and sensory engagement tailored to cognitive abilities.',
         'When comparing communities:\n• What dementia-specific training do all staff receive?\n• What\'s the ratio of staff to residents in evenings and overnight?\n• How do you manage behavioral changes or sundowning?\n• Is the facility licensed for memory care in your state?\n• Can you speak with families of current residents?',
         'Resource: The Alzheimer\'s Association (alz.org) has a Community Resource Finder and a 24/7 helpline at 1-800-272-3900 that can help you navigate local options and access caregiver support.',
       ],
@@ -978,7 +978,7 @@ function buildAidenGuidance(change) {
       headline: 'Navigating a hospital stay',
       paragraphs: [
         'Hospital stays can be stressful to navigate as a caregiver. Your most important role is to be a clear-eyed advocate and to ensure a safe, coordinated transition — whether that\'s back home, to a rehab facility, or to a higher level of care.',
-        'Key things to do during the stay:\n\n📋 Ask for a case manager or social worker — They can help coordinate discharge planning and connect you to community resources.\n\n🩺 Attend medical rounds when possible — This is when the team discusses the care plan. Ask questions directly while the full team is present.\n\n💊 Request a medication reconciliation — Make sure all current medications are on file and any new ones are clearly explained.\n\n🏠 Start discharge planning on Day 1 — Don\'t wait until the day of discharge to ask what comes next.',
+        'Key things to do during the stay:\n\nAsk for a case manager or social worker — They can help coordinate discharge planning and connect you to community resources.\n\nAttend medical rounds when possible — This is when the team discusses the care plan. Ask questions directly while the full team is present.\n\nRequest a medication reconciliation — Make sure all current medications are on file and any new ones are clearly explained.\n\nStart discharge planning on Day 1 — Don\'t wait until the day of discharge to ask what comes next.',
         'Admission status matters: Medicare requires 3 qualifying inpatient nights to cover a subsequent SNF stay. "Observation status" is technically outpatient and does not qualify — ask the doctor explicitly what status your loved one is admitted under.',
         'At discharge: Confirm you have all prescriptions, follow-up appointments scheduled, and a written list of warning signs that should prompt a call to the doctor or a return to the ER.',
       ],
@@ -987,7 +987,7 @@ function buildAidenGuidance(change) {
       headline: 'Understanding short-term rehab',
       paragraphs: [
         'Short-term rehabilitation typically follows a hospitalization — a fall, surgery, stroke, or serious illness. The goal is to restore function through physical, occupational, and/or speech therapy before returning home or transitioning to a permanent care setting.',
-        'Types of rehab settings:\n\n🏥 Skilled Nursing Facility with rehab — The most common option. Combines PT, OT, and speech therapy with nursing care. Medicare covers this after a qualifying 3-night hospital stay.\n\n🏠 Home Health Rehab — Therapists come to the home for those who are homebound. Covered by Medicare when skilled care is needed.\n\n🏃 Inpatient Rehabilitation Facility (IRF) — More intensive, requiring 3+ hours of therapy daily. Appropriate after major strokes, brain injuries, or significant joint surgeries.',
+        'Types of rehab settings:\n\nSkilled Nursing Facility with rehab — The most common option. Combines PT, OT, and speech therapy with nursing care. Medicare covers this after a qualifying 3-night hospital stay.\n\nHome Health Rehab — Therapists come to the home for those who are homebound. Covered by Medicare when skilled care is needed.\n\nInpatient Rehabilitation Facility (IRF) — More intensive, requiring 3+ hours of therapy daily. Appropriate after major strokes, brain injuries, or significant joint surgeries.',
         'What to monitor during rehab:\n• Is therapy happening every day and are goals being met?\n• Is the team sharing a discharge plan and target date with you?\n• Are there signs of pain, depression, or poor sleep affecting progress?\n• What are the private-pay options if Medicare benefits run out before discharge goals are reached?',
         'Tip: Ask the team to set written, measurable goals (e.g., "Walk 50 feet independently with walker by week 2"). This helps you track progress and advocate for an appropriate length of stay.',
       ],
@@ -996,7 +996,7 @@ function buildAidenGuidance(change) {
       headline: 'Navigating a change in living situation',
       paragraphs: [
         'A change in living situation is one of the most significant transitions in caregiving. Whether your loved one is moving to a care community or coming home, thoughtful planning and involving them in decisions as much as possible makes a meaningful difference.',
-        'Common care settings:\n\n🏠 Home with support — In-home aides for personal care, home health for skilled nursing or therapy, and adult day programs for structured daytime support.\n\n🏡 Assisted Living — Daily living support without intensive medical needs. Private apartments, meals, and activities.\n\n🏥 Skilled Nursing Facility — Complex, ongoing medical and nursing care available 24/7.\n\n🧠 Memory Care — Specialized dementia support in a secured, structured environment.\n\n🏘️ Continuing Care Retirement Community (CCRC) — Multiple care levels on one campus, allowing needs to evolve without relocation.',
+        'Common care settings:\n\nHome with support — In-home aides for personal care, home health for skilled nursing or therapy, and adult day programs for structured daytime support.\n\nAssisted Living — Daily living support without intensive medical needs. Private apartments, meals, and activities.\n\nSkilled Nursing Facility — Complex, ongoing medical and nursing care available 24/7.\n\nMemory Care — Specialized dementia support in a secured, structured environment.\n\nContinuing Care Retirement Community (CCRC) — Multiple care levels on one campus, allowing needs to evolve without relocation.',
         'Questions for any facility or agency:\n• What is your inspection record and star rating?\n• What\'s included in the base fee — and what costs extra?\n• What happens when care needs increase significantly?\n• How do you communicate with families?\n• What is your philosophy around end-of-life care and comfort?',
       ],
     };
@@ -1005,7 +1005,7 @@ function buildAidenGuidance(change) {
     headline: 'Navigating a medication change',
     paragraphs: [
       'Medication changes — adding, stopping, or adjusting a dose — can have a real impact on your loved one\'s daily life. Being an informed caregiver means understanding what\'s changing and why, and knowing what to watch for.',
-      'Questions to ask the prescribing doctor or pharmacist:\n\n💊 Why is this change being made — what\'s the goal?\n⏱️ How long until we should see an effect, or know if it\'s working?\n⚠️ What side effects should I watch for, especially in the first few weeks?\n🔄 Does this interact with any other medications or supplements?\n🛑 Are there foods or activities to avoid while on this medication?',
+      'Questions to ask the prescribing doctor or pharmacist:\n\nWhy is this change being made — what\'s the goal?\nHow long until we should see an effect, or know if it\'s working?\nWhat side effects should I watch for, especially in the first few weeks?\nDoes this interact with any other medications or supplements?\nAre there foods or activities to avoid while on this medication?',
       'Day-to-day management:\n• Update the medication list immediately — bring a copy to every appointment and every ER visit.\n• Update any pill organizers before the next fill cycle.\n• Set a reminder if timing is critical for effectiveness.\n• Note any behavioral, physical, or cognitive changes in the days after starting.\n• Don\'t stop a medication abruptly without consulting the doctor, even if side effects appear.',
       'Call the doctor right away if you notice: signs of an allergic reaction (rash, swelling, difficulty breathing), a significant new symptom shortly after starting, a fall or sudden change in alertness that may be medication-related, or no improvement after the expected timeframe.',
     ],
@@ -1014,7 +1014,7 @@ function buildAidenGuidance(change) {
     headline: 'Responding to a health change',
     paragraphs: [
       'Health changes — whether an improvement, a decline, a new diagnosis, or a finding from a recent test — are important to track carefully. Your observations as a caregiver are often the most valuable data point the medical team has.',
-      'What to do now:\n\n📝 Document what changed — When did it start? How often does it occur? What seems to trigger it or make it better? This information is invaluable at the next appointment.\n\n📞 Follow up with the care team — Even minor changes are worth a call. What looks like nothing can be an early signal worth catching.\n\n🔄 Review the current plan — Does this change affect medications, diet, activity level, or the schedule of follow-up appointments?',
+      'What to do now:\n\nDocument what changed — When did it start? How often does it occur? What seems to trigger it or make it better? This information is invaluable at the next appointment.\n\nFollow up with the care team — Even minor changes are worth a call. What looks like nothing can be an early signal worth catching.\n\nReview the current plan — Does this change affect medications, diet, activity level, or the schedule of follow-up appointments?',
       'Questions to ask the doctor:\n• What does this change indicate about the current condition or its trajectory?\n• Does this affect the treatment plan or the goals of care?\n• What should I monitor at home — and at what point should I call you or go to the ER?\n• Are there specialists or additional tests that would be helpful right now?',
       'Tip: Keep a simple health log — even a notes app on your phone — where you record key observations with dates. Over time, patterns emerge that are often invisible in a single appointment.',
     ],
@@ -1023,7 +1023,7 @@ function buildAidenGuidance(change) {
     headline: 'Getting the most from what you\'re tracking',
     paragraphs: [
       'Logging changes as they happen is one of the most valuable habits in caregiving. Over time, this record becomes a powerful tool for conversations with doctors, family members, and care teams.',
-      'Ways to make the most of your notes:\n\n📋 Share updates at every medical appointment — even things that seem minor to you can matter to the care team.\n\n👨‍👩‍👧 Keep family informed — A brief message when something changes prevents misunderstandings and keeps everyone aligned.\n\n📊 Look for patterns — Is the change happening at a certain time of day? After specific activities? During particular weather? Patterns can be clinically revealing.\n\n🧠 Trust your instincts — As the primary caregiver, you often notice things before anyone else. If something feels off, document it and bring it up.',
+      'Ways to make the most of your notes:\n\nShare updates at every medical appointment — even things that seem minor to you can matter to the care team.\n\nKeep family informed — A brief message when something changes prevents misunderstandings and keeps everyone aligned.\n\nLook for patterns — Is the change happening at a certain time of day? After specific activities? During particular weather? Patterns can be clinically revealing.\n\nTrust your instincts — As the primary caregiver, you often notice things before anyone else. If something feels off, document it and bring it up.',
       'If you\'re unsure what to do next with this update, you can explore it further in the Aiden chat. Ask specific questions about your loved one\'s situation and get thoughtful guidance tailored to what you\'re navigating.',
     ],
   };
@@ -1062,10 +1062,10 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
     const fmtD = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return (
       <ModalWrap onClose={onClose}>
-        <ModalHeader title="Change logged ✓" onClose={onClose} />
+        <ModalHeader title="Change logged" onClose={onClose} />
         <div style={{ background: sc.color + '10', border: `1px solid ${sc.color}30`, borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 18 }}>{sc.emoji}</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: sc.color }}>{sc.label[0]}</span>
             <span style={{ background: sc.color + '18', color: sc.color, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>{sc.label}</span>
             <span style={{ fontSize: 12, color: C.mutedLight }}>{fmtD(savedChange.date)}</span>
           </div>
@@ -1073,7 +1073,7 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
           {savedChange.details && <p style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{savedChange.details}</p>}
         </div>
         <div style={{ background: 'linear-gradient(135deg, #e8eff8, #f0eaf8)', borderRadius: 16, padding: '20px 22px', marginBottom: 14 }}>
-          <p style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>🤍 Want guidance navigating this?</p>
+          <p style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Want guidance navigating this?</p>
           <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 16 }}>Aiden can share what to know and what questions to ask based on this specific change.</p>
           <button onClick={handleGetGuidance} style={{ width: '100%', background: C.roseDark, color: '#fff', border: 'none', borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
             Get guidance from Aiden
@@ -1091,7 +1091,7 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
         <ModalHeader title="Aiden's guidance" onClose={onClose} />
         {loadingGuidance ? (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', padding: '16px 0 24px' }}>
-            <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg, #dde8f6, #f0dde6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🤍</div>
+            <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg, #dde8f6, #f0dde6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Heart size={16} color={C.roseDark} /></div>
             <div style={{ background: '#f5f5f5', borderRadius: '16px 16px 16px 4px', padding: '14px 18px', display: 'flex', gap: 6 }}>
               {[0,1,2].map(j => <div key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: C.mutedLight, animation: 'pulse 1.2s infinite', animationDelay: `${j*0.2}s` }} />)}
             </div>
@@ -1099,7 +1099,7 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
         ) : guidance && (
           <div style={{ animation: 'aidenFade 0.35s ease' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #dde8f6, #f0dde6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🤍</div>
+              <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #dde8f6, #f0dde6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Heart size={16} color={C.roseDark} /></div>
               <p style={{ fontFamily: serif, fontSize: 17, color: C.text }}>{guidance.headline}</p>
             </div>
             {guidance.paragraphs.map((para, i) => (
@@ -1120,7 +1120,7 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {CHANGE_TYPES.map(t => (
             <button key={t.id} onClick={() => setType(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 20, border: `2px solid ${type === t.id ? t.color : C.border}`, background: type === t.id ? t.color + '18' : 'white', color: type === t.id ? t.color : C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              <span>{t.emoji}</span> {t.label}
+              {t.label}
             </button>
           ))}
         </div>
@@ -1280,7 +1280,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 const info = INSURANCE_INFO[p];
                 return info
                   ? <span key={p} style={{ background: info.color + '18', color: info.color, borderRadius: 12, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>{info.shortName}</span>
-                  : <span key={p} style={{ background: '#e0e0e020', color: C.muted, borderRadius: 12, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>🛡️ {p}</span>;
+                  : <span key={p} style={{ background: '#e0e0e020', color: C.muted, borderRadius: 12, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>{p}</span>;
               })}
             </div>
           </div>
@@ -1344,8 +1344,8 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{name}</span>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 3 }}>
-                        {dosage && <span style={{ fontSize: 12, color: C.muted }}>💊 {dosage}</span>}
-                        {frequency && <span style={{ fontSize: 12, color: C.muted }}>🕐 {frequency}</span>}
+                        {dosage && <span style={{ fontSize: 12, color: C.muted }}>{dosage}</span>}
+                        {frequency && <span style={{ fontSize: 12, color: C.muted }}>{frequency}</span>}
                         {instructions && <span style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>{instructions}</span>}
                       </div>
                     </div>
@@ -1372,7 +1372,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 const isLast = idx === r.insurancePlans.length - 1;
                 return info ? (
                   <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: !isLast ? `1px solid ${C.bgWarm}` : 'none' }}>
-                    <span style={{ fontSize: 18 }}>{info.emoji}</span>
+                    <Shield size={18} color={info.color} />
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{info.name}</p>
                       <p style={{ fontSize: 12, color: info.color, fontWeight: 600 }}>{info.parts[0].name}</p>
@@ -1381,7 +1381,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                   </div>
                 ) : (
                   <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: !isLast ? `1px solid ${C.bgWarm}` : 'none' }}>
-                    <span style={{ fontSize: 18 }}>🛡️</span>
+                    <Shield size={18} color={C.muted} />
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{key}</p>
                       <p style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Custom plan</p>
@@ -1550,7 +1550,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                     <Card key={c.id} style={{ marginBottom: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: '50%', background: ct.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{ct.emoji}</div>
+                          <div style={{ width: 36, height: 36, borderRadius: '50%', background: ct.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ fontSize: 12, fontWeight: 800, color: ct.color }}>{ct.label[0]}</span></div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
                               <span style={{ background: ct.color + '18', color: ct.color, borderRadius: 12, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>{ct.label}</span>
@@ -1841,7 +1841,7 @@ export default function Care({
       </div>
       {!canAddRecipient && (
         <div style={{ background: '#fffbeb', border: '1px solid #f0d060', borderRadius: 14, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 16 }}>⚠️</span>
+          <AlertTriangle size={16} color="#7a5a00" />
           <div>
             <p style={{ fontSize: 13, fontWeight: 700, color: '#7a5a00', margin: 0 }}>3-recipient limit reached</p>
             <p style={{ fontSize: 12, color: '#9a7a20', margin: 0 }}>Individual accounts support up to 3 care recipients. <Link to="/account" style={{ color: '#7a5a00', fontWeight: 700 }}>Upgrade to Business</Link> to add more.</p>
@@ -1889,13 +1889,13 @@ export default function Care({
 
           <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 36, flexWrap: 'wrap' }}>
             {[
-              { icon: '📋', label: 'Track appointments' },
-              { icon: '💊', label: 'Manage medications' },
-              { icon: '🩺', label: 'Organize doctors' },
-              { icon: '📄', label: 'Store insurance info' },
-            ].map(({ icon, label }) => (
+              'Track appointments',
+              'Manage medications',
+              'Organize doctors',
+              'Store insurance info',
+            ].map(label => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: C.muted, fontWeight: 500 }}>
-                <span style={{ fontSize: 16 }}>{icon}</span> {label}
+                {label}
               </div>
             ))}
           </div>

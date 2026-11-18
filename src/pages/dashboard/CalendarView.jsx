@@ -202,7 +202,7 @@ function AddAppointmentModal({ recipients, onSave, onClose, initialDate }) {
           <div>
             <p style={labelStyle}>Location</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              {[{ id: 'inperson', label: '📍 In person' }, { id: 'video', label: '📹 Video call' }].map(m => (
+              {[{ id: 'inperson', label: 'In person' }, { id: 'video', label: 'Video call' }].map(m => (
                 <button key={m.id} onClick={() => { setLocMode(m.id); setLocation(''); }} style={{ flex: 1, padding: '9px 0', borderRadius: 10, border: `2px solid ${locMode === m.id ? C.rose : C.border}`, background: locMode === m.id ? C.roseLight : 'white', color: locMode === m.id ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {m.label}
                 </button>

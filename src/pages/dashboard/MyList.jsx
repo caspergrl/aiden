@@ -343,7 +343,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
             {incomplete.length === 0 && (
               <p style={{ fontSize: 14, color: C.mutedLight, textAlign: 'center', padding: '20px 0' }}>
-                {filterRecipId ? 'No items for this person.' : 'Everything is done 🎉'}
+                {filterRecipId ? 'No items for this person.' : 'Everything is done'}
               </p>
             )}
             {incomplete.map(item => {
@@ -489,7 +489,6 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
             {/* Empty state */}
             {filteredDoctors.length === 0 && (
               <div style={{ textAlign: 'center', padding: '32px 0 20px' }}>
-                <p style={{ fontSize: 32, marginBottom: 8 }}>🩺</p>
                 <p style={{ fontSize: 14, color: C.mutedLight, marginBottom: 4 }}>
                   {filterRecipId ? 'No doctors for this person.' : 'No doctors added yet.'}
                 </p>
@@ -608,7 +607,6 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
       {/* ── Documents ─────────────────────────────────────────────────────────── */}
       {sub === 'documents' && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 0 32px', gap: 12 }}>
-          <p style={{ fontSize: 40 }}>📂</p>
           <p style={{ fontFamily: serif, fontSize: 22, fontWeight: 700, color: C.text }}>Coming soon!</p>
           <p style={{ fontSize: 14, color: C.mutedLight, textAlign: 'center', maxWidth: 300, lineHeight: 1.6 }}>Document storage is on its way. You'll be able to upload and organize records, insurance cards, and legal docs here.</p>
         </div>

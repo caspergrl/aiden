@@ -351,7 +351,7 @@ export default function Dashboard() {
           fontSize: 14, fontWeight: 600, zIndex: 9999, boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
           maxWidth: 420, textAlign: 'center',
         }}>
-          ⚠️ {saveError}
+          {saveError}
         </div>
       )}
     </DashboardLayout>

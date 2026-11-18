@@ -93,21 +93,21 @@ export const DAILY_MESSAGES = [
 ];
 
 export const INSURANCE_INFO = {
-  medicare: { name: "Medicare", shortName: "Medicare", color: "#6880a8", bg: "#edf1f8", emoji: "🏛️",
+  medicare: { name: "Medicare", shortName: "Medicare", color: "#6880a8", bg: "#edf1f8",
     parts: [
       { name: "Part A – Hospital Insurance", plain: "Covers inpatient hospital stays, skilled nursing facility care (up to 100 days after a hospital stay), hospice care, and some home health services. No monthly premium if you've worked 10+ years.", phone: "1-800-633-4227" },
       { name: "Part B – Medical Insurance", plain: "Covers doctor visits, outpatient care, preventive services like flu shots and screenings, and durable medical equipment. Monthly premium is around $185/month in 2026.", phone: "1-800-633-4227" },
       { name: "Part D – Prescriptions", plain: "Covers prescription drugs through private plans. Each plan has its own list of covered drugs. Review your plan's formulary annually during open enrollment.", phone: "1-800-633-4227" },
-    ], warning: "⚠️ Medicare does NOT cover long-term custodial care. Consider a supplemental Medigap plan or long-term care insurance." },
-  humana: { name: "Humana Medicare Advantage", shortName: "Humana", color: "#5e8a78", bg: "#edf4f0", emoji: "🌿",
+    ], warning: "Medicare does NOT cover long-term custodial care. Consider a supplemental Medigap plan or long-term care insurance." },
+  humana: { name: "Humana Medicare Advantage", shortName: "Humana", color: "#5e8a78", bg: "#edf4f0",
     parts: [{ name: "Part C – Medicare Advantage", plain: "Bundles Medicare Parts A & B, often including Part D, dental, vision, and hearing. Usually lower premiums but you must use network providers and may need referrals for specialists.", phone: "1-800-833-6917" }],
-    warning: "⚠️ Always confirm a provider is in-network before scheduling. Referrals usually required for specialists." },
-  medicaid: { name: "Medicaid", shortName: "Medicaid", color: "#8878a8", bg: "#f0ecf8", emoji: "🏥",
+    warning: "Always confirm a provider is in-network before scheduling. Referrals usually required for specialists." },
+  medicaid: { name: "Medicaid", shortName: "Medicaid", color: "#8878a8", bg: "#f0ecf8",
     parts: [{ name: "Full Coverage", plain: "Comprehensive health coverage for eligible individuals. Covers doctor visits, hospital care, long-term care, mental health, prescriptions, and home care services. Coverage varies by state.", phone: "1-877-267-2323" }],
-    warning: "✅ Unlike Medicare, Medicaid CAN cover long-term custodial care and home care services." },
-  bcbs: { name: "Blue Cross Blue Shield", shortName: "BCBS", color: "#6880a8", bg: "#edf1f8", emoji: "🔵",
+    warning: "Unlike Medicare, Medicaid CAN cover long-term custodial care and home care services." },
+  bcbs: { name: "Blue Cross Blue Shield", shortName: "BCBS", color: "#6880a8", bg: "#edf1f8",
     parts: [{ name: "Employer / Individual Plan", plain: "Varies by plan. Typically includes preventive care, specialist visits, mental health, prescriptions, and hospital stays. Review your Summary of Benefits for exact details.", phone: "1-888-630-2583" }],
-    warning: "⚠️ Many procedures require prior authorization. Always verify before scheduling." },
+    warning: "Many procedures require prior authorization. Always verify before scheduling." },
 };
 
 export const CAREGIVING_RECS = {

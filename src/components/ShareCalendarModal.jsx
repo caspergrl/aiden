@@ -106,8 +106,8 @@ function generateText(appts, recipients) {
       const r = recipients.find(rec => rec.id === a.recipientId);
       const name = r ? ` (${r.nickname || r.name.split(' ')[0]})` : '';
       lines.push(`  • ${a.time} – ${a.title}${name}`);
-      if (a.location) lines.push(`    📍 ${a.location}`);
-      if (a.notes)    lines.push(`    📝 ${a.notes}`);
+      if (a.location) lines.push(`    Location: ${a.location}`);
+      if (a.notes)    lines.push(`    Notes: ${a.notes}`);
     });
     lines.push('');
   });

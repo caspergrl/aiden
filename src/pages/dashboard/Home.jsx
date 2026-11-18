@@ -65,7 +65,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
       {/* Greeting */}
       <p style={{ fontSize: 13, color: C.mutedLight, marginBottom: 4 }}>{todayStr()}</p>
       <h1 style={{ fontFamily: serif, fontSize: 32, color: C.text, marginBottom: 24, letterSpacing: -0.5 }}>
-        {getGreeting()} 👋
+        {getGreeting()}
       </h1>
 
 
@@ -140,7 +140,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
                     const info = INSURANCE_INFO[p];
                     return info
                       ? <span key={p} style={{ background: info.color + '18', color: info.color, borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>{info.shortName}</span>
-                      : <span key={p} style={{ background: '#e0e0e020', color: '#888', borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>🛡️ {p}</span>;
+                      : <span key={p} style={{ background: '#e0e0e020', color: '#888', borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>{p}</span>;
                   })}
                 </div>
               </div>
