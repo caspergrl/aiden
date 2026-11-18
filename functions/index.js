@@ -415,14 +415,15 @@ exports.parseMedicationsPDF = functions
   .runWith({ secrets: ['ANTHROPIC_API_KEY'], timeoutSeconds: 120, memory: '512MB' })
   .https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Login required');
-    const { pdfBase64 } = data;
+    const { pdfBase64, existingMedications = [] } = data;
     if (!pdfBase64) throw new functions.https.HttpsError('invalid-argument', 'pdfBase64 required');
 
     try {
       const anthropic = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const existingJson = JSON.stringify(existingMedications);
       const response = await anthropic.messages.create({
         model: 'claude-opus-5-5',
-        max_tokens: 1024,
+        max_tokens: 2048,
         messages: [{
           role: 'user',
           content: [
@@ -432,19 +433,22 @@ exports.parseMedicationsPDF = functions
             },
             {
               type: 'text',
-              text: 'Extract all medications from this document. Return ONLY a JSON array with no markdown, no explanation. Each item: { "name": string, "dosage": string, "frequency": string, "instructions": string }. Use empty string for any missing field. Example: [{"name":"Lisinopril","dosage":"10mg","frequency":"Once daily","instructions":"Take with water"}]',
+              text: `Compare the medications in this PDF against this existing list:\n${existingJson}\n\nReturn ONLY a JSON object with no markdown. Use fuzzy matching for names (handle brand/generic differences, ignore "Oral Tablet"/"Capsule" suffixes, case-insensitive). Format:\n{\n  "new": [{"name":"","dosage":"","frequency":"","instructions":""}],\n  "changed": [{"old":{"name":"","dosage":"","frequency":"","instructions":""},"new":{"name":"","dosage":"","frequency":"","instructions":""}}],\n  "removed": [{"name":"","dosage":"","frequency":"","instructions":""}],\n  "unchanged": [{"name":"","dosage":"","frequency":"","instructions":""}]\n}\n- "new": in PDF but not in existing list\n- "changed": in both but dosage/frequency/instructions differ — old is what Aiden has, new is what the PDF says\n- "removed": in existing list but not in PDF\n- "unchanged": in both with no meaningful differences`,
             },
           ],
         }],
       });
 
-      const raw = (response.content.find(b => b.type === 'text')?.text || '[]')
+      const raw = (response.content.find(b => b.type === 'text')?.text || '{}')
         .replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-      let medications = [];
-      try { medications = JSON.parse(raw); } catch { medications = []; }
-      return { medications: Array.isArray(medications) ? medications : [] };
+      try {
+        const diff = JSON.parse(raw);
+        return { diff: { new: diff.new || [], changed: diff.changed || [], removed: diff.removed || [], unchanged: diff.unchanged || [] } };
+      } catch {
+        return { diff: { new: [], changed: [], removed: [], unchanged: [] } };
+      }
     } catch (e) {
       console.error('parseMedicationsPDF error:', e);
-      return { medications: [] };
+      return { diff: { new: [], changed: [], removed: [], unchanged: [] } };
     }
   });

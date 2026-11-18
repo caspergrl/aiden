@@ -704,36 +704,164 @@ function DeleteConfirmModal({ recipient, onClose, onDelete }) {
 
 // ─── Add Care Team Member Modal ─────────────────────────────────────────────────
 // ─── Import Medications Modal ───────────────────────────────────────────────────
-function ImportMedicationsModal({ parsed, existing, onClose, onAdd }) {
-  const [checked, setChecked] = useState(() => parsed.map(() => true));
-  const toggle = i => setChecked(prev => prev.map((v, j) => j === i ? !v : v));
-  const selected = parsed.filter((_, i) => checked[i]);
+function MedicationsDiffModal({ diff, r, onClose, onEdit }) {
+  const [accepted,         setAccepted]         = useState(() => new Set(diff.new.map((_, i) => i)));
+  const [acceptedChanges,  setAcceptedChanges]  = useState(() => new Set(diff.changed.map((_, i) => i)));
+  const [acceptedRemovals, setAcceptedRemovals] = useState(() => new Set());
+  const [showUnchanged,    setShowUnchanged]    = useState(false);
+  const [editingItem,      setEditingItem]      = useState(null); // { section, index }
+  const [editValues,       setEditValues]       = useState({});
+
+  const toggleSet = (setter, i) => setter(prev => { const s = new Set(prev); s.has(i) ? s.delete(i) : s.add(i); return s; });
+
+  function startEdit(section, index, initial) {
+    setEditingItem({ section, index });
+    setEditValues({ name: initial.name || '', dosage: initial.dosage || '', frequency: initial.frequency || '', instructions: initial.instructions || '' });
+  }
+  function finishEdit() {
+    if (!editingItem) return;
+    if (editingItem.section === 'new') {
+      diff.new[editingItem.index] = { ...diff.new[editingItem.index], ...editValues };
+    } else {
+      diff.changed[editingItem.index] = { ...diff.changed[editingItem.index], new: { ...diff.changed[editingItem.index].new, ...editValues } };
+    }
+    setEditingItem(null);
+  }
+
+  const totalChanges = accepted.size + acceptedChanges.size + acceptedRemovals.size;
+  const noDiff = !diff.new.length && !diff.changed.length && !diff.removed.length;
+
+  function handleApply() {
+    let meds = [...(r.medications || [])];
+    diff.new.forEach((m, i) => { if (accepted.has(i)) meds.push(m); });
+    diff.changed.forEach((item, i) => {
+      if (acceptedChanges.has(i)) {
+        const idx = meds.findIndex(m =>
+          (m.name || '').toLowerCase().includes(item.old.name.toLowerCase().split(' ')[0]) ||
+          item.old.name.toLowerCase().includes((m.name || '').toLowerCase().split(' ')[0])
+        );
+        if (idx !== -1) meds[idx] = { ...meds[idx], ...item.new };
+        else meds.push(item.new);
+      }
+    });
+    const removeNames = new Set(diff.removed.filter((_, i) => acceptedRemovals.has(i)).map(m => m.name.toLowerCase()));
+    if (removeNames.size > 0) meds = meds.filter(m => !removeNames.has((m.name || '').toLowerCase()));
+    onEdit({ ...r, medications: meds });
+    onClose();
+  }
+
+  const secLabel = (txt, color, count) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, marginTop: 16 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: 0.8, textTransform: 'uppercase' }}>{txt}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, background: color + '20', color, borderRadius: 10, padding: '1px 7px' }}>{count}</span>
+    </div>
+  );
+
+  const editRow = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 0' }}>
+      {['name','dosage','frequency','instructions'].map(f => (
+        <input key={f} value={editValues[f] || ''} onChange={e => setEditValues(p => ({ ...p, [f]: e.target.value }))}
+          placeholder={f.charAt(0).toUpperCase() + f.slice(1)}
+          style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 12, outline: 'none', color: C.text }} />
+      ))}
+      <button onClick={finishEdit} style={{ alignSelf: 'flex-start', background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Done</button>
+    </div>
+  );
+
   return (
-    <ModalWrap onClose={onClose} maxWidth={500}>
-      <ModalHeader title={`${parsed.length} medication${parsed.length !== 1 ? 's' : ''} found`} onClose={onClose} />
-      <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>Select which to add to the medications list.</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto', marginBottom: 20 }}>
-        {parsed.map((m, i) => (
-          <label key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', background: checked[i] ? C.bgWarm : '#fff', borderRadius: 10, border: `1px solid ${C.border}`, cursor: 'pointer' }}>
-            <input type="checkbox" checked={checked[i]} onChange={() => toggle(i)} style={{ marginTop: 2, flexShrink: 0 }} />
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{m.name}</p>
-              {(m.dosage || m.frequency) && (
-                <p style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-                  {[m.dosage, m.frequency].filter(Boolean).join(' · ')}
-                </p>
-              )}
-              {m.instructions && <p style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>{m.instructions}</p>}
+    <ModalWrap onClose={onClose} maxWidth={520}>
+      <ModalHeader title="Review medication changes" onClose={onClose} />
+      {noDiff ? (
+        <p style={{ fontSize: 14, color: C.muted, textAlign: 'center', padding: '20px 0' }}>Everything matches — no changes needed.</p>
+      ) : (
+        <div style={{ maxHeight: 420, overflowY: 'auto', paddingRight: 4 }}>
+
+          {diff.new.length > 0 && (<>
+            {secLabel('New medications', '#4caf50', diff.new.length)}
+            {diff.new.map((m, i) => (
+              <div key={i} style={{ borderLeft: `3px solid #4caf50`, paddingLeft: 10, marginBottom: 6, background: accepted.has(i) ? '#f4faf4' : '#fff', borderRadius: '0 8px 8px 0', padding: '8px 10px 8px 12px' }}>
+                {editingItem?.section === 'new' && editingItem.index === i ? editRow() : (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <input type="checkbox" checked={accepted.has(i)} onChange={() => toggleSet(setAccepted, i)} style={{ marginTop: 3, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{m.name}</span>
+                      {(m.dosage || m.frequency) && <span style={{ fontSize: 12, color: C.muted, marginLeft: 8 }}>{[m.dosage, m.frequency].filter(Boolean).join(' · ')}</span>}
+                      {m.instructions && <p style={{ fontSize: 12, color: C.muted, fontStyle: 'italic', marginTop: 2 }}>{m.instructions}</p>}
+                    </div>
+                    <button onClick={() => startEdit('new', i, m)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.mutedLight, fontSize: 11, fontWeight: 600, flexShrink: 0 }}>Edit</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>)}
+
+          {diff.changed.length > 0 && (<>
+            {secLabel('Updated', '#e0883a', diff.changed.length)}
+            {diff.changed.map((item, i) => {
+              const changedFields = ['dosage','frequency','instructions','name'].filter(f => (item.old[f]||'') !== (item.new[f]||''));
+              return (
+                <div key={i} style={{ borderLeft: `3px solid #e0883a`, paddingLeft: 10, marginBottom: 6, background: acceptedChanges.has(i) ? '#fffbf4' : '#fff', borderRadius: '0 8px 8px 0', padding: '8px 10px 8px 12px' }}>
+                  {editingItem?.section === 'changed' && editingItem.index === i ? editRow() : (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <input type="checkbox" checked={acceptedChanges.has(i)} onChange={() => toggleSet(setAcceptedChanges, i)} style={{ marginTop: 3, flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{item.new.name || item.old.name}</span>
+                        {changedFields.map(f => (
+                          <p key={f} style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                            <span style={{ color: '#e0883a', fontWeight: 600 }}>{f}: </span>
+                            <span style={{ textDecoration: 'line-through', color: C.mutedLight }}>{item.old[f] || '—'}</span>
+                            <span style={{ margin: '0 4px' }}>→</span>
+                            <span style={{ color: C.text, fontWeight: 600 }}>{item.new[f] || '—'}</span>
+                          </p>
+                        ))}
+                      </div>
+                      <button onClick={() => startEdit('changed', i, item.new)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.mutedLight, fontSize: 11, fontWeight: 600, flexShrink: 0 }}>Edit</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </>)}
+
+          {diff.removed.length > 0 && (<>
+            {secLabel('No longer in list', C.mutedLight, diff.removed.length)}
+            <p style={{ fontSize: 11, color: C.mutedLight, marginBottom: 8 }}>Check to remove from Aiden</p>
+            {diff.removed.map((m, i) => (
+              <div key={i} style={{ borderLeft: `3px solid ${C.border}`, paddingLeft: 10, marginBottom: 6, background: acceptedRemovals.has(i) ? '#fdf0f0' : '#fff', borderRadius: '0 8px 8px 0', padding: '8px 10px 8px 12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={acceptedRemovals.has(i)} onChange={() => toggleSet(setAcceptedRemovals, i)} />
+                  <span style={{ fontSize: 13, color: acceptedRemovals.has(i) ? C.coral : C.muted, fontWeight: 600 }}>{m.name}</span>
+                  {(m.dosage || m.frequency) && <span style={{ fontSize: 12, color: C.mutedLight }}>{[m.dosage, m.frequency].filter(Boolean).join(' · ')}</span>}
+                </label>
+              </div>
+            ))}
+          </>)}
+
+          {diff.unchanged.length > 0 && (
+            <button onClick={() => setShowUnchanged(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: C.mutedLight, fontSize: 12, fontWeight: 600, marginTop: 12, padding: 0 }}>
+              <span>{showUnchanged ? '▾' : '▸'}</span>
+              {diff.unchanged.length} medication{diff.unchanged.length !== 1 ? 's' : ''} already match — no changes needed
+            </button>
+          )}
+          {showUnchanged && diff.unchanged.map((m, i) => (
+            <div key={i} style={{ padding: '6px 12px', borderRadius: 8, marginTop: 4, opacity: 0.5 }}>
+              <span style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>{m.name}</span>
+              {(m.dosage || m.frequency) && <span style={{ fontSize: 12, color: C.mutedLight, marginLeft: 8 }}>{[m.dosage, m.frequency].filter(Boolean).join(' · ')}</span>}
             </div>
-          </label>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-        <button onClick={() => selected.length && onAdd(selected)}
-          style={{ flex: 1, background: selected.length ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: selected.length ? 'pointer' : 'default' }}>
-          {selected.length ? `Add ${selected.length} medication${selected.length !== 1 ? 's' : ''}` : 'Select at least one'}
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        {!noDiff && (
+          <button onClick={handleApply} disabled={totalChanges === 0}
+            style={{ flex: 1, background: totalChanges > 0 ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: totalChanges > 0 ? 'pointer' : 'default' }}>
+            {totalChanges > 0 ? `Apply ${totalChanges} change${totalChanges !== 1 ? 's' : ''}` : 'No changes selected'}
+          </button>
+        )}
+        <button onClick={onClose} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          {noDiff ? 'Close' : 'Cancel'}
         </button>
-        <button onClick={onClose} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
       </div>
     </ModalWrap>
   );
@@ -1303,7 +1431,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
   // Medications PDF import + share state
   const pdfInputRef                             = useRef(null);
   const [pdfImporting, setPdfImporting]         = useState(false);
-  const [importedMeds, setImportedMeds]         = useState(null); // null | array
+  const [importDiff, setImportDiff]             = useState(null); // null | diff object
   const [pdfError, setPdfError]                 = useState('');
   const [shareMsg, setShareMsg]                 = useState('');
 
@@ -1380,10 +1508,13 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
         reader.readAsDataURL(file);
       });
       const fn = httpsCallable(getFunctions(), 'parseMedicationsPDF');
-      const result = await fn({ pdfBase64: base64 });
-      const meds = result.data?.medications || [];
-      if (!meds.length) { setPdfError('No medications found in this PDF.'); }
-      else { setImportedMeds(meds); }
+      const result = await fn({ pdfBase64: base64, existingMedications: r.medications || [] });
+      const diff = result.data?.diff;
+      if (!diff || (!diff.new?.length && !diff.changed?.length && !diff.removed?.length && !diff.unchanged?.length)) {
+        setPdfError('No medications found in this PDF.');
+      } else {
+        setImportDiff(diff);
+      }
     } catch { setPdfError('Could not parse PDF — please try again.'); }
     finally { setPdfImporting(false); }
   }
@@ -1417,12 +1548,12 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
   return (
     <Tabs.Root value={tab} onValueChange={setTab} style={{ maxWidth: 800 }}>
       <input ref={pdfInputRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={handlePdfImport} />
-      {importedMeds && (
-        <ImportMedicationsModal
-          parsed={importedMeds}
-          existing={r.medications || []}
-          onClose={() => setImportedMeds(null)}
-          onAdd={selected => { onEdit({ ...r, medications: [...(r.medications || []), ...selected] }); setImportedMeds(null); }}
+      {importDiff && (
+        <MedicationsDiffModal
+          diff={importDiff}
+          r={r}
+          onClose={() => setImportDiff(null)}
+          onEdit={updated => { onEdit(updated); setImportDiff(null); }}
         />
       )}
       {showEdit     && <EditRecipientModal recipient={r} onClose={() => setShowEdit(false)} onSave={u => { onEdit(u); setShowEdit(false); }} />}
@@ -1519,7 +1650,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 {shareMsg && <span style={{ fontSize: 11, color: C.primary }}>{shareMsg}</span>}
                 <button onClick={() => { setPdfError(''); pdfInputRef.current?.click(); }} disabled={pdfImporting}
                   style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 600, color: C.muted, cursor: pdfImporting ? 'default' : 'pointer' }}>
-                  <Upload size={11} />{pdfImporting ? 'Parsing…' : 'Import PDF'}
+                  <Upload size={11} />{pdfImporting ? 'Parsing…' : 'Import medications list'}
                 </button>
                 <button onClick={handleShareMeds}
                   style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
