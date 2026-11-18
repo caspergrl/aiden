@@ -4,6 +4,7 @@ import {
   GripVertical, ChevronDown, ChevronRight,
   RotateCcw, Trash2, Download, Upload, AlertCircle, Pencil, X,
 } from 'lucide-react';
+import { Dialog } from '@base-ui-components/react/dialog';
 import {
   ref as storageRef, listAll, getMetadata,
   getDownloadURL, uploadBytes, deleteObject,
@@ -541,9 +542,11 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
 
           {/* Doctor add/edit modal */}
           {doctorModal && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={closeDoctorModal}>
-              <div style={{ background: 'rgba(38,32,26,0.4)', position: 'absolute', inset: 0 }} />
-              <div style={{ background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 480, position: 'relative', zIndex: 1, boxShadow: '0 8px 40px rgba(140,60,40,0.15)' }} onClick={e => e.stopPropagation()}>
+            <Dialog.Root open={true} onOpenChange={(open) => { if (!open) closeDoctorModal(); }}>
+              <Dialog.Portal>
+                <Dialog.Backdrop style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.4)', zIndex: 200 }} />
+                <Dialog.Popup style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 201 }}>
+              <div style={{ background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 480, boxShadow: '0 8px 40px rgba(140,60,40,0.15)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
                   <h2 style={{ fontFamily: serif, fontSize: 20, color: C.text, margin: 0 }}>{doctorModal === 'add' ? 'Add a doctor' : 'Edit doctor'}</h2>
                   <button onClick={closeDoctorModal} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} color={C.muted} /></button>
@@ -595,7 +598,9 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                   </button>
                 </div>
               </div>
-            </div>
+                </Dialog.Popup>
+              </Dialog.Portal>
+            </Dialog.Root>
           )}
         </>
       )}

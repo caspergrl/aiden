@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Dialog } from '@base-ui-components/react/dialog';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Check, Phone, X,
   Search, Pencil, AlertTriangle, CalendarDays, Shield, Users,
@@ -59,9 +60,11 @@ function normalizeUrl(u) {
 function ResourceLinkModal({ initial, onClose, onSave }) {
   const [form, setForm] = useState({ title: initial?.title || '', url: initial?.url || '', description: initial?.description || '', category: initial?.category || '' });
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
-      <div style={{ background: 'rgba(38,32,26,0.4)', position: 'absolute', inset: 0 }} />
-      <div style={{ background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 480, position: 'relative', zIndex: 1, boxShadow: '0 8px 40px rgba(140,60,40,0.15)' }} onClick={e => e.stopPropagation()}>
+    <Dialog.Root open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.4)', zIndex: 299 }} />
+        <Dialog.Popup style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 300 }}>
+      <div style={{ background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 480, boxShadow: '0 8px 40px rgba(140,60,40,0.15)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ fontFamily: serif, fontSize: 20, color: C.text, margin: 0 }}>{initial ? 'Edit link' : 'Add resource link'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} color={C.muted} /></button>
@@ -90,7 +93,9 @@ function ResourceLinkModal({ initial, onClose, onSave }) {
           </button>
         </div>
       </div>
-    </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -144,12 +149,16 @@ function Card({ children, style }) {
 }
 function ModalWrap({ onClose, children, maxWidth = 480, dismissable = true }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-      onClick={e => dismissable && e.target === e.currentTarget && onClose()}>
-      <div style={{ background: '#fff', borderRadius: 20, padding: 32, width: '100%', maxWidth, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(40,30,20,0.2)' }}>
-        {children}
-      </div>
-    </div>
+    <Dialog.Root open={true} onOpenChange={(open) => { if (!open && dismissable) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.55)', zIndex: 300 }} />
+        <Dialog.Popup style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 301 }}>
+          <div style={{ background: '#fff', borderRadius: 20, padding: 32, width: '100%', maxWidth, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(40,30,20,0.2)' }}>
+            {children}
+          </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 function ModalHeader({ title, onClose, dismissable = true }) {
@@ -1605,9 +1614,11 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
 
           {/* Doc type picker modal */}
           {showDocTypePick && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setShowDocTypePick(false)}>
-              <div style={{ background: 'rgba(38,32,26,0.4)', position: 'absolute', inset: 0 }} />
-              <div style={{ background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 380, position: 'relative', zIndex: 1, boxShadow: '0 8px 40px rgba(140,60,40,0.15)' }} onClick={e => e.stopPropagation()}>
+            <Dialog.Root open={true} onOpenChange={(open) => { if (!open) setShowDocTypePick(false); }}>
+              <Dialog.Portal>
+                <Dialog.Backdrop style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.4)', zIndex: 400 }} />
+                <Dialog.Popup style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 401 }}>
+              <div style={{ background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 8px 40px rgba(140,60,40,0.15)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
                   <h2 style={{ fontFamily: serif, fontSize: 18, color: C.text, margin: 0 }}>What type of document?</h2>
                   <button onClick={() => setShowDocTypePick(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} color={C.muted} /></button>
@@ -1621,7 +1632,9 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                   ))}
                 </div>
               </div>
-            </div>
+                </Dialog.Popup>
+              </Dialog.Portal>
+            </Dialog.Root>
           )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>

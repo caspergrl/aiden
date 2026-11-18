@@ -9,6 +9,7 @@
     "start": "serve -s dist -l ${PORT:-8080}"
   },
   "dependencies": {
+    "@base-ui-components/react": "^1.0.0-rc.0",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.5.0",
     "firebase": "^12.11.0",

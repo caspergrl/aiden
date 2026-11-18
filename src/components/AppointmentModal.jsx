@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Pencil, Trash2, Check, MapPin, Clock, Tag, Share2, Copy, Mail, MessageSquare, Car } from 'lucide-react';
+import { Dialog } from '@base-ui-components/react/dialog';
 import { C, serif, sans } from '../theme';
 import PlacesInput from './PlacesInput';
 import TransportSection, { MOBILITY_OPTIONS, EMPTY_TRANSPORT, detectMobility } from './TransportSection';
@@ -118,7 +119,10 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.5)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <Dialog.Root open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.5)', zIndex: 500 }} />
+        <Dialog.Popup style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 501 }}>
       <div style={{ background: '#fff', borderRadius: 22, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
 
         {/* Header */}
@@ -350,7 +354,9 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
           </>
         )}
       </div>
-    </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

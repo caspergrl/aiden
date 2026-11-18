@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Clock, MapPin, X, Check, Video, Share2 } from 'lucide-react';
+import { Dialog } from '@base-ui-components/react/dialog';
 import { C, serif, sans } from '../../theme';
 import { FULL_MONTHS, DAYS_OF_WEEK } from '../../data';
 import AppointmentModal from '../../components/AppointmentModal';
@@ -110,7 +111,10 @@ function AddAppointmentModal({ recipients, onSave, onClose, initialDate }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.5)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <Dialog.Root open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.5)', zIndex: 500 }} />
+        <Dialog.Popup style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 501 }}>
       <div style={{ background: '#fff', borderRadius: 22, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
 
         {/* Header */}
@@ -263,7 +267,9 @@ function AddAppointmentModal({ recipients, onSave, onClose, initialDate }) {
           </button>
         </div>
       </div>
-    </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

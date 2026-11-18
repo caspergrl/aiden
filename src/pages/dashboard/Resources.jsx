@@ -3,6 +3,7 @@ import {
   Link2, Plus, Trash2, Share2, ExternalLink, X,
   Search, Mail, MessageSquare, Pencil, Check, BookMarked, ChevronDown, HelpCircle,
 } from 'lucide-react';
+import { Dialog } from '@base-ui-components/react/dialog';
 import { C, serif, shadowSm, radius } from '../../theme';
 
 const CATEGORIES = ['Medical', 'Legal', 'Caregiver Support', 'Financial', 'Community', 'Other'];
@@ -100,7 +101,10 @@ function ResourceModal({ initial, onClose, onSave }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(38,32,26,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <Dialog.Root open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.5)', zIndex: 200 }} />
+        <Dialog.Popup style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 201 }}>
       <div style={{ background: '#fff', borderRadius: 20, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
           <h2 style={{ fontFamily: serif, fontSize: 22, color: C.text }}>{initial ? 'Edit resource' : 'Add resource link'}</h2>
@@ -144,7 +148,9 @@ function ResourceModal({ initial, onClose, onSave }) {
           </button>
         </div>
       </div>
-    </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -211,7 +217,10 @@ function ShareModal({ resource, recipients, onClose }) {
   const hasTargets = selRecip.length > 0 || customList.length > 0;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(38,32,26,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <Dialog.Root open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.5)', zIndex: 200 }} />
+        <Dialog.Popup style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 201 }}>
       <div style={{ background: '#fff', borderRadius: 20, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 8px 40px rgba(0,0,0,0.18)', maxHeight: '90vh', overflowY: 'auto' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -304,7 +313,9 @@ function ShareModal({ resource, recipients, onClose }) {
           </button>
         )}
       </div>
-    </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
