@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Dialog } from '@base-ui-components/react/dialog';
+import { Tabs } from '@base-ui-components/react/tabs';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Check, Phone, X,
   Search, Pencil, AlertTriangle, CalendarDays, Shield, Users,
@@ -1239,7 +1240,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
   const visiblePrevious = showAllAppts ? previousAppts : previousAppts.slice(0, 2);
 
   return (
-    <div style={{ maxWidth: 800 }}>
+    <Tabs.Root value={tab} onValueChange={setTab} style={{ maxWidth: 800 }}>
       {showEdit     && <EditRecipientModal recipient={r} onClose={() => setShowEdit(false)} onSave={u => { onEdit(u); setShowEdit(false); }} />}
       {showDelete   && <DeleteConfirmModal recipient={r} onClose={() => setShowDelete(false)} onDelete={() => { onDelete(r.id); onBack(); }} />}
       {showDoctor   && <AddDoctorModal recipientId={r.id} onClose={() => setShowDoctor(false)} onAdd={d => { onAddDoctor(d); setShowDoctor(false); }} />}
@@ -1285,16 +1286,15 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
           </div>
         </div>
 
-        <div style={{ display: 'flex', marginTop: 20, borderTop: `1px solid ${col}20`, paddingTop: 14, gap: 4, flexWrap: 'wrap' }}>
+        <Tabs.List style={{ display: 'flex', marginTop: 20, borderTop: `1px solid ${col}20`, paddingTop: 14, gap: 4, flexWrap: 'wrap' }}>
           {[['overview','Overview'],['guidance','Guidance'],['changes','Changes'],['notes','Notes'],['docs','Documents'],['resources','Library']].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: tab === id ? 700 : 500, color: tab === id ? '#fff' : C.muted, background: tab === id ? col : 'transparent', cursor: 'pointer' }}>{label}</button>
+            <Tabs.Tab key={id} value={id} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: tab === id ? 700 : 500, color: tab === id ? '#fff' : C.muted, background: tab === id ? col : 'transparent', cursor: 'pointer' }}>{label}</Tabs.Tab>
           ))}
-        </div>
+        </Tabs.List>
       </div>
 
       {/* ── Overview ─────────────────────────────────────────────────────── */}
-      {tab === 'overview' && (
-        <>
+      <Tabs.Panel value="overview">
           {/* Log a change quick action */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
             <button onClick={() => setShowAddChange(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: col + '12', border: `1px solid ${col}28`, borderRadius: 12, padding: '8px 16px', fontSize: 13, fontWeight: 700, color: col, cursor: 'pointer' }}>
@@ -1494,12 +1494,10 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
               </button>
             )}
           </Card>
-        </>
-      )}
+      </Tabs.Panel>
 
       {/* ── Guidance ─────────────────────────────────────────────────────── */}
-      {tab === 'guidance' && (
-        <>
+      <Tabs.Panel value="guidance">
           <div style={{ background: 'linear-gradient(135deg, #e8eff8, #f0eaf8)', borderRadius: 16, padding: '16px 20px', marginBottom: 16, border: `1px solid ${C.border}` }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: C.text }}>Personalised guidance for {r.name}</p>
             <p style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>Based on {r.nickname}'s conditions and profile</p>
@@ -1517,12 +1515,10 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 ))}
               </Card>
             ) : null)}
-        </>
-      )}
+      </Tabs.Panel>
 
       {/* ── Changes ──────────────────────────────────────────────────────── */}
-      {tab === 'changes' && (
-        <>
+      <Tabs.Panel value="changes">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 10, flexWrap: 'wrap' }}>
             <p style={{ fontSize: 13, color: C.muted }}>Track health, location, medication, and other updates for {r.nickname || r.name}.</p>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -1570,12 +1566,10 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                   );
                 })
           }
-        </>
-      )}
+      </Tabs.Panel>
 
       {/* ── Notes ────────────────────────────────────────────────────────── */}
-      {tab === 'notes' && (
-        <>
+      <Tabs.Panel value="notes">
           <Card>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <SectionLabel>Important phone numbers</SectionLabel>
@@ -1604,11 +1598,10 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
               ? <p style={{ fontSize: 14, color: '#4a4038', lineHeight: 1.8 }}>{r.notes}</p>
               : <p style={{ fontSize: 13, color: C.mutedLight }}>No notes yet — edit this recipient to add notes.</p>}
           </Card>
-        </>
-      )}
+      </Tabs.Panel>
 
       {/* ── Documents ──────────────────────────────────────────────────── */}
-      {tab === 'docs' && (
+      <Tabs.Panel value="docs">
         <div>
           <input ref={rdocFileRef} type="file" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx" style={{ display: 'none' }} onChange={handleRdocUpload} />
 
@@ -1709,10 +1702,10 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
             </button>
           )}
         </div>
-      )}
+      </Tabs.Panel>
 
       {/* ── Library (Resource Links) ────────────────────────────────────── */}
-      {tab === 'resources' && (
+      <Tabs.Panel value="resources">
         <div>
           {resourceSheet && (
             <ResourceLinkModal
@@ -1770,8 +1763,8 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
             <Plus size={14} /> Add resource link
           </button>
         </div>
-      )}
-    </div>
+      </Tabs.Panel>
+    </Tabs.Root>
   );
 }
 

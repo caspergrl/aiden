@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
+import { ScrollArea } from '@base-ui-components/react/scroll-area';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { C, serif } from '../../theme';
@@ -137,7 +138,8 @@ export default function Chat() {
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <ScrollArea.Root style={{ flex: 1, overflow: 'hidden' }}>
+      <ScrollArea.Viewport style={{ height: '100%', padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {messages.map((m, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 10, alignItems: 'flex-end', maxWidth: '100%' }}>
             {m.role === 'assistant' && (
@@ -170,7 +172,11 @@ export default function Chat() {
         )}
 
         <div ref={bottomRef} />
-      </div>
+      </ScrollArea.Viewport>
+      <ScrollArea.Scrollbar orientation="vertical" style={{ display: 'flex', width: 6, padding: '2px 0', background: 'transparent' }}>
+        <ScrollArea.Thumb style={{ background: 'rgba(0,0,0,0.12)', borderRadius: 3, flex: 1 }} />
+      </ScrollArea.Scrollbar>
+      </ScrollArea.Root>
 
       {/* Suggestions */}
       {messages.length <= 1 && !waiting && (

@@ -4,6 +4,7 @@ import { updatePassword, updateEmail, deleteUser, EmailAuthProvider, reauthentic
 import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch, getDoc, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { User, Shield, Trash2, Save, ArrowRight, Heart, Check, Calendar, RefreshCw, Unlink, Building2, Users, ChevronRight, Camera, Bell } from 'lucide-react';
+import { Switch } from '@base-ui-components/react/switch';
 import { auth, db, storage } from '../firebase';
 import { useAuth } from '../App';
 import Navbar from '../components/Navbar';
@@ -462,10 +463,10 @@ export default function Account() {
               <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Email reminders</p>
               <p style={{ fontSize: 12, color: C.mutedLight, margin: '2px 0 0' }}>Sent to {user?.email}</p>
             </div>
-            <button onClick={() => setNotifEmail(v => !v)}
-              style={{ width: 44, height: 24, borderRadius: 12, background: notifEmail ? C.roseDark : C.border, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: 3, left: notifEmail ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-            </button>
+            <Switch.Root checked={notifEmail} onCheckedChange={setNotifEmail}
+              style={{ width: 44, height: 24, borderRadius: 12, background: notifEmail ? C.roseDark : C.border, border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0, padding: 0 }}>
+              <Switch.Thumb style={{ position: 'absolute', top: 3, left: notifEmail ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+            </Switch.Root>
           </div>
 
           {/* Phone number */}
@@ -489,10 +490,10 @@ export default function Account() {
                 <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Text reminders</p>
                 <p style={{ fontSize: 12, color: C.mutedLight, margin: '2px 0 0' }}>SMS to {notifPhone}</p>
               </div>
-              <button onClick={() => setNotifSms(v => !v)}
-                style={{ width: 44, height: 24, borderRadius: 12, background: notifSms ? C.roseDark : C.border, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
-                <div style={{ position: 'absolute', top: 3, left: notifSms ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-              </button>
+              <Switch.Root checked={notifSms} onCheckedChange={setNotifSms}
+                style={{ width: 44, height: 24, borderRadius: 12, background: notifSms ? C.roseDark : C.border, border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0, padding: 0 }}>
+                <Switch.Thumb style={{ position: 'absolute', top: 3, left: notifSms ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+              </Switch.Root>
             </div>
           )}
 
