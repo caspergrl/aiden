@@ -119,6 +119,40 @@ function apptMs(a) {
   return new Date(y, mo - 1, d, h, min).getTime();
 }
 function initials(name) { return name.split(' ').map(n => n[0]).join('').slice(0, 2); }
+function resizeImage(file, maxPx, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function RecipientAvatar({ r, col, size = 60, fontSize = 20 }) {
+  const br = Math.round(size * 0.22);
+  if (r?.photo) {
+    return (
+      <div style={{ width: size, height: size, borderRadius: br, overflow: 'hidden', flexShrink: 0 }}>
+        <img src={r.photo} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </div>
+    );
+  }
+  return (
+    <div style={{ width: size, height: size, borderRadius: br, background: col, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize, fontWeight: 800, flexShrink: 0 }}>
+      {initials(r?.name || '?')}
+    </div>
+  );
+}
 function fmt24(t) {
   if (!t) return '';
   const [h, m] = t.split(':');
@@ -562,6 +596,8 @@ export function AddRecipientModal({ onClose, onAdd }) {
 
 // ─── Edit Recipient Modal ───────────────────────────────────────────────────────
 function EditRecipientModal({ recipient, onClose, onSave }) {
+  const { user } = useAuth();
+  const photoInputRef = useRef(null);
   const [form, setForm] = useState({
     name: recipient.name, nickname: recipient.nickname, birthdate: recipient.birthdate || '',
     relationship: recipient.relationship, email: recipient.email, phone: recipient.phone,
@@ -572,17 +608,68 @@ function EditRecipientModal({ recipient, onClose, onSave }) {
       typeof m === 'string' ? { name: m, dosage: '', frequency: '', instructions: '' } : m
     ),
     notes: recipient.notes,
+    photo: recipient.photo || null,
   });
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [error, setError] = useState('');
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
+
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowed.includes(file.type)) {
+      setError('Unsupported format. Use JPG, PNG, WebP, or GIF.');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setError('File is too large. Maximum size is 20 MB.');
+      return;
+    }
+    setError('');
+    setPhotoUploading(true);
+    try {
+      const blob = await resizeImage(file, 600, 0.85);
+      const path = `users/${user.uid}/photos/${recipient.id}`;
+      const ref = storageRef(storage, path);
+      await uploadBytes(ref, blob, { contentType: 'image/jpeg' });
+      const url = await getDownloadURL(ref);
+      set('photo', url);
+    } catch { setError('Photo upload failed — please try again.'); }
+    finally { setPhotoUploading(false); }
+  }
+
   function handleSave() {
     if (!form.name.trim()) { setError('Name is required.'); return; }
-    onSave({ ...recipient, name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], birthdate: form.birthdate, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), conditions: form.conditions, allergies: form.allergies, medications: form.medications, notes: form.notes.trim() });
+    onSave({ ...recipient, name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], birthdate: form.birthdate, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), conditions: form.conditions, allergies: form.allergies, medications: form.medications, notes: form.notes.trim(), photo: form.photo });
     onClose();
   }
   return (
     <ModalWrap onClose={onClose} maxWidth={520} dismissable={false}>
       <ModalHeader title={`Edit ${recipient.name.split(' ')[0]}`} onClose={onClose} dismissable={false} />
+      {/* Photo upload */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+        <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }} onChange={handlePhotoChange} />
+        <button onClick={() => photoInputRef.current?.click()} disabled={photoUploading}
+          style={{ position: 'relative', width: 80, height: 80, borderRadius: 18, overflow: 'hidden', background: C.bgWarm, border: `2px dashed ${C.border}`, cursor: photoUploading ? 'default' : 'pointer', padding: 0, flexShrink: 0 }}>
+          {form.photo
+            ? <img src={form.photo} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <ImageIcon size={22} color={C.mutedLight} />
+                <span style={{ fontSize: 10, color: C.mutedLight, fontWeight: 600 }}>Add photo</span>
+              </div>
+          }
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: photoUploading ? 1 : 0, transition: 'opacity 0.15s' }}
+            onMouseEnter={e => { if (!photoUploading) e.currentTarget.style.opacity = 1; }}
+            onMouseLeave={e => { if (!photoUploading) e.currentTarget.style.opacity = 0; }}>
+            <span style={{ fontSize: 11, color: '#fff', fontWeight: 700 }}>{photoUploading ? 'Uploading…' : form.photo ? 'Change' : 'Upload'}</span>
+          </div>
+        </button>
+        <p style={{ fontSize: 11, color: C.mutedLight, textAlign: 'center', lineHeight: 1.5 }}>
+          JPG, PNG, WebP or GIF · Max 20 MB<br />
+          <span style={{ fontSize: 10 }}>iPhone users: share photo as JPEG from Photos app</span>
+        </p>
+      </div>
       <RecipientForm values={form} onChange={set} />
       {error && <p style={{ fontSize: 13, color: C.coral, marginTop: 12 }}>{error}</p>}
       <ModalActions onConfirm={handleSave} confirmLabel="Save changes" onClose={onClose} />
@@ -1268,9 +1355,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
         </div>
 
         <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-          <div style={{ width: 72, height: 72, borderRadius: '50%', background: col, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, fontWeight: 800, flexShrink: 0 }}>
-            {initials(r.name)}
-          </div>
+          <RecipientAvatar r={r} col={col} size={72} fontSize={24} />
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, color: col, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>{r.relationship}</p>
             <h2 style={{ fontFamily: serif, fontSize: 26, color: C.text, marginBottom: 4 }}>{r.name}</h2>
@@ -1777,8 +1862,11 @@ export default function Care({
   appointments, onAddAppointment, onDeleteAppointment, onUpdateAppointment,
   changes = [], onAddChange, onDeleteChange,
   resources = [], onAddResource, onUpdateResource, onDeleteResource,
+  initialRecipientId = null,
 }) {
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(
+    () => initialRecipientId ? (recipients.find(r => r.id === initialRecipientId) ?? null) : null
+  );
   const [showModal, setShowModal] = useState(false);
 
   const currentSelected = selected ? recipients.find(r => r.id === selected.id) ?? null : null;
@@ -1909,9 +1997,7 @@ export default function Care({
                 style={{ width: '100%', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '20px 24px', textAlign: 'left', cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 18, transition: 'box-shadow 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(80,60,40,0.1)'}
                 onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                <div style={{ width: 60, height: 60, borderRadius: '50%', background: col, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 800, flexShrink: 0 }}>
-                  {initials(r.name)}
-                </div>
+                <RecipientAvatar r={r} col={col} size={60} fontSize={20} />
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                     <span style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{r.name}</span>

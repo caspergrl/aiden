@@ -81,8 +81,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
         </button>
       )}
 
-      <style>{`@media (max-width: 900px) { .home-two-col { grid-template-columns: 1fr !important; } }`}</style>
-      <div className="home-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {/* Upcoming appointments */}
         <div style={{ background: '#fff', borderRadius: radius.xl, boxShadow: shadowSm, overflow: 'hidden' }}>
           <div style={{ padding: '18px 20px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}` }}>
@@ -97,9 +96,10 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
               const col = rColor(r?.id);
               return (
                 <button key={appt.id} onClick={() => setActiveAppt(appt)} style={{ width: '100%', padding: '12px 20px', borderBottom: i < sorted.length - 1 ? `1px solid ${C.border}` : 'none', display: 'flex', gap: 14, alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: col + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: col, flexShrink: 0 }}>
-                    {r ? initials(r.name) : '?'}
-                  </div>
+                  {r?.photo
+                    ? <div style={{ width: 36, height: 36, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}><img src={r.photo} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+                    : <div style={{ width: 36, height: 36, borderRadius: 8, background: col + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: col, flexShrink: 0 }}>{r ? initials(r.name) : '?'}</div>
+                  }
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appt.title}</p>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 2 }}>
@@ -128,10 +128,13 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
             </div>
           </div>
           {recipients.map((r, i) => (
-            <div key={r.id} style={{ padding: '14px 20px', borderBottom: i < recipients.length - 1 ? `1px solid ${C.border}` : 'none', display: 'flex', gap: 14, alignItems: 'center' }}>
-              <div style={{ width: 44, height: 44, borderRadius: '50%', background: rColor(r.id), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 15, fontWeight: 800, flexShrink: 0 }}>
-                {initials(r.name)}
-              </div>
+            <button key={r.id} onClick={() => onNavigate('care', r.id)} style={{ width: '100%', padding: '14px 20px', borderBottom: i < recipients.length - 1 ? `1px solid ${C.border}` : 'none', display: 'flex', gap: 14, alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              onMouseEnter={e => e.currentTarget.style.background = C.bgWarm}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              {r.photo
+                ? <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', flexShrink: 0 }}><img src={r.photo} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+                : <div style={{ width: 44, height: 44, borderRadius: 10, background: rColor(r.id), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 15, fontWeight: 800, flexShrink: 0 }}>{initials(r.name)}</div>
+              }
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{r.name}</p>
                 <p style={{ fontSize: 12, color: C.muted }}>{(calcAge(r.birthdate) ?? r.age) ? `Age ${calcAge(r.birthdate) ?? r.age}` : ''}{(calcAge(r.birthdate) ?? r.age) && r.conditions[0] ? ' · ' : ''}{r.conditions[0] || ''}{r.conditions.length > 1 ? ` +${r.conditions.length - 1}` : ''}</p>
@@ -144,7 +147,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
                   })}
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>

@@ -31,6 +31,8 @@ export default function Dashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const active = location.pathname.slice(1) || 'home';
+  const searchParams = new URLSearchParams(location.search);
+  const initialRecipientId = searchParams.get('r') || null;
   const [dataLoading, setDataLoading] = useState(true);
 
   const [recipients,   setRecipients]   = useState([]);
@@ -289,11 +291,12 @@ export default function Dashboard() {
   function renderContent() {
     switch (active) {
       case 'home':
-        return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={(section) => navigate('/' + section)} onAddRecipient={addRecipient} onUpdateAppointment={updateAppointment} onDeleteAppointment={deleteAppointment} />;
+        return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={(section, recipientId) => navigate('/' + section + (recipientId ? `?r=${recipientId}` : ''))} onAddRecipient={addRecipient} onUpdateAppointment={updateAppointment} onDeleteAppointment={deleteAppointment} />;
       case 'care':
         return (
           <Care
             recipients={recipients}
+            initialRecipientId={initialRecipientId}
             canAddRecipient={canAddRecipient}
             onAddRecipient={addRecipient}
             onUpdateRecipient={updateRecipient}
