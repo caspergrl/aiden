@@ -409,3 +409,42 @@ For aging adults, this means being familiar with:
 
     return { text: assistantText };
   });
+
+// ── Parse medications from PDF ─────────────────────────────────────────────────
+exports.parseMedicationsPDF = functions
+  .runWith({ secrets: ['ANTHROPIC_API_KEY'], timeoutSeconds: 120, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Login required');
+    const { pdfBase64 } = data;
+    if (!pdfBase64) throw new functions.https.HttpsError('invalid-argument', 'pdfBase64 required');
+
+    try {
+      const anthropic = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const response = await anthropic.messages.create({
+        model: 'claude-opus-5-5',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 },
+            },
+            {
+              type: 'text',
+              text: 'Extract all medications from this document. Return ONLY a JSON array with no markdown, no explanation. Each item: { "name": string, "dosage": string, "frequency": string, "instructions": string }. Use empty string for any missing field. Example: [{"name":"Lisinopril","dosage":"10mg","frequency":"Once daily","instructions":"Take with water"}]',
+            },
+          ],
+        }],
+      });
+
+      const raw = (response.content.find(b => b.type === 'text')?.text || '[]')
+        .replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+      let medications = [];
+      try { medications = JSON.parse(raw); } catch { medications = []; }
+      return { medications: Array.isArray(medications) ? medications : [] };
+    } catch (e) {
+      console.error('parseMedicationsPDF error:', e);
+      return { medications: [] };
+    }
+  });

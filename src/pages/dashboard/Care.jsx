@@ -13,7 +13,8 @@ import { INSURANCE_INFO, CAREGIVING_RECS, COMMON_MEDICATIONS } from '../../data'
 import TransportSection, { MOBILITY_OPTIONS, EMPTY_TRANSPORT, detectMobility } from '../../components/TransportSection';
 import { useAuth } from '../../App';
 import { db } from '../../firebase';
-import { doc, getDoc, updateDoc, collection, addDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, addDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   ref as storageRef, listAll, getMetadata,
   getDownloadURL, uploadBytes, deleteObject,
@@ -702,6 +703,42 @@ function DeleteConfirmModal({ recipient, onClose, onDelete }) {
 }
 
 // ─── Add Care Team Member Modal ─────────────────────────────────────────────────
+// ─── Import Medications Modal ───────────────────────────────────────────────────
+function ImportMedicationsModal({ parsed, existing, onClose, onAdd }) {
+  const [checked, setChecked] = useState(() => parsed.map(() => true));
+  const toggle = i => setChecked(prev => prev.map((v, j) => j === i ? !v : v));
+  const selected = parsed.filter((_, i) => checked[i]);
+  return (
+    <ModalWrap onClose={onClose} maxWidth={500}>
+      <ModalHeader title={`${parsed.length} medication${parsed.length !== 1 ? 's' : ''} found`} onClose={onClose} />
+      <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>Select which to add to the medications list.</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto', marginBottom: 20 }}>
+        {parsed.map((m, i) => (
+          <label key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', background: checked[i] ? C.bgWarm : '#fff', borderRadius: 10, border: `1px solid ${C.border}`, cursor: 'pointer' }}>
+            <input type="checkbox" checked={checked[i]} onChange={() => toggle(i)} style={{ marginTop: 2, flexShrink: 0 }} />
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{m.name}</p>
+              {(m.dosage || m.frequency) && (
+                <p style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                  {[m.dosage, m.frequency].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              {m.instructions && <p style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>{m.instructions}</p>}
+            </div>
+          </label>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+        <button onClick={() => selected.length && onAdd(selected)}
+          style={{ flex: 1, background: selected.length ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: selected.length ? 'pointer' : 'default' }}>
+          {selected.length ? `Add ${selected.length} medication${selected.length !== 1 ? 's' : ''}` : 'Select at least one'}
+        </button>
+        <button onClick={onClose} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+      </div>
+    </ModalWrap>
+  );
+}
+
 function AddDoctorModal({ recipientId, onClose, onAdd }) {
   const [form, setForm] = useState({ name: '', specialty: '', phone: '', address: '', notes: '' });
   const [error, setError] = useState('');
@@ -1263,6 +1300,13 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
   const [showDocTypePick, setShowDocTypePick] = useState(false);
   const [pendingDocType, setPendingDocType]   = useState('');
 
+  // Medications PDF import + share state
+  const pdfInputRef                             = useRef(null);
+  const [pdfImporting, setPdfImporting]         = useState(false);
+  const [importedMeds, setImportedMeds]         = useState(null); // null | array
+  const [pdfError, setPdfError]                 = useState('');
+  const [shareMsg, setShareMsg]                 = useState('');
+
   // Resources state
   const [resourceSheet, setResourceSheet] = useState(null); // null | 'new' | resource-object
   const myResources = resources.filter(res => String(res.recipientId) === String(r.id));
@@ -1323,6 +1367,42 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   }
 
+  async function handlePdfImport(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPdfError(''); setPdfImporting(true);
+    try {
+      const base64 = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result.split(',')[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      const fn = httpsCallable(getFunctions(), 'parseMedicationsPDF');
+      const result = await fn({ pdfBase64: base64 });
+      const meds = result.data?.medications || [];
+      if (!meds.length) { setPdfError('No medications found in this PDF.'); }
+      else { setImportedMeds(meds); }
+    } catch { setPdfError('Could not parse PDF — please try again.'); }
+    finally { setPdfImporting(false); }
+  }
+
+  async function handleShareMeds() {
+    try {
+      const token = crypto.randomUUID();
+      await setDoc(doc(db, 'shareLinks', token), {
+        recipientName: r.name,
+        recipientNickname: r.nickname || r.name.split(' ')[0],
+        medications: r.medications || [],
+        createdAt: new Date().toISOString(),
+      });
+      await navigator.clipboard.writeText(`${window.location.origin}/meds/${token}`);
+      setShareMsg('Link copied!');
+      setTimeout(() => setShareMsg(''), 2500);
+    } catch { setShareMsg('Failed to generate link.'); setTimeout(() => setShareMsg(''), 2500); }
+  }
+
   const col       = rColor(r.id, recipients);
   const myDoctors = doctors.filter(d => d.recipientId === r.id);
   const now = Date.now();
@@ -1336,6 +1416,15 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
 
   return (
     <Tabs.Root value={tab} onValueChange={setTab} style={{ maxWidth: 800 }}>
+      <input ref={pdfInputRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={handlePdfImport} />
+      {importedMeds && (
+        <ImportMedicationsModal
+          parsed={importedMeds}
+          existing={r.medications || []}
+          onClose={() => setImportedMeds(null)}
+          onAdd={selected => { onEdit({ ...r, medications: [...(r.medications || []), ...selected] }); setImportedMeds(null); }}
+        />
+      )}
       {showEdit     && <EditRecipientModal recipient={r} onClose={() => setShowEdit(false)} onSave={u => { onEdit(u); setShowEdit(false); }} />}
       {showDelete   && <DeleteConfirmModal recipient={r} onClose={() => setShowDelete(false)} onDelete={() => { onDelete(r.id); onBack(); }} />}
       {showDoctor   && <AddDoctorModal recipientId={r.id} onClose={() => setShowDoctor(false)} onAdd={d => { onAddDoctor(d); setShowDoctor(false); }} />}
@@ -1423,7 +1512,21 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
 
           {/* Medications */}
           <Card style={{ marginBottom: 14 }}>
-            <SectionLabel>Medications</SectionLabel>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <SectionLabel style={{ marginBottom: 0 }}>Medications</SectionLabel>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {pdfError && <span style={{ fontSize: 11, color: C.coral }}>{pdfError}</span>}
+                {shareMsg && <span style={{ fontSize: 11, color: C.primary }}>{shareMsg}</span>}
+                <button onClick={() => { setPdfError(''); pdfInputRef.current?.click(); }} disabled={pdfImporting}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 600, color: C.muted, cursor: pdfImporting ? 'default' : 'pointer' }}>
+                  <Upload size={11} />{pdfImporting ? 'Parsing…' : 'Import PDF'}
+                </button>
+                <button onClick={handleShareMeds}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
+                  <Link2 size={11} />Share list
+                </button>
+              </div>
+            </div>
             {(r.medications || []).length === 0
               ? <p style={{ fontSize: 13, color: C.mutedLight }}>None recorded</p>
               : (r.medications || []).map((m, i) => {

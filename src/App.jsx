@@ -16,6 +16,7 @@ import Admin         from './pages/Admin';
 import Dashboard     from './pages/Dashboard';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms         from './pages/Terms';
+import PublicMeds    from './pages/PublicMeds';
 
 // ─── Auth context ──────────────────────────────────────────────────────────────
 export const AuthCtx = createContext(null);
@@ -225,6 +226,7 @@ export default function App() {
           <Route path="/admin"     element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="/privacy"   element={<PrivacyPolicy />} />
           <Route path="/terms"     element={<Terms />} />
+          <Route path="/meds/:token" element={<PublicMeds />} />
           <Route path="*"          element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
