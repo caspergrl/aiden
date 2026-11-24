@@ -90,7 +90,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
               </button>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 20, padding: '24px', overflowX: 'auto', paddingBottom: 28 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: recipients.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 20, padding: '24px' }}>
             {recipients.map((r) => {
               const col = rColor(r.id);
               const nextAppt = [...appointments]
@@ -101,7 +101,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
                 .slice(0, 3);
               const medCount = (r.medications || []).length;
               return (
-                <div key={r.id} style={{ display: 'flex', flexDirection: 'column', background: '#fff', border: `1px solid ${C.border}`, borderRadius: radius.lg, flexShrink: 0, width: 300, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <div key={r.id} style={{ display: 'flex', flexDirection: 'column', background: '#fff', border: `1px solid ${C.border}`, borderRadius: radius.lg, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                   {/* Header */}
                   <button onClick={() => onNavigate('care', r.id)}
                     style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 20px 18px', background: col + '10', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: `1px solid ${C.border}` }}
