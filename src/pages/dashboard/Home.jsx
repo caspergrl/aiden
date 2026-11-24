@@ -81,14 +81,9 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
       <div style={{ background: '#fff', borderRadius: radius.lg, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
           <div style={{ padding: '20px 24px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}` }}>
             <p style={{ fontSize: 15, fontWeight: 600, color: C.text }}>People I'm Caring For</p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowAddRecipient(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#f7f7f7', border: `1px solid ${C.border}`, borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 500, color: C.muted, cursor: 'pointer' }}>
-                <Plus size={12} /> Add
-              </button>
-              <button onClick={() => onNavigate('care')} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 500, color: C.muted, cursor: 'pointer', textDecoration: 'underline' }}>
-                View all
-              </button>
-            </div>
+            <button onClick={() => setShowAddRecipient(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#f7f7f7', border: `1px solid ${C.border}`, borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 500, color: C.muted, cursor: 'pointer' }}>
+              <Plus size={12} /> Add
+            </button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: recipients.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 20, padding: '24px' }}>
             {recipients.map((r) => {
