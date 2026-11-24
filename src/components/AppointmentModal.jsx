@@ -51,26 +51,27 @@ const labelStyle = {
 
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-export default function AppointmentModal({ appt, recipients, onUpdate, onDelete, onClose }) {
-  const [mode, setMode]           = useState('view'); // 'view' | 'edit'
+export default function AppointmentModal({ appt, recipients, onUpdate, onAdd, onDelete, onClose }) {
+  const isNew = !appt?.id;
+  const [mode, setMode]           = useState(isNew ? 'edit' : 'view'); // 'view' | 'edit'
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [copied, setCopied]       = useState(false);
 
   // Edit buffer
-  const [title, setTitle]     = useState(appt.title || '');
-  const [date, setDate]       = useState(appt.date || '');
-  const [time24, setTime24]   = useState(to24h(appt.time) || '10:00');
-  const [type, setType]       = useState(appt.type || '');
-  const [location, setLocation] = useState(appt.location || '');
+  const [title, setTitle]     = useState(appt?.title || '');
+  const [date, setDate]       = useState(appt?.date || '');
+  const [time24, setTime24]   = useState(to24h(appt?.time) || '10:00');
+  const [type, setType]       = useState(appt?.type || '');
+  const [location, setLocation] = useState(appt?.location || '');
   const [locMode, setLocMode] = useState(
-    appt.location?.startsWith('http') ? 'video' : 'inperson'
+    appt?.location?.startsWith('http') ? 'video' : 'inperson'
   );
-  const [notes, setNotes]           = useState(appt.notes || '');
-  const [recipientId, setRecipientId] = useState(appt.recipientId || 'myself');
-  const [transport, setTransport]   = useState(appt.transport || EMPTY_TRANSPORT);
+  const [notes, setNotes]           = useState(appt?.notes || '');
+  const [recipientId, setRecipientId] = useState(appt?.recipientId || 'myself');
+  const [transport, setTransport]   = useState(appt?.transport || EMPTY_TRANSPORT);
 
-  const r   = recipients?.find(rec => rec.id === appt.recipientId);
+  const r   = recipients?.find(rec => rec.id === (isNew ? recipientId : appt.recipientId));
   const col = r ? (r.id === 1 ? C.rose : C.primary) : C.muted;
 
   function rColor(id) { return id === 1 ? C.rose : C.primary; }
@@ -95,8 +96,8 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
   }
 
   function handleSave() {
-    onUpdate(appt.id, {
-      title:       title.trim() || appt.title,
+    const data = {
+      title:       title.trim() || appt?.title || 'Appointment',
       date,
       time:        from24h(time24),
       type:        type || null,
@@ -104,7 +105,12 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
       notes:       notes.trim() || null,
       recipientId: recipientId === 'myself' ? null : recipientId,
       transport,
-    });
+    };
+    if (isNew) {
+      onAdd(data);
+    } else {
+      onUpdate(appt.id, data);
+    }
     onClose();
   }
 
@@ -128,7 +134,7 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, fontFamily: serif, color: C.text, margin: 0 }}>
-            {mode === 'edit' ? 'Edit Appointment' : 'Appointment'}
+            {isNew ? 'New Appointment' : mode === 'edit' ? 'Edit Appointment' : 'Appointment'}
           </h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
             <X size={20} color={C.muted} />
@@ -344,11 +350,11 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onDelete,
             </div>
 
             <div style={{ display: 'flex', gap: 10, padding: '16px 24px', borderTop: `1px solid ${C.border}`, position: 'sticky', bottom: 0, background: '#fff' }}>
-              <button onClick={() => setMode('view')} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 12, padding: '13px 0', fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: 'pointer' }}>
+              <button onClick={() => isNew ? onClose() : setMode('view')} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 12, padding: '13px 0', fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: 'pointer' }}>
                 Cancel
               </button>
               <button onClick={handleSave} style={{ flex: 2, background: `linear-gradient(135deg, ${C.rose}, ${C.roseDark})`, color: '#fff', border: 'none', borderRadius: 12, padding: '13px 0', fontSize: 14, fontWeight: 700, fontFamily: sans, cursor: 'pointer' }}>
-                Save changes
+                {isNew ? 'Add appointment' : 'Save changes'}
               </button>
             </div>
           </>

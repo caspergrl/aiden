@@ -291,7 +291,7 @@ export default function Dashboard() {
   function renderContent() {
     switch (active) {
       case 'home':
-        return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={(section, recipientId) => navigate('/' + section + (recipientId ? `?r=${recipientId}` : ''))} onAddRecipient={addRecipient} onUpdateAppointment={updateAppointment} onDeleteAppointment={deleteAppointment} />;
+        return <Home recipients={recipients} appointments={appointments} logistics={logistics} onNavigate={(section, recipientId) => navigate('/' + section + (recipientId ? `?r=${recipientId}` : ''))} onAddRecipient={addRecipient} onAddAppointment={addAppointment} onUpdateAppointment={updateAppointment} onDeleteAppointment={deleteAppointment} />;
       case 'care':
         return (
           <Care
