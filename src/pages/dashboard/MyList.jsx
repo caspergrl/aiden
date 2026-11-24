@@ -306,17 +306,16 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: 32, maxWidth: 820 }}>
+    <div style={{ padding: '40px 48px', maxWidth: 820 }}>
       <div style={{ marginBottom: 28 }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Organisation</p>
-        <h1 style={{ fontFamily: serif, fontSize: 30, color: C.text, letterSpacing: -0.5 }}>To Dos</h1>
+        <h1 style={{ fontFamily: serif, fontSize: 32, fontWeight: 600, color: C.text, letterSpacing: -0.5 }}>To Dos</h1>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, background: C.bgWarm, borderRadius: 12, padding: 4, marginBottom: 24, width: 'fit-content', border: `1px solid ${C.border}` }}>
+      <div style={{ display: 'flex', gap: 4, background: '#f7f7f7', borderRadius: 10, padding: 4, marginBottom: 28, width: 'fit-content', border: `1px solid ${C.border}` }}>
         {[['logistics', 'Checklist'], ['doctors', 'Doctors'], ['documents', 'Documents']].map(([id, label]) => (
           <button key={id} onClick={() => { setSub(id); setFilterRecipId(null); }}
-            style={{ padding: '8px 20px', borderRadius: 9, border: 'none', fontSize: 13, fontWeight: sub === id ? 700 : 500, color: sub === id ? '#fff' : C.muted, background: sub === id ? C.roseDark : 'transparent', cursor: 'pointer', transition: 'all 0.15s' }}>
+            style={{ padding: '8px 20px', borderRadius: 7, border: 'none', fontSize: 13, fontWeight: sub === id ? 600 : 400, color: sub === id ? C.text : C.muted, background: sub === id ? '#fff' : 'transparent', cursor: 'pointer', transition: 'all 0.15s', boxShadow: sub === id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
             {label}
           </button>
         ))}
@@ -561,7 +560,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                   { key: 'notes',        label: 'Notes',         placeholder: 'Any additional info…' },
                 ].map(({ key, label, placeholder }) => (
                   <div key={key} style={{ marginBottom: 14 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>{label}</p>
+                    <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: 6 }}>{label}</p>
                     <input
                       value={doctorBuf[key]}
                       onChange={e => setDoctorBuf(b => ({ ...b, [key]: e.target.value }))}
@@ -574,7 +573,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                 {/* Recipient */}
                 {recipients.length > 0 && (
                   <div style={{ marginBottom: 20 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>For</p>
+                    <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: 6 }}>For</p>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button onClick={() => setDoctorBuf(b => ({ ...b, recipientId: '' }))} style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${!doctorBuf.recipientId ? C.rose : C.border}`, background: !doctorBuf.recipientId ? C.roseLight : '#fff', color: !doctorBuf.recipientId ? C.roseDark : C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Anyone</button>
                       {recipients.map(r => {

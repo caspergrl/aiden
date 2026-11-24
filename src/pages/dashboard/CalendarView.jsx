@@ -61,13 +61,13 @@ const EVENT_TYPES = [
 ];
 
 const inputStyle = {
-  width: '100%', background: '#f7f5f2', border: `1px solid ${C.border}`,
-  borderRadius: 10, padding: '10px 14px', fontSize: 14, fontFamily: sans,
+  width: '100%', background: '#f7f7f7', border: `1px solid ${C.border}`,
+  borderRadius: 8, padding: '10px 14px', fontSize: 14, fontFamily: sans,
   color: C.text, outline: 'none', boxSizing: 'border-box',
 };
 const labelStyle = {
-  fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8,
-  textTransform: 'uppercase', marginBottom: 6, fontFamily: sans,
+  fontSize: 12, fontWeight: 500, color: C.muted,
+  marginBottom: 6, fontFamily: sans,
 };
 
 // ── Add Appointment Modal ──────────────────────────────────────────────────────
@@ -302,13 +302,12 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
   const past     = allVisible.filter(a => apptMs(a) <  nowMs).sort((a, b) => apptMs(b) - apptMs(a));
 
   return (
-    <div style={{ padding: 32, maxWidth: 900 }}>
+    <div style={{ padding: '40px 48px', maxWidth: 900 }}>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
         <div>
-          <p style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Appointments</p>
-          <h1 style={{ fontFamily: serif, fontSize: 30, color: C.text, letterSpacing: -0.5 }}>Calendar</h1>
+          <h1 style={{ fontFamily: serif, fontSize: 32, fontWeight: 600, color: C.text, letterSpacing: -0.5 }}>Calendar</h1>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setShowShare(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f0ece8', border: `1px solid ${C.border}`, borderRadius: 12, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
@@ -404,7 +403,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
                 {upcoming.length > 0 && (
                   <>
                     <div style={{ padding: '7px 20px', background: C.bgWarm, borderBottom: `1px solid ${C.border}` }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: C.roseDark, letterSpacing: 1, textTransform: 'uppercase', fontFamily: sans }}>Upcoming</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: C.muted, fontFamily: sans }}>Upcoming</span>
                     </div>
                     {upcoming.map((a, i) => {
                       const r = recipients.find(rec => rec.id === a.recipientId);
@@ -434,7 +433,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
                 {past.length > 0 && (
                   <>
                     <div style={{ padding: '7px 20px', background: C.bgWarm, borderTop: upcoming.length > 0 ? `1px solid ${C.border}` : 'none', borderBottom: `1px solid ${C.border}` }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: C.mutedLight, letterSpacing: 1, textTransform: 'uppercase', fontFamily: sans }}>Past</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: C.mutedLight, fontFamily: sans }}>Past</span>
                     </div>
                     {past.map((a, i) => {
                       const r = recipients.find(rec => rec.id === a.recipientId);

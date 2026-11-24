@@ -15,7 +15,8 @@ export const C = {
   bg:            '#ffffff',
   bgWarm:        '#ffffff',
   card:          '#ffffff',
-  border:        '#ebe2d8',
+  border:        '#dddddd',
+  bgPage:        '#f7f7f7',
   text:          '#211810',
   muted:         '#8a7d76',
   mutedLight:    '#b8ada6',
@@ -32,12 +33,12 @@ export const FONTS_URL =
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Ledger&display=swap';
 
 export const GRAD        = 'linear-gradient(160deg, #ffffff 0%, #ffffff 55%)';
-export const CARD_SHADOW    = '0 4px 28px rgba(140,60,40,0.10), 0 1px 6px rgba(140,60,40,0.05)';
-export const CARD_SHADOW_SM = '0 2px 14px rgba(140,60,40,0.08)';
-export const CARD_SHADOW_XS = '0 1px 6px rgba(140,60,40,0.06)';
+export const CARD_SHADOW    = '0 2px 8px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)';
+export const CARD_SHADOW_SM = '0 1px 4px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05)';
+export const CARD_SHADOW_XS = '0 1px 2px rgba(0,0,0,0.06)';
 
 export const shadow   = CARD_SHADOW;
 export const shadowSm = CARD_SHADOW_SM;
 export const shadowXs = CARD_SHADOW_XS;
 
-export const radius = { xs: 8, sm: 11, md: 14, lg: 18, xl: 22, pill: 999 };
+export const radius = { xs: 6, sm: 8, md: 12, lg: 16, xl: 20, pill: 999 };

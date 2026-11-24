@@ -73,13 +73,13 @@ function ResourceLinkModal({ initial, onClose, onSave }) {
         </div>
         {[{ key: 'title', label: 'Title *', placeholder: 'e.g. Medicare Plan Finder' }, { key: 'url', label: 'URL *', placeholder: 'https://example.com' }, { key: 'description', label: 'Description', placeholder: 'Optional — what is this for?' }].map(({ key, label, placeholder }) => (
           <div key={key} style={{ marginBottom: 14 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>{label}</p>
+            <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: 6 }}>{label}</p>
             <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={placeholder}
-              style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box', background: '#faf9f7' }} />
+              style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box', background: '#f7f7f7' }} />
           </div>
         ))}
         <div style={{ marginBottom: 20 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Category</p>
+          <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: 8 }}>Category</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {RESOURCE_CATEGORIES.map(c => {
               const active = form.category === c;
@@ -185,10 +185,10 @@ const COMMON_CONDITIONS = [
 
 // ─── Shared UI ──────────────────────────────────────────────────────────────────
 function SectionLabel({ children }) {
-  return <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>{children}</p>;
+  return <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: 10 }}>{children}</p>;
 }
 function Card({ children, style }) {
-  return <div style={{ background: '#fff', borderRadius: radius.lg, boxShadow: shadowSm, padding: 20, marginBottom: 14, ...style }}>{children}</div>;
+  return <div style={{ background: '#fff', borderRadius: radius.lg, border: `1px solid ${C.border}`, padding: 20, marginBottom: 14, ...style }}>{children}</div>;
 }
 function ModalWrap({ onClose, children, maxWidth = 480, dismissable = true }) {
   return (
@@ -220,8 +220,8 @@ function ModalActions({ onConfirm, confirmLabel, onClose, danger }) {
     </div>
   );
 }
-const inp = { width: '100%', background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' };
-const lbl = (text) => <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>{text}</p>;
+const inp = { width: '100%', background: '#f7f7f7', border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' };
+const lbl = (text) => <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: 6 }}>{text}</p>;
 
 // ─── Conditions picker ──────────────────────────────────────────────────────────
 function ConditionsPicker({ selected, onChange }) {
@@ -385,7 +385,7 @@ function MedNameInput({ value, onChange, customMeds, onAddCustomMed }) {
       {showDropdown && (
         <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(40,30,20,0.12)', zIndex: 500, maxHeight: 260, overflowY: 'auto' }}>
           {trimmed.length === 0 && (
-            <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.6, textTransform: 'uppercase', padding: '8px 14px 4px' }}>Common medications</p>
+            <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, padding: '8px 14px 4px' }}>Common medications</p>
           )}
           {localHits.map(m => (
             <button key={m} onMouseDown={e => { e.preventDefault(); pick(m); }}
@@ -402,7 +402,7 @@ function MedNameInput({ value, onChange, customMeds, onAddCustomMed }) {
           )}
           {rxResults.length > 0 && (
             <>
-              <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.6, textTransform: 'uppercase', padding: '8px 14px 4px', borderTop: localHits.length ? `1px solid ${C.border}` : 'none' }}>From RxNorm database</p>
+              <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, padding: '8px 14px 4px', borderTop: localHits.length ? `1px solid ${C.border}` : 'none' }}>From RxNorm database</p>
               {rxResults.map(m => (
                 <button key={m} onMouseDown={e => { e.preventDefault(); pick(m); }}
                   style={{ width: '100%', background: 'none', border: 'none', padding: '9px 14px', textAlign: 'left', fontSize: 13, color: C.text, cursor: 'pointer' }}
@@ -752,7 +752,7 @@ function MedicationsDiffModal({ diff, r, onClose, onEdit }) {
 
   const secLabel = (txt, color, count) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, marginTop: 16 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: 0.8, textTransform: 'uppercase' }}>{txt}</span>
+      <span style={{ fontSize: 12, fontWeight: 500, color }}>{txt}</span>
       <span style={{ fontSize: 11, fontWeight: 700, background: color + '20', color, borderRadius: 10, padding: '1px 7px' }}>{count}</span>
     </div>
   );
@@ -948,7 +948,7 @@ function ManageInsuranceModal({ recipient, onClose, onSave }) {
 
       {/* Custom plans */}
       <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 18 }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: C.muted, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 }}>Custom plans</p>
+        <p style={{ fontSize: 13, fontWeight: 500, color: C.muted, marginBottom: 12 }}>Custom plans</p>
         {customPlans.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             {customPlans.map(name => (
@@ -1143,7 +1143,7 @@ function CareTimelineModal({ changes, recipient, onClose }) {
           <div style={{ padding: '24px 32px 20px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
               <div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>Care timeline</p>
+                <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: 4 }}>Care timeline</p>
                 <h2 style={{ fontFamily: serif, fontSize: 22, color: C.text, marginBottom: 2 }}>{name}</h2>
                 <p style={{ fontSize: 13, color: C.muted }}>{sorted.length} entr{sorted.length === 1 ? 'y' : 'ies'} · Prepared {printedOn}</p>
               </div>
@@ -1585,7 +1585,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
         <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
           <RecipientAvatar r={r} col={col} size={72} fontSize={24} />
           <div>
-            <p style={{ fontSize: 11, fontWeight: 700, color: col, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>{r.relationship}</p>
+            <p style={{ fontSize: 12, fontWeight: 500, color: col, marginBottom: 4 }}>{r.relationship}</p>
             <h2 style={{ fontFamily: serif, fontSize: 26, color: C.text, marginBottom: 4 }}>{r.name}</h2>
             <p style={{ fontSize: 13, color: C.muted }}>{(calcAge(r.birthdate) ?? r.age) ? `Age ${calcAge(r.birthdate) ?? r.age}` : ''}{(calcAge(r.birthdate) ?? r.age) && (r.email || r.phone) ? ' · ' : ''}{r.email || r.phone || ''}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
@@ -1794,7 +1794,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
             ))}
             {previousAppts.length > 0 && (
               <>
-                <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginTop: upcomingAppts.length > 0 ? 16 : 0, marginBottom: 4 }}>Previous</p>
+                <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginTop: upcomingAppts.length > 0 ? 16 : 0, marginBottom: 4 }}>Previous</p>
                 {visiblePrevious.map((a, i) => (
                   <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: i < visiblePrevious.length - 1 ? `1px solid ${C.border}` : 'none' }}>
                     <div style={{ flex: 1 }}>
@@ -2151,13 +2151,12 @@ export default function Care({
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: 760 }}>
+    <div style={{ padding: '40px 48px', maxWidth: 760 }}>
       {showModal && <AddRecipientModal onClose={() => setShowModal(false)} onAdd={onAddRecipient} />}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
         <div>
-          <p style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>People I'm Caring For</p>
-          <h1 style={{ fontFamily: serif, fontSize: 30, color: C.text, letterSpacing: -0.5 }}>Care Recipients</h1>
+          <h1 style={{ fontFamily: serif, fontSize: 32, fontWeight: 600, color: C.text, letterSpacing: -0.5 }}>Care Recipients</h1>
         </div>
         {canAddRecipient ? (
           <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseLight, border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.roseDark, cursor: 'pointer' }}>

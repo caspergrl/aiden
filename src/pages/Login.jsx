@@ -20,13 +20,13 @@ const ERR = {
 };
 
 const inputStyle = {
-  width: '100%', background: '#f7f5f2', border: '1px solid #ede5d8',
-  borderRadius: 12, padding: '13px 16px', fontSize: 15, color: '#26201a',
+  width: '100%', background: '#f7f7f7', border: '1px solid #dddddd',
+  borderRadius: 10, padding: '13px 16px', fontSize: 15, color: '#26201a',
   outline: 'none', boxSizing: 'border-box', fontFamily: sans,
 };
 const labelStyle = {
-  display: 'block', fontSize: 11, fontWeight: 700, color: '#b4aca2',
-  letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8, fontFamily: sans,
+  display: 'block', fontSize: 13, fontWeight: 500, color: '#8a7d76',
+  marginBottom: 6, fontFamily: sans,
 };
 
 export default function Login() {

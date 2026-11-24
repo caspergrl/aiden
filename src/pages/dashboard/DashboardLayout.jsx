@@ -4,7 +4,7 @@ import { signOut } from 'firebase/auth';
 import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked } from 'lucide-react';
 import { auth } from '../../firebase';
 import { useAuth } from '../../App';
-import { C, serif, shadowSm } from '../../theme';
+import { C } from '../../theme';
 import Logo from '../../components/Logo';
 
 // Nav — keep in sync with /shared/nav.config.js
@@ -27,14 +27,14 @@ export default function DashboardLayout({ active, children }) {
     return (
       <button onClick={() => { navigate('/' + id); setMobileOpen(false); }} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-        padding: '11px 16px', borderRadius: 14, border: 'none', cursor: 'pointer',
-        background: isActive ? C.rose : 'transparent',
-        color: isActive ? '#fff' : C.muted,
-        fontSize: 14, fontWeight: isActive ? 700 : 500,
-        boxShadow: isActive ? '0 3px 14px rgba(200,92,85,0.30)' : 'none',
+        padding: '10px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+        background: isActive ? '#f5f5f5' : 'transparent',
+        color: isActive ? C.text : C.muted,
+        fontSize: 14, fontWeight: isActive ? 600 : 400,
+        borderLeft: isActive ? `3px solid ${C.rose}` : '3px solid transparent',
         transition: 'all 0.15s', textAlign: 'left',
       }}>
-        <Icon size={18} strokeWidth={isActive ? 2.5 : 1.8} />
+        <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
         {label}
       </button>
     );
@@ -53,7 +53,7 @@ export default function DashboardLayout({ active, children }) {
       </div>
 
       {/* Bottom links */}
-      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ borderTop: '1px solid #ebebeb', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
         {profile?.role === 'admin' && (
           <Link to="/admin" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: 'none' }}>
             <Shield size={18} strokeWidth={1.8} /> Admin panel
@@ -70,15 +70,15 @@ export default function DashboardLayout({ active, children }) {
   );
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: C.bgWarm }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f7f7f7' }}>
 
       {/* Desktop sidebar */}
-      <div style={{ width: 220, background: '#fff', borderRight: `1px solid ${C.border}`, flexShrink: 0, position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50, overflowY: 'auto' }} className="sidebar-desktop">
+      <div style={{ width: 220, background: '#fff', borderRight: '1px solid #ebebeb', flexShrink: 0, position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50, overflowY: 'auto' }} className="sidebar-desktop">
         {sidebar}
       </div>
 
       {/* Mobile header */}
-      <div style={{ display: 'none', position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#fff', borderBottom: `1px solid ${C.border}`, zIndex: 50, alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }} className="mobile-header">
+      <div style={{ display: 'none', position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#fff', borderBottom: '1px solid #ebebeb', zIndex: 50, alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }} className="mobile-header">
         <Logo width={72} />
         <button onClick={() => setMobileOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
           {mobileOpen ? <X size={22} color={C.text} /> : <Menu size={22} color={C.text} />}
