@@ -337,8 +337,10 @@ export default function Dashboard() {
         return <Insurance recipients={recipients} />;
       case 'resources':
         return <Resources resources={resources} onAdd={addResource} onUpdate={updateResource} onDelete={deleteResource} recipients={recipients} />;
-      case 'chat':
-        return <Chat />;
+      case 'chat': {
+        const convId = searchParams.get('c') || null;
+        return <Chat conversationId={convId} onNewChat={() => navigate('/chat?c=new_' + Date.now().toString(36))} />;
+      }
       default:
         return null;
     }

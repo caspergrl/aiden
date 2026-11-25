@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked } from 'lucide-react';
-import { auth } from '../../firebase';
+import { collection, onSnapshot, orderBy, query, limit } from 'firebase/firestore';
+import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked, Plus } from 'lucide-react';
+import { auth, db } from '../../firebase';
 import { useAuth } from '../../App';
 import { C } from '../../theme';
 import Logo from '../../components/Logo';
 
-// Nav — keep in sync with /shared/nav.config.js
 const NAV = [
   { id: 'home',      label: 'Home',       Icon: Home },
   { id: 'care',      label: 'Care',       Icon: Users },
@@ -18,12 +18,32 @@ const NAV = [
 ];
 
 export default function DashboardLayout({ active, children }) {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [conversations, setConversations] = useState([]);
+
+  const activeConvId = new URLSearchParams(location.search).get('c');
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'users', user.uid, 'conversations'),
+      orderBy('updatedAt', 'desc'),
+      limit(20)
+    );
+    const unsub = onSnapshot(q, snap => {
+      const convs = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => c.title); // only show titled conversations
+      setConversations(convs);
+    }, () => {});
+    return unsub;
+  }, [user]);
 
   function NavItem({ id, label, Icon }) {
-    const isActive = active === id;
+    const isActive = active === id && id !== 'chat';
     return (
       <button onClick={() => { navigate('/' + id); setMobileOpen(false); }} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 12,
@@ -40,6 +60,8 @@ export default function DashboardLayout({ active, children }) {
     );
   }
 
+  const isChatActive = active === 'chat';
+
   const sidebar = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px 12px' }}>
       {/* Logo */}
@@ -48,12 +70,70 @@ export default function DashboardLayout({ active, children }) {
       </div>
 
       {/* Nav items */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
-        {NAV.map(n => <NavItem key={n.id} {...n} />)}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        {NAV.filter(n => n.id !== 'chat').map(n => <NavItem key={n.id} {...n} />)}
+
+        {/* Ask Aiden section */}
+        <div style={{ marginTop: 4 }}>
+          {/* Ask Aiden header row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            <button
+              onClick={() => { navigate('/chat?c=new_' + Date.now().toString(36)); setMobileOpen(false); }}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: isChatActive && !activeConvId ? '#f5f5f5' : 'transparent',
+                color: isChatActive ? C.text : C.muted,
+                fontSize: 14, fontWeight: isChatActive ? 600 : 400,
+                borderLeft: isChatActive && !activeConvId ? `3px solid ${C.rose}` : '3px solid transparent',
+                transition: 'all 0.15s', textAlign: 'left',
+              }}>
+              <MessageCircle size={17} strokeWidth={isChatActive ? 2.2 : 1.8} />
+              Ask Aiden
+            </button>
+            <button
+              onClick={() => { navigate('/chat?c=new_' + Date.now().toString(36)); setMobileOpen(false); }}
+              title="New chat"
+              style={{ padding: '6px 8px', background: 'none', border: 'none', cursor: 'pointer', color: C.mutedLight, borderRadius: 6, flexShrink: 0 }}
+              onMouseEnter={e => e.currentTarget.style.color = C.rose}
+              onMouseLeave={e => e.currentTarget.style.color = C.mutedLight}>
+              <Plus size={15} />
+            </button>
+          </div>
+
+          {/* Past conversations */}
+          {conversations.length > 0 && (
+            <div style={{ marginTop: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {conversations.map(c => {
+                const isActive = isChatActive && activeConvId === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => { navigate(`/chat?c=${c.id}`); setMobileOpen(false); }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center',
+                      padding: '7px 16px 7px 44px', borderRadius: 6, border: 'none',
+                      cursor: 'pointer', textAlign: 'left',
+                      background: isActive ? C.roseLight : 'transparent',
+                      color: isActive ? C.roseDark : C.muted,
+                      fontSize: 13, fontWeight: isActive ? 600 : 400,
+                      borderLeft: isActive ? `3px solid ${C.rose}` : '3px solid transparent',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      transition: 'all 0.1s',
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = C.text; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = C.muted; }}>
+                    {c.title}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bottom links */}
-      <div style={{ borderTop: '1px solid #ebebeb', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ borderTop: '1px solid #ebebeb', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
         {profile?.role === 'admin' && (
           <Link to="/admin" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: 'none' }}>
             <Shield size={18} strokeWidth={1.8} /> Admin panel

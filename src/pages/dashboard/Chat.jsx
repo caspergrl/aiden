@@ -1,14 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Heart } from 'lucide-react';
+import { Send, Heart, Plus } from 'lucide-react';
 import { ScrollArea } from '@base-ui-components/react/scroll-area';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { C, serif } from '../../theme';
 import { SUGGESTIONS } from '../../data';
 import { useAuth } from '../../App';
 
 // Lightweight markdown → React renderer
-// Handles: ## headings, - bullets, **bold**, *italic*
 function renderMarkdown(text) {
   const lines = text.split('\n');
   const out = [];
@@ -25,7 +24,6 @@ function renderMarkdown(text) {
   }
 
   function inlineFormat(str) {
-    // Split on **bold** and *italic* markers
     const parts = [];
     const re = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
     let last = 0, m;
@@ -60,28 +58,33 @@ function renderMarkdown(text) {
   return out;
 }
 
-const CONVERSATION_ID = 'askaiden';
-
 const GREETING = (name) =>
   `Hi${name ? ` ${name}` : ''}! I'm Aiden, your personal caregiving assistant. I'm here to help you navigate caring for your loved ones — from medical questions to legal documents, insurance, and emotional support. What can I help you with?`;
 
-export default function Chat() {
+function makeConvId() {
+  return 'chat_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+export default function Chat({ conversationId: propConvId, onNewChat }) {
   const { user, profile } = useAuth();
-  const [messages, setMessages] = useState(null); // null = loading
+  const [convId]          = useState(() => propConvId || makeConvId());
+  const [messages, setMessages] = useState(null);
   const [input, setInput]       = useState('');
   const [waiting, setWaiting]   = useState(false);
   const [error, setError]       = useState(null);
+  const titledRef = useRef(false); // whether title has been saved for this conversation
   const bottomRef = useRef(null);
 
   const firstName = profile?.name?.split(' ')[0] || '';
 
-  // Load conversation history from Firestore on mount
   useEffect(() => {
     if (!user) return;
+    titledRef.current = false;
     const db = getFirestore();
-    getDoc(doc(db, 'users', user.uid, 'conversations', CONVERSATION_ID))
+    getDoc(doc(db, 'users', user.uid, 'conversations', convId))
       .then(snap => {
         if (snap.exists() && snap.data().messages?.length) {
+          if (snap.data().title) titledRef.current = true;
           setMessages(snap.data().messages);
         } else {
           setMessages([{ role: 'assistant', text: GREETING(firstName) }]);
@@ -90,7 +93,7 @@ export default function Chat() {
       .catch(() => {
         setMessages([{ role: 'assistant', text: GREETING(firstName) }]);
       });
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, convId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, waiting]);
 
@@ -103,9 +106,17 @@ export default function Chat() {
     setInput('');
     setWaiting(true);
 
+    // Save title on first user message
+    if (!titledRef.current) {
+      titledRef.current = true;
+      const title = text.trim().slice(0, 60) + (text.trim().length > 60 ? '…' : '');
+      const db = getFirestore();
+      setDoc(doc(db, 'users', user.uid, 'conversations', convId), { title }, { merge: true }).catch(() => {});
+    }
+
     try {
       const fn = httpsCallable(getFunctions(), 'askAiden');
-      const result = await fn({ messages: updated, conversationId: CONVERSATION_ID });
+      const result = await fn({ messages: updated, conversationId: convId });
       setMessages(prev => [...prev, { role: 'assistant', text: result.data.text, ts: Date.now() }]);
     } catch (e) {
       console.error('askAiden error:', e);
@@ -129,12 +140,17 @@ export default function Chat() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 0px)', maxHeight: '100vh' }}>
       {/* Header */}
-      <div style={{ background: '#fff', padding: '20px 32px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-        <div style={{ width: 44, height: 44, background: C.roseLight, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Heart size={20} color={C.roseDark} /></div>
-        <div>
-          <h2 style={{ fontFamily: serif, fontSize: 20, fontWeight: 600, color: C.text }}>Ask Aiden</h2>
-          <p style={{ fontSize: 13, color: C.muted }}>Your AI caregiving assistant</p>
+      <div style={{ background: '#fff', padding: '16px 32px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+        <div style={{ width: 40, height: 40, background: C.roseLight, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Heart size={18} color={C.roseDark} /></div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2 style={{ fontFamily: serif, fontSize: 18, fontWeight: 600, color: C.text }}>Ask Aiden</h2>
+          <p style={{ fontSize: 12, color: C.muted }}>Your AI caregiving assistant</p>
         </div>
+        {onNewChat && (
+          <button onClick={onNewChat} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f7f7f7', border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 500, color: C.muted, cursor: 'pointer' }}>
+            <Plus size={13} /> New chat
+          </button>
+        )}
       </div>
 
       {/* Messages */}
@@ -184,7 +200,7 @@ export default function Chat() {
           <p style={{ fontSize: 13, fontWeight: 500, color: C.muted, marginBottom: 10 }}>Suggested questions</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {SUGGESTIONS.map((s, i) => (
-              <button key={i} onClick={() => send(s)} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: C.text, cursor: 'pointer', fontWeight: 500, transition: 'border-color 0.2s' }}
+              <button key={i} onClick={() => send(s)} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: C.text, cursor: 'pointer', fontWeight: 500 }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = C.rose}
                 onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
                 {s}
