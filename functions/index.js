@@ -379,11 +379,16 @@ For aging adults, this means being familiar with:
       throw new functions.https.HttpsError('internal', 'API key not configured.');
     }
 
-    // Convert to Claude API message format
-    const claudeMessages = messages.map(m => ({
+    // Convert to Claude API message format; strip any leading assistant messages
+    // since Claude requires the first message to be from user
+    let claudeMessages = messages.map(m => ({
       role: m.role === 'assistant' ? 'assistant' : 'user',
       content: m.text,
     }));
+    while (claudeMessages.length && claudeMessages[0].role === 'assistant') {
+      claudeMessages = claudeMessages.slice(1);
+    }
+    if (!claudeMessages.length) return { text: 'Send me a message to get started!' };
 
     const anthropic = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -396,7 +401,7 @@ For aging adults, this means being familiar with:
 
     const assistantText = response.content.find(b => b.type === 'text')?.text || 'Sorry, I had trouble generating a response.';
 
-    // Save conversation to Firestore
+    // Save conversation to Firestore (merge to preserve title set by client)
     const convRef = admin.firestore().doc(`users/${uid}/conversations/${conversationId}`);
     const updatedMessages = [
       ...messages,
@@ -405,7 +410,7 @@ For aging adults, this means being familiar with:
     await convRef.set({
       messages: updatedMessages,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    }, { merge: true });
 
     return { text: assistantText };
   });
