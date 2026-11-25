@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { collection, onSnapshot, orderBy, query, limit } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, onSnapshot, orderBy, query, limit, serverTimestamp } from 'firebase/firestore';
 import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked, Plus } from 'lucide-react';
 import { auth, db } from '../../firebase';
 import { useAuth } from '../../App';
@@ -28,17 +28,29 @@ export default function DashboardLayout({ active, children }) {
 
   useEffect(() => {
     if (!user) return;
+
+    // Migrate old 'askaiden' conversation by writing a title if it has messages
+    getDoc(doc(db, 'users', user.uid, 'conversations', 'askaiden')).then(snap => {
+      if (snap.exists() && snap.data().messages?.length && !snap.data().title) {
+        const firstUserMsg = snap.data().messages.find(m => m.role === 'user');
+        const title = firstUserMsg?.text?.slice(0, 60) || 'Earlier conversations';
+        setDoc(doc(db, 'users', user.uid, 'conversations', 'askaiden'),
+          { title, updatedAt: snap.data().updatedAt || serverTimestamp() }, { merge: true }).catch(() => {});
+      }
+    }).catch(() => {});
+
     const q = query(
       collection(db, 'users', user.uid, 'conversations'),
       orderBy('updatedAt', 'desc'),
-      limit(20)
+      limit(50)
     );
     const unsub = onSnapshot(q, snap => {
       const convs = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(c => c.title); // only show titled conversations
+        // show only user-initiated conversations (not guidance sidecars)
+        .filter(c => c.title && !c.id.startsWith('_guidance'));
       setConversations(convs);
-    }, () => {});
+    }, (err) => { console.error('conversations onSnapshot error:', err); });
     return unsub;
   }, [user]);
 
@@ -61,6 +73,8 @@ export default function DashboardLayout({ active, children }) {
   }
 
   const isChatActive = active === 'chat';
+  // A new chat has no ID, starts with 'new_', or is not yet in the saved list
+  const isNewOrUnknownChat = !activeConvId || activeConvId.startsWith('new_') || !conversations.some(c => c.id === activeConvId);
 
   const sidebar = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px 12px' }}>
@@ -82,10 +96,10 @@ export default function DashboardLayout({ active, children }) {
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', gap: 12,
                 padding: '10px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                background: isChatActive && !activeConvId ? '#f5f5f5' : 'transparent',
+                background: isChatActive && isNewOrUnknownChat ? '#f5f5f5' : 'transparent',
                 color: isChatActive ? C.text : C.muted,
                 fontSize: 14, fontWeight: isChatActive ? 600 : 400,
-                borderLeft: isChatActive && !activeConvId ? `3px solid ${C.rose}` : '3px solid transparent',
+                borderLeft: isChatActive && isNewOrUnknownChat ? `3px solid ${C.rose}` : '3px solid transparent',
                 transition: 'all 0.15s', textAlign: 'left',
               }}>
               <MessageCircle size={17} strokeWidth={isChatActive ? 2.2 : 1.8} />

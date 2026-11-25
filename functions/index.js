@@ -183,7 +183,7 @@ exports.askAiden = functions
     }
 
     const uid = context.auth.uid;
-    const { messages = [], conversationId = 'askaiden' } = data;
+    const { messages = [], conversationId = 'askaiden', skipSave = false } = data;
 
     // Load user context from Firestore
     const [userDoc, recSnap, apptSnap, docSnap, chgSnap, logSnap] = await Promise.all([
@@ -401,16 +401,18 @@ For aging adults, this means being familiar with:
 
     const assistantText = response.content.find(b => b.type === 'text')?.text || 'Sorry, I had trouble generating a response.';
 
-    // Save conversation to Firestore (merge to preserve title set by client)
-    const convRef = admin.firestore().doc(`users/${uid}/conversations/${conversationId}`);
-    const updatedMessages = [
-      ...messages,
-      { role: 'assistant', text: assistantText, ts: Date.now() },
-    ];
-    await convRef.set({
-      messages: updatedMessages,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    // Save conversation to Firestore unless caller opts out (e.g. one-off guidance calls)
+    if (!skipSave) {
+      const convRef = admin.firestore().doc(`users/${uid}/conversations/${conversationId}`);
+      const updatedMessages = [
+        ...messages,
+        { role: 'assistant', text: assistantText, ts: Date.now() },
+      ];
+      await convRef.set({
+        messages: updatedMessages,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
 
     return { text: assistantText };
   });

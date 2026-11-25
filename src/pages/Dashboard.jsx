@@ -339,7 +339,7 @@ export default function Dashboard() {
         return <Resources resources={resources} onAdd={addResource} onUpdate={updateResource} onDelete={deleteResource} recipients={recipients} />;
       case 'chat': {
         const convId = searchParams.get('c') || null;
-        return <Chat conversationId={convId} onNewChat={() => navigate('/chat?c=new_' + Date.now().toString(36))} />;
+        return <Chat key={convId || 'default'} conversationId={convId} onNewChat={() => navigate('/chat?c=new_' + Date.now().toString(36))} />;
       }
       default:
         return null;
