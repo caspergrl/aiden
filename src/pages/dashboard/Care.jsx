@@ -1289,7 +1289,7 @@ function buildAidenGuidance(change) {
   };
 }
 
-function AddChangeModal({ recipientId, onClose, onAdd }) {
+function AddChangeModal({ recipient, recipientId, onClose, onAdd }) {
   const today = new Date().toISOString().split('T')[0];
   const [type, setType]               = useState('health');
   const [title, setTitle]             = useState('');
@@ -1297,8 +1297,9 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
   const [date, setDate]               = useState(today);
   const [step, setStep]               = useState('form'); // 'form' | 'saved' | 'guidance'
   const [savedChange, setSavedChange] = useState(null);
-  const [guidance, setGuidance]       = useState(null);
+  const [guidanceText, setGuidanceText] = useState(null);
   const [loadingGuidance, setLoadingGuidance] = useState(false);
+  const [guidanceError, setGuidanceError] = useState(null);
 
   const ct = CHANGE_TYPES.find(c => c.id === type);
   const placeholder = ct?.id === 'health' ? 'e.g. A1C improved to 6.8' : ct?.id === 'location' ? 'e.g. Moved to Sunrise Assisted Living' : ct?.id === 'medication' ? 'e.g. Started Lisinopril 10mg' : 'e.g. Notable update…';
@@ -1311,10 +1312,30 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
     setStep('saved');
   }
 
-  function handleGetGuidance() {
+  async function handleGetGuidance() {
     setStep('guidance');
     setLoadingGuidance(true);
-    setTimeout(() => { setGuidance(buildAidenGuidance(savedChange)); setLoadingGuidance(false); }, 1200);
+    setGuidanceError(null);
+    try {
+      const changeType = CHANGE_TYPES.find(c => c.id === savedChange.type)?.label || savedChange.type;
+      const name = recipient?.nickname || recipient?.name?.split(' ')[0] || 'my care recipient';
+      const context = [
+        `I just logged a ${changeType.toLowerCase()} change for ${name}:`,
+        `"${savedChange.title}"`,
+        savedChange.details ? `Details: ${savedChange.details}` : null,
+        `Date: ${savedChange.date}`,
+        '',
+        `Please give me specific, practical guidance about this change — what it may mean, what I should watch for, and what questions to ask the right providers.`,
+      ].filter(Boolean).join('\n');
+      const fn = httpsCallable(getFunctions(), 'askAiden');
+      const result = await fn({ messages: [{ role: 'user', text: context }], conversationId: `change_guidance_${Date.now()}` });
+      setGuidanceText(result.data.text);
+    } catch (e) {
+      console.error('askAiden guidance error:', e);
+      setGuidanceError('Something went wrong getting guidance. Please try again.');
+    } finally {
+      setLoadingGuidance(false);
+    }
   }
 
   if (step === 'saved') {
@@ -1356,16 +1377,19 @@ function AddChangeModal({ recipientId, onClose, onAdd }) {
               {[0,1,2].map(j => <div key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: C.mutedLight, animation: 'pulse 1.2s infinite', animationDelay: `${j*0.2}s` }} />)}
             </div>
           </div>
-        ) : guidance && (
+        ) : guidanceError ? (
+          <div style={{ padding: '16px 0 24px' }}>
+            <p style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>{guidanceError}</p>
+            <button onClick={handleGetGuidance} style={{ background: C.roseLight, color: C.roseDark, border: 'none', borderRadius: 12, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Try again</button>
+          </div>
+        ) : guidanceText && (
           <div style={{ animation: 'aidenFade 0.35s ease' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${C.border}` }}>
               <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #dde8f6, #f0dde6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Heart size={16} color={C.roseDark} /></div>
-              <p style={{ fontFamily: serif, fontSize: 17, color: C.text }}>{guidance.headline}</p>
+              <p style={{ fontFamily: serif, fontSize: 15, color: C.text, lineHeight: 1.4 }}>Guidance for {recipient?.nickname || recipient?.name?.split(' ')[0] || 'your care recipient'}</p>
             </div>
-            {guidance.paragraphs.map((para, i) => (
-              <p key={i} style={{ fontSize: 13, color: C.text, lineHeight: 1.85, marginBottom: 16, whiteSpace: 'pre-wrap' }}>{para}</p>
-            ))}
-            <button onClick={onClose} style={{ width: '100%', marginTop: 8, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>Done</button>
+            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.85, whiteSpace: 'pre-wrap', marginBottom: 20 }}>{guidanceText}</div>
+            <button onClick={onClose} style={{ width: '100%', background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>Done</button>
           </div>
         )}
       </ModalWrap>
@@ -1563,7 +1587,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
       {showAppt    && <AddAppointmentModal recipient={r} doctors={myDoctors} onClose={() => setShowAppt(false)} onAdd={a => { onAddAppointment(a); setShowAppt(false); }} />}
       {editingAppt && <EditAppointmentModal appointment={editingAppt} doctors={myDoctors} recipient={r} onClose={() => setEditingAppt(null)} onSave={u => { onUpdateAppointment(editingAppt.id, u); setEditingAppt(null); }} />}
       {showPhone      && <AddPhoneModal onClose={() => setShowPhone(false)} onAdd={n => onEdit({ ...r, importantNumbers: [...(r.importantNumbers || []), n] })} />}
-      {showAddChange  && <AddChangeModal recipientId={r.id} onClose={() => setShowAddChange(false)} onAdd={d => onAddChange(d)} />}
+      {showAddChange  && <AddChangeModal recipient={r} recipientId={r.id} onClose={() => setShowAddChange(false)} onAdd={d => onAddChange(d)} />}
       {showTimeline   && <CareTimelineModal changes={changes.filter(c => c.recipientId === r.id)} recipient={r} onClose={() => setShowTimeline(false)} />}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
