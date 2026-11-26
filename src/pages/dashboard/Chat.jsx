@@ -9,6 +9,7 @@ import { useAuth } from '../../App';
 import { checkEmergency } from '../../lib/emergencyCheck';
 import EmergencyBanner from '../../components/chat/EmergencyBanner';
 import ConfirmActionCard from '../../components/chat/ConfirmActionCard';
+import RecipientPill from '../../components/chat/RecipientPill';
 
 // Lightweight markdown → React renderer
 function renderMarkdown(text) {
@@ -75,11 +76,14 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
   const [input, setInput]       = useState('');
   const [waiting, setWaiting]   = useState(false);
   const [error, setError]       = useState(null);
-  const [emergencyState, setEmergencyState]   = useState(null); // { isEmergency, isCrisis, isPoisoning }
-  const [pendingAction, setPendingAction]     = useState(null); // { toolUseBlock, tool, args, summary, preText, sentMessages }
+  const [emergencyState, setEmergencyState]   = useState(null);
+  const [pendingAction, setPendingAction]     = useState(null);
   const [confirmingAction, setConfirmingAction] = useState(false);
+  const [recipientId, setRecipientId]         = useState(null);
   const titledRef = useRef(false);
   const bottomRef = useRef(null);
+  // Whether the conversation has had its first user message (locks recipient)
+  const hasMessagedRef = useRef(false);
 
   // Maps tool names to service functions
   const serviceMap = services ? {
@@ -96,17 +100,27 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
   useEffect(() => {
     if (!user) return;
     titledRef.current = false;
+    hasMessagedRef.current = false;
     const db = getFirestore();
     getDoc(doc(db, 'users', user.uid, 'conversations', convId))
       .then(snap => {
         if (snap.exists() && snap.data().messages?.length) {
           if (snap.data().title) titledRef.current = true;
+          if (snap.data().recipientId) {
+            setRecipientId(snap.data().recipientId);
+            hasMessagedRef.current = true; // existing conversation: lock recipient
+          }
           setMessages(snap.data().messages);
         } else {
+          // Auto-select the only recipient for new conversations
+          const recs = services?.recipients || [];
+          if (recs.length === 1) setRecipientId(recs[0].id);
           setMessages([{ role: 'assistant', text: GREETING(firstName) }]);
         }
       })
       .catch(() => {
+        const recs = services?.recipients || [];
+        if (recs.length === 1) setRecipientId(recs[0].id);
         setMessages([{ role: 'assistant', text: GREETING(firstName) }]);
       });
   }, [user, convId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -128,17 +142,21 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
     setInput('');
     setWaiting(true);
 
-    // Save title on first user message
+    // Save title + recipientId on first user message
     if (!titledRef.current) {
       titledRef.current = true;
+      hasMessagedRef.current = true;
       const title = text.trim().slice(0, 60) + (text.trim().length > 60 ? '…' : '');
       const db = getFirestore();
-      setDoc(doc(db, 'users', user.uid, 'conversations', convId), { title }, { merge: true }).catch(() => {});
+      setDoc(doc(db, 'users', user.uid, 'conversations', convId), {
+        title,
+        ...(recipientId ? { recipientId } : {}),
+      }, { merge: true }).catch(() => {});
     }
 
     try {
       const fn = httpsCallable(getFunctions(), 'askAiden');
-      const result = await fn({ messages: updated, conversationId: convId });
+      const result = await fn({ messages: updated, conversationId: convId, scopedRecipientId: recipientId || null });
 
       if (result.data.pendingAction) {
         // Claude wants to call a tool — show confirm card
@@ -174,6 +192,7 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
       const result = await fn({
         messages: pendingAction.sentMessages,
         conversationId: convId,
+        scopedRecipientId: recipientId || null,
         toolConfirmation: {
           toolUseBlock: pendingAction.toolUseBlock,
           summary: pendingAction.summary,
@@ -206,6 +225,7 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
       const result = await fn({
         messages: pendingAction.sentMessages,
         conversationId: convId,
+        scopedRecipientId: recipientId || null,
         toolConfirmation: {
           toolUseBlock: pendingAction.toolUseBlock,
           summary: pendingAction.summary,
@@ -244,6 +264,14 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
           <h2 style={{ fontFamily: serif, fontSize: 18, fontWeight: 600, color: C.text }}>Ask Aiden</h2>
           <p style={{ fontSize: 12, color: C.muted }}>Your AI caregiving assistant</p>
         </div>
+        {services?.recipients?.length > 0 && (
+          <RecipientPill
+            recipients={services.recipients}
+            recipientId={recipientId}
+            onChange={setRecipientId}
+            locked={hasMessagedRef.current}
+          />
+        )}
         {onNewChat && (
           <button onClick={onNewChat} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f7f7f7', border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 500, color: C.muted, cursor: 'pointer' }}>
             <Plus size={13} /> New chat

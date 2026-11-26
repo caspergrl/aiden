@@ -298,7 +298,7 @@ exports.askAiden = functions
     }
 
     const uid = context.auth.uid;
-    const { messages = [], conversationId = 'askaiden', skipSave = false, toolConfirmation = null } = data;
+    const { messages = [], conversationId = 'askaiden', skipSave = false, toolConfirmation = null, scopedRecipientId = null } = data;
 
     // Load user context from Firestore
     const [userDoc, recSnap, apptSnap, docSnap, chgSnap, logSnap] = await Promise.all([
@@ -325,12 +325,16 @@ exports.askAiden = functions
       bcbs:     'Blue Cross Blue Shield',
     };
 
-    // Build system prompt with full recipient context
+    // Build system prompt with recipient context
     const caregiverName = userProfile.name ? userProfile.name.split(' ')[0] : 'there';
+
+    // When a conversation is scoped to one recipient, only build a full profile for them
+    const scopedRecipient = scopedRecipientId ? recipients.find(r => r.id === scopedRecipientId) : null;
+    const profileRecipients = scopedRecipient ? [scopedRecipient] : recipients;
 
     const recipientContext = recipients.length === 0
       ? 'No care recipients have been added yet.'
-      : recipients.map(r => {
+      : profileRecipients.map(r => {
           const myDoctors = doctors.filter(d => d.recipientId === r.id);
           const myChanges = careChanges
             .filter(c => c.recipientId === r.id)
@@ -359,6 +363,7 @@ exports.askAiden = functions
             lines.push(`Contact: ${contact}`);
           }
 
+          if (r.location) lines.push(`Location: ${r.location}`);
           if (r.conditions?.length)  lines.push(`Conditions: ${r.conditions.join(', ')}`);
           if (r.allergies?.length)   lines.push(`Allergies: ${r.allergies.join(', ')}`);
           if (r.medications?.length) lines.push(`Medications: ${r.medications.join(', ')}`);
@@ -417,7 +422,13 @@ exports.askAiden = functions
           }
 
           return lines.join('\n');
-        }).join('\n\n');
+        }).join('\n\n') + (scopedRecipient && recipients.length > 1
+          ? '\n\n---\nThe caregiver also cares for: ' + recipients.filter(r => r.id !== scopedRecipientId).map(r => r.nickname || r.name.split(' ')[0]).join(', ') + '. This conversation is specifically about ' + (scopedRecipient.nickname || scopedRecipient.name.split(' ')[0]) + '.'
+          : '');
+
+    const scopingNote = scopedRecipient
+      ? `\n\nThis conversation is focused on ${scopedRecipient.nickname || scopedRecipient.name.split(' ')[0]}. When the caregiver says "they", "them", or uses a first name, assume they mean ${scopedRecipient.nickname || scopedRecipient.name.split(' ')[0]} unless stated otherwise.`
+      : '';
 
     const systemPrompt = `You are Aiden, a knowledgeable and compassionate AI caregiving assistant. You bring together the perspective of a seasoned care navigator, an experienced nurse practitioner, a healthcare insurance specialist, and a generalist attorney — helping family caregivers make sense of complex medical, legal, and insurance situations so they can ask better questions and advocate more effectively for the people they care for.
 
@@ -489,6 +500,8 @@ For aging adults, this means being familiar with:
 - Never overstate your certainty; use phrases like "this could suggest," "worth asking about," "typically in situations like this"
 - Always name the right professional for the user to follow up with — be specific about the type and why that type fits their situation`;
 
+    const activeSystemPromptBase = systemPrompt + scopingNote;
+
     if (!process.env.ANTHROPIC_API_KEY) {
       throw new functions.https.HttpsError('internal', 'API key not configured.');
     }
@@ -520,7 +533,7 @@ For aging adults, this means being familiar with:
       const ackResponse = await anthropic.messages.create({
         model: 'claude-opus-5-5',
         max_tokens: 1024,
-        system: systemPrompt,
+        system: activeSystemPromptBase,
         messages: claudeMessages,
       });
       const ackText = ackResponse.content.find(b => b.type === 'text')?.text || (cancelled ? 'Got it, cancelled.' : 'Done!');
@@ -545,12 +558,12 @@ For aging adults, this means being familiar with:
     // Emergency guard: inject directive into system prompt if triggered
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.text || '';
     const { isEmergency, isCrisis } = serverCheckEmergency(lastUserMsg);
-    let activeSystemPrompt = systemPrompt;
+    let activeSystemPrompt = activeSystemPromptBase;
     if (isEmergency) {
       const directive = isCrisis
         ? 'IMPORTANT: Begin your response immediately with: "🚨 Call 911 now." On the next line, also add: "If you or someone you know is in crisis, call or text 988 (Suicide & Crisis Lifeline) — available 24/7." Then continue with helpful information.'
         : 'IMPORTANT: Begin your response immediately with: "🚨 Call 911 now." Then continue with helpful information.';
-      activeSystemPrompt = directive + '\n\n' + systemPrompt;
+      activeSystemPrompt = directive + '\n\n' + activeSystemPromptBase;
     }
 
     // Convert to Claude API format; strip leading assistant messages

@@ -574,6 +574,7 @@ function RecipientForm({ values, onChange }) {
         <div>{lbl('Email')}<input type="email" value={values.email} onChange={e => onChange('email', e.target.value)} placeholder="email@example.com" style={inp} /></div>
         <div>{lbl('Phone')}<input value={values.phone} onChange={e => onChange('phone', e.target.value)} placeholder="(555) 123-4567" style={inp} /></div>
       </div>
+      <div>{lbl('City, State')}<input value={values.location || ''} onChange={e => onChange('location', e.target.value)} placeholder="Salt Lake City, UT" style={inp} /></div>
       <div>{lbl('Conditions')}<ConditionsPicker selected={values.conditions} onChange={v => onChange('conditions', v)} /></div>
       <div>{lbl('Allergies')}<AllergiesPicker selected={values.allergies || []} onChange={v => onChange('allergies', v)} /></div>
       <div>{lbl('Medications')}<MedicationBuilder value={values.medications || []} onChange={v => onChange('medications', v)} /></div>
@@ -584,12 +585,12 @@ function RecipientForm({ values, onChange }) {
 
 // ─── Add Recipient Modal ────────────────────────────────────────────────────────
 export function AddRecipientModal({ onClose, onAdd }) {
-  const [form, setForm] = useState({ name: '', nickname: '', birthdate: '', relationship: '', email: '', phone: '', conditions: [], allergies: [], medications: [], notes: '' });
+  const [form, setForm] = useState({ name: '', nickname: '', birthdate: '', relationship: '', email: '', phone: '', location: '', conditions: [], allergies: [], medications: [], notes: '' });
   const [error, setError] = useState('');
   function set(f, v) { setForm(p => ({ ...p, [f]: v })); }
   function handleAdd() {
     if (!form.name.trim()) { setError('Name is required.'); return; }
-    onAdd({ id: Date.now(), name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], birthdate: form.birthdate, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), photo: null, conditions: form.conditions, allergies: form.allergies, medications: form.medications, insurancePlans: [], notes: form.notes.trim(), importantNumbers: [] });
+    onAdd({ id: Date.now(), name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], birthdate: form.birthdate, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), location: form.location.trim(), photo: null, conditions: form.conditions, allergies: form.allergies, medications: form.medications, insurancePlans: [], notes: form.notes.trim(), importantNumbers: [] });
     onClose();
   }
   return (
@@ -608,7 +609,7 @@ function EditRecipientModal({ recipient, onClose, onSave }) {
   const photoInputRef = useRef(null);
   const [form, setForm] = useState({
     name: recipient.name, nickname: recipient.nickname, birthdate: recipient.birthdate || '',
-    relationship: recipient.relationship, email: recipient.email, phone: recipient.phone,
+    relationship: recipient.relationship, email: recipient.email, phone: recipient.phone, location: recipient.location || '',
     conditions: [...recipient.conditions],
     allergies: [...(recipient.allergies || [])],
     // Migrate legacy string medications to objects for backward compatibility
@@ -650,7 +651,7 @@ function EditRecipientModal({ recipient, onClose, onSave }) {
 
   function handleSave() {
     if (!form.name.trim()) { setError('Name is required.'); return; }
-    onSave({ ...recipient, name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], birthdate: form.birthdate, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), conditions: form.conditions, allergies: form.allergies, medications: form.medications, notes: form.notes.trim(), photo: form.photo });
+    onSave({ ...recipient, name: form.name.trim(), nickname: form.nickname.trim() || form.name.split(' ')[0], birthdate: form.birthdate, relationship: form.relationship.trim() || 'Family', email: form.email.trim(), phone: form.phone.trim(), location: form.location.trim(), conditions: form.conditions, allergies: form.allergies, medications: form.medications, notes: form.notes.trim(), photo: form.photo });
     onClose();
   }
   return (
