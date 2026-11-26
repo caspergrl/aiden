@@ -317,6 +317,21 @@ exports.askAiden = functions
     const careChanges  = chgSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const logistics    = logSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
+    // Load uploaded document metadata from Storage (non-blocking)
+    let uploadedDocs = [];
+    try {
+      const bucket = admin.storage().bucket();
+      const [files] = await bucket.getFiles({ prefix: `users/${uid}/documents/` });
+      uploadedDocs = files.map(f => ({
+        originalName: f.metadata.metadata?.originalName || f.name.split('/').pop(),
+        recipientId: f.metadata.metadata?.recipientId || null,
+        docType: f.metadata.metadata?.docType || null,
+        timeCreated: f.metadata.timeCreated,
+      }));
+    } catch (e) {
+      console.warn('Could not load Storage documents:', e.message);
+    }
+
     // Insurance plan display names (mirrors src/data.js INSURANCE_INFO)
     const PLAN_NAMES = {
       medicare: 'Medicare (Parts A, B, D)',
@@ -421,6 +436,18 @@ exports.askAiden = functions
             });
           }
 
+          const myDocs = uploadedDocs.filter(d => !d.recipientId || d.recipientId === r.id);
+          if (myDocs.length) {
+            lines.push('Uploaded documents (filename only — content not readable):');
+            myDocs.forEach(d => {
+              const date = d.timeCreated
+                ? new Date(d.timeCreated).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                : '';
+              const type = d.docType ? ` [${d.docType}]` : '';
+              lines.push(`  - ${d.originalName}${type}${date ? ` (uploaded ${date})` : ''}`);
+            });
+          }
+
           return lines.join('\n');
         }).join('\n\n') + (scopedRecipient && recipients.length > 1
           ? '\n\n---\nThe caregiver also cares for: ' + recipients.filter(r => r.id !== scopedRecipientId).map(r => r.nickname || r.name.split(' ')[0]).join(', ') + '. This conversation is specifically about ' + (scopedRecipient.nickname || scopedRecipient.name.split(' ')[0]) + '.'
@@ -473,6 +500,7 @@ For aging adults, this means being familiar with:
 - Never suggest changing, stopping, or adjusting a medication or dosage — that decision belongs to the prescribing provider
 - Never recommend home remedies, supplements, or treatments as a substitute for professional care
 - Always name the right type of specialist for their situation (e.g., "a developmental pediatrician," "a physiatrist," "a pediatric neurologist," "her cardiologist") — not just "see a doctor"
+- Before recommending a specialist type, check the care team above first. If the recipient already has a provider matching that specialty, name them specifically — e.g., "Follow up with Dr. Smith, her cardiologist" rather than "see a cardiologist." Only suggest finding a new provider if no match exists in their care team
 - You are not a doctor. Never give a diagnosis. Always make clear they should bring your analysis to the appropriate provider — but give them something genuinely useful to bring
 
 **Insurance questions**
@@ -498,7 +526,12 @@ For aging adults, this means being familiar with:
 - Keep responses clear and scannable — bullet points and short paragraphs, not walls of text
 - Don't start every response with "I" — vary your openings
 - Never overstate your certainty; use phrases like "this could suggest," "worth asking about," "typically in situations like this"
-- Always name the right professional for the user to follow up with — be specific about the type and why that type fits their situation`;
+- Always name the right professional for the user to follow up with — be specific about the type and why that type fits their situation
+
+**Uploaded documents**
+- If the recipient's profile lists uploaded documents, acknowledge them when contextually relevant — e.g., "You uploaded a discharge summary last month — that likely covers this" or "The medication list you uploaded may be worth reviewing with the pharmacist"
+- You can see filenames and types but not file contents. Never claim to have read a document or describe what it says
+- When a document seems directly relevant, prompt the caregiver to review it themselves or share it with their provider`;
 
     const activeSystemPromptBase = systemPrompt + scopingNote;
 

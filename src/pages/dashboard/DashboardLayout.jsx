@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { collection, doc, getDoc, setDoc, onSnapshot, orderBy, query, limit, serverTimestamp } from 'firebase/firestore';
-import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked, Plus } from 'lucide-react';
+import { collection, doc, getDoc, setDoc, addDoc, deleteDoc, onSnapshot, orderBy, query, limit, serverTimestamp } from 'firebase/firestore';
+import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked, Plus, MoreHorizontal } from 'lucide-react';
 import { auth, db } from '../../firebase';
 import { useAuth } from '../../App';
 import { C } from '../../theme';
@@ -25,6 +25,15 @@ export default function DashboardLayout({ active, children }) {
   const [conversations, setConversations] = useState([]);
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
+  const [menuOpenId, setMenuOpenId] = useState(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (!e.target.closest('[data-conv-menu]')) setMenuOpenId(null);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   async function saveRename(id) {
     const trimmed = renameValue.trim();
@@ -32,6 +41,36 @@ export default function DashboardLayout({ active, children }) {
       setDoc(doc(db, 'users', user.uid, 'conversations', id), { title: trimmed }, { merge: true }).catch(() => {});
     }
     setRenamingId(null);
+  }
+
+  function startRename(id, title) {
+    setMenuOpenId(null);
+    setRenamingId(id);
+    setRenameValue(title);
+  }
+
+  async function deleteConv(id) {
+    setMenuOpenId(null);
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'conversations', id));
+      if (activeConvId === id) navigate('/chat');
+    } catch (e) { console.error(e); }
+  }
+
+  async function duplicateConv(id) {
+    setMenuOpenId(null);
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid, 'conversations', id));
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const newRef = await addDoc(collection(db, 'users', user.uid, 'conversations'), {
+        title: `${(data.title || 'Chat').slice(0, 50)} (copy)`,
+        messages: data.messages || [],
+        updatedAt: serverTimestamp(),
+        ...(data.recipientId ? { recipientId: data.recipientId } : {}),
+      });
+      navigate(`/chat?c=${newRef.id}`);
+    } catch (e) { console.error(e); }
   }
 
   const activeConvId = new URLSearchParams(location.search).get('c');
@@ -131,44 +170,85 @@ export default function DashboardLayout({ active, children }) {
               {conversations.map(c => {
                 const isActive = isChatActive && activeConvId === c.id;
                 const displayTitle = c.title.length > 18 ? c.title.slice(0, 18) + '…' : c.title;
-                return renamingId === c.id ? (
-                  <input
-                    key={c.id}
-                    autoFocus
-                    value={renameValue}
-                    onChange={e => setRenameValue(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') saveRename(c.id);
-                      if (e.key === 'Escape') setRenamingId(null);
-                    }}
-                    onBlur={() => saveRename(c.id)}
-                    style={{
-                      width: '100%', padding: '6px 8px 6px 44px', borderRadius: 6,
-                      border: `1px solid ${C.rose}`, outline: 'none',
-                      fontSize: 13, color: C.text, background: '#fff',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                ) : (
-                  <button
-                    key={c.id}
-                    onClick={() => { navigate(`/chat?c=${c.id}`); setMobileOpen(false); }}
-                    onDoubleClick={() => { setRenamingId(c.id); setRenameValue(c.title); }}
-                    title={c.title.length > 18 ? c.title : undefined}
-                    style={{
-                      width: '100%', display: 'flex', alignItems: 'center',
-                      padding: '7px 16px 7px 44px', borderRadius: 6, border: 'none',
-                      cursor: 'pointer', textAlign: 'left',
-                      background: isActive ? C.roseLight : 'transparent',
-                      color: isActive ? C.roseDark : C.muted,
-                      fontSize: 13, fontWeight: isActive ? 600 : 400,
-                      borderLeft: isActive ? `3px solid ${C.rose}` : '3px solid transparent',
-                      transition: 'all 0.1s',
-                    }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = C.text; }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = C.muted; }}>
-                    {displayTitle}
-                  </button>
+                if (renamingId === c.id) {
+                  return (
+                    <input
+                      key={c.id}
+                      autoFocus
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') saveRename(c.id);
+                        if (e.key === 'Escape') setRenamingId(null);
+                      }}
+                      onBlur={() => saveRename(c.id)}
+                      style={{
+                        width: '100%', padding: '6px 8px 6px 44px', borderRadius: 6,
+                        border: `1px solid ${C.rose}`, outline: 'none',
+                        fontSize: 13, color: C.text, background: '#fff',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  );
+                }
+                return (
+                  <div key={c.id} data-conv-menu="1" style={{ position: 'relative' }} className="conv-row">
+                    <button
+                      onClick={() => { navigate(`/chat?c=${c.id}`); setMobileOpen(false); }}
+                      onDoubleClick={() => startRename(c.id, c.title)}
+                      title={c.title.length > 18 ? c.title : undefined}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center',
+                        padding: '7px 30px 7px 44px', borderRadius: 6, border: 'none',
+                        cursor: 'pointer', textAlign: 'left',
+                        background: isActive ? C.roseLight : 'transparent',
+                        color: isActive ? C.roseDark : C.muted,
+                        fontSize: 13, fontWeight: isActive ? 600 : 400,
+                        borderLeft: isActive ? `3px solid ${C.rose}` : '3px solid transparent',
+                        transition: 'all 0.1s',
+                      }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = C.text; }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = C.muted; }}>
+                      {displayTitle}
+                    </button>
+                    <button
+                      data-conv-menu="1"
+                      onClick={e => { e.stopPropagation(); setMenuOpenId(menuOpenId === c.id ? null : c.id); }}
+                      className="conv-more-btn"
+                      style={{
+                        position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+                        padding: '3px 5px', background: 'none', border: 'none', cursor: 'pointer',
+                        color: menuOpenId === c.id ? C.text : C.mutedLight, borderRadius: 4, lineHeight: 1,
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = C.text}
+                      onMouseLeave={e => { if (menuOpenId !== c.id) e.currentTarget.style.color = C.mutedLight; }}>
+                      <MoreHorizontal size={13} />
+                    </button>
+                    {menuOpenId === c.id && (
+                      <div data-conv-menu="1" style={{
+                        position: 'absolute', left: 44, top: '100%', zIndex: 200,
+                        background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8,
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 148,
+                        overflow: 'hidden', marginTop: 2,
+                      }}>
+                        {[
+                          { label: 'Rename', action: () => startRename(c.id, c.title) },
+                          { label: 'Duplicate', action: () => duplicateConv(c.id) },
+                          { label: 'Delete', action: () => deleteConv(c.id), danger: true },
+                        ].map(item => (
+                          <button key={item.label} onClick={item.action} style={{
+                            width: '100%', padding: '9px 14px', border: 'none', background: '#fff',
+                            fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                            color: item.danger ? '#c0392b' : C.text,
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                          onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -229,6 +309,8 @@ export default function DashboardLayout({ active, children }) {
           .mobile-header { display: flex !important; }
           .main-content { margin-left: 0 !important; padding-top: 56px; }
         }
+        .conv-more-btn { opacity: 0; }
+        .conv-row:hover .conv-more-btn { opacity: 1; }
       `}</style>
     </div>
   );
