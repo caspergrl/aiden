@@ -88,7 +88,7 @@ export default function PlacesInput({ value, onChange, placeholder, style }) {
               onMouseDown={() => select(s)}
               style={{
                 width: '100%', padding: '10px 14px', background: 'none', border: 'none',
-                borderBottom: i < suggestions.length - 1 ? `1px solid ${C.border}` : 'none',
+                borderBottom: 'none',
                 cursor: 'pointer', textAlign: 'left', fontSize: 13, color: C.text,
                 fontFamily: sans, display: 'flex', alignItems: 'center', gap: 8,
               }}

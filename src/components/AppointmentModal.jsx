@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, Pencil, Trash2, Check, MapPin, Clock, Tag, Share2, Copy, Mail, MessageSquare, Car } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { X, Pencil, Trash2, Check, MapPin, Clock, Tag, Share2, Copy, Mail, MessageSquare, Car, Send } from 'lucide-react';
 import { Dialog } from '@base-ui-components/react/dialog';
 import { C, serif, sans } from '../theme';
 import PlacesInput from './PlacesInput';
@@ -57,6 +58,10 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onAdd, on
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [copied, setCopied]       = useState(false);
+  const [shareEmail, setShareEmail] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   // Edit buffer
   const [title, setTitle]     = useState(appt?.title || '');
@@ -93,6 +98,26 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onAdd, on
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  async function handleSendEmail() {
+    if (!shareEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shareEmail)) {
+      setEmailError('Enter a valid email address');
+      return;
+    }
+    setEmailSending(true);
+    setEmailError('');
+    try {
+      const fn = httpsCallable(getFunctions(), 'sendEventEmail');
+      await fn({ to: shareEmail, subject: appt.title, bodyText: buildShareText() });
+      setEmailSent(true);
+      setShareEmail('');
+      setTimeout(() => setEmailSent(false), 3000);
+    } catch (e) {
+      setEmailError('Failed to send. Try again.');
+    } finally {
+      setEmailSending(false);
+    }
   }
 
   function handleSave() {
@@ -132,7 +157,7 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onAdd, on
       <div style={{ background: '#fff', borderRadius: 22, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, fontFamily: serif, color: C.text, margin: 0 }}>
             {isNew ? 'New Appointment' : mode === 'edit' ? 'Edit Appointment' : 'Appointment'}
           </h2>
@@ -147,7 +172,7 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onAdd, on
               {/* Title + recipient */}
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 18, fontWeight: 700, fontFamily: serif, color: C.text, marginBottom: 4 }}>{appt.title}</p>
+                  <p style={{ fontSize: 22, fontWeight: 700, fontFamily: serif, color: C.text, marginBottom: 6 }}>{appt.title}</p>
                   {r && <span style={{ background: col+'18', color: col, borderRadius: 10, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>{r.nickname || r.name.split(' ')[0]}</span>}
                 </div>
               </div>
@@ -197,7 +222,7 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onAdd, on
             </div>
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: 10, padding: '16px 24px', borderTop: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', gap: 10, padding: '16px 24px' }}>
               <button onClick={() => setMode('edit')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: C.roseLight, color: C.roseDark, border: 'none', borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 700, fontFamily: sans, cursor: 'pointer' }}>
                 <Pencil size={14} /> Edit
               </button>
@@ -222,27 +247,40 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onAdd, on
 
             {/* Share panel */}
             {showShare && (
-              <div style={{ padding: '16px 24px 20px', background: '#f7f5f2', borderTop: `1px solid ${C.border}` }}>
+              <div style={{ padding: '16px 24px 20px', background: '#f7f5f2' }}>
                 <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', fontFamily: sans, marginBottom: 12 }}>Share event details</p>
-                <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 14px', marginBottom: 12, fontFamily: sans, fontSize: 13, color: C.text, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
+                <div style={{ background: '#fff', borderRadius: 12, padding: '12px 14px', marginBottom: 12, fontFamily: sans, fontSize: 13, color: C.text, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
                   {buildShareText()}
                 </div>
+                {/* Email input row */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <input
+                    type="email"
+                    placeholder="Recipient email address"
+                    value={shareEmail}
+                    onChange={e => { setShareEmail(e.target.value); setEmailError(''); setEmailSent(false); }}
+                    onKeyDown={e => e.key === 'Enter' && handleSendEmail()}
+                    style={{ flex: 1, background: '#fff', border: `1px solid ${emailError ? C.rose : C.border}`, borderRadius: 10, padding: '10px 14px', fontSize: 13, fontFamily: sans, color: C.text, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <button onClick={handleSendEmail} disabled={emailSending || emailSent}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: emailSent ? '#eef6f1' : '#eef3fb', borderRadius: 10, border: 'none', cursor: emailSending || emailSent ? 'default' : 'pointer', fontFamily: sans, fontSize: 13, fontWeight: 700, color: emailSent ? '#3a6e58' : C.primaryDark, whiteSpace: 'nowrap' }}>
+                    {emailSent ? <><Check size={14} /> Sent!</> : emailSending ? 'Sending…' : <><Send size={14} /> Send</>}
+                  </button>
+                </div>
+                {emailError && <p style={{ fontSize: 12, color: C.rose, fontFamily: sans, marginBottom: 8 }}>{emailError}</p>}
+                {/* Copy + Text row */}
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <a href={`mailto:?subject=${encodeURIComponent(appt.title)}&body=${encodeURIComponent(buildShareText())}`}
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: '#eef3fb', borderRadius: 12, textDecoration: 'none', color: C.primaryDark, fontFamily: sans, fontSize: 13, fontWeight: 700 }}>
-                    <Mail size={14} /> Email
-                  </a>
+                  <button onClick={handleCopy}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '10px 0', background: copied ? '#eef6f1' : '#fff', border: `1px solid ${C.border}`, borderRadius: 10, cursor: 'pointer', fontFamily: sans, fontSize: 13, fontWeight: 700, color: copied ? '#3a6e58' : C.muted }}>
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    {copied ? 'Copied!' : 'Copy text'}
+                  </button>
                   {isMobile && (
                     <a href={`sms:?&body=${encodeURIComponent(buildShareText())}`}
-                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: '#eef6f1', borderRadius: 12, textDecoration: 'none', color: '#3a6e58', fontFamily: sans, fontSize: 13, fontWeight: 700 }}>
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '10px 0', background: '#eef6f1', borderRadius: 10, textDecoration: 'none', color: '#3a6e58', fontFamily: sans, fontSize: 13, fontWeight: 700 }}>
                       <MessageSquare size={14} /> Text
                     </a>
                   )}
-                  <button onClick={handleCopy}
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '11px 0', background: copied ? '#eef6f1' : '#fff', border: `1px solid ${C.border}`, borderRadius: 12, cursor: 'pointer', fontFamily: sans, fontSize: 13, fontWeight: 700, color: copied ? '#3a6e58' : C.muted }}>
-                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
                 </div>
               </div>
             )}
@@ -349,7 +387,7 @@ export default function AppointmentModal({ appt, recipients, onUpdate, onAdd, on
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, padding: '16px 24px', borderTop: `1px solid ${C.border}`, position: 'sticky', bottom: 0, background: '#fff' }}>
+            <div style={{ display: 'flex', gap: 10, padding: '16px 24px', position: 'sticky', bottom: 0, background: '#fff' }}>
               <button onClick={() => isNew ? onClose() : setMode('view')} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 12, padding: '13px 0', fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: 'pointer' }}>
                 Cancel
               </button>

@@ -67,7 +67,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
 
       {/* Alert */}
       {pending > 0 && (
-        <button onClick={() => onNavigate('todo')} style={{ width: '100%', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 28, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer', textAlign: 'left', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+        <button onClick={() => onNavigate('todo')} style={{ width: '100%', background: '#fff', borderRadius: 12, padding: '14px 18px', marginBottom: 28, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer', textAlign: 'left', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: 'none' }}>
           <AlertCircle size={18} color={C.coral} style={{ flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: '#7a3a34' }}>{pending} logistics items need your attention</p>
@@ -78,10 +78,10 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
       )}
 
       {/* Care recipients */}
-      <div style={{ background: '#fff', borderRadius: radius.lg, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
-          <div style={{ padding: '20px 24px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ background: '#fff', borderRadius: radius.lg, overflow: 'hidden' }}>
+          <div style={{ padding: '20px 24px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontSize: 15, fontWeight: 600, color: C.text }}>People I'm Caring For</p>
-            <button onClick={() => setShowAddRecipient(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#f7f7f7', border: `1px solid ${C.border}`, borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 500, color: C.muted, cursor: 'pointer' }}>
+            <button onClick={() => setShowAddRecipient(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#f0ece8', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 500, color: C.muted, cursor: 'pointer' }}>
               <Plus size={12} /> Add
             </button>
           </div>
@@ -96,15 +96,15 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
                 .slice(0, 3);
               const medCount = (r.medications || []).length;
               return (
-                <div key={r.id} style={{ display: 'flex', flexDirection: 'column', background: '#fff', border: `1px solid ${C.border}`, borderRadius: radius.lg, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <div key={r.id} style={{ display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: radius.lg, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                   {/* Header */}
                   <button onClick={() => onNavigate('care', r.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 20px 18px', background: col + '10', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: `1px solid ${C.border}` }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 20px 18px', background: col + '10', border: 'none', cursor: 'pointer', textAlign: 'left' }}
                     onMouseEnter={e => e.currentTarget.style.background = col + '1e'}
                     onMouseLeave={e => e.currentTarget.style.background = col + '10'}>
                     {r.photo
-                      ? <div style={{ width: 54, height: 54, borderRadius: 12, overflow: 'hidden', flexShrink: 0 }}><img src={r.photo} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
-                      : <div style={{ width: 54, height: 54, borderRadius: 12, background: col, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 800, flexShrink: 0 }}>{initials(r.name)}</div>
+                      ? <div style={{ width: 65, height: 65, borderRadius: 14, overflow: 'hidden', flexShrink: 0 }}><img src={r.photo} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+                      : <div style={{ width: 65, height: 65, borderRadius: 14, background: col, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 800, flexShrink: 0 }}>{initials(r.name)}</div>
                     }
                     <div style={{ minWidth: 0 }}>
                       <p style={{ fontSize: 16, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nickname || r.name.split(' ')[0]}</p>
@@ -162,7 +162,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
                   </div>
 
                   {/* Footer */}
-                  <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 20px' }}>
+                  <div style={{ padding: '12px 20px' }}>
                     <button onClick={() => onNavigate('care', r.id)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 13, fontWeight: 600, color: C.muted }}>
                       <Pencil size={12} /> Edit details
                     </button>

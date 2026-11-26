@@ -392,7 +392,7 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 0px)', maxHeight: '100vh' }}>
       {/* Header */}
-      <div style={{ background: '#fff', padding: '16px 32px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+      <div style={{ background: '#fff', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
         <div style={{ width: 40, height: 40, background: C.roseLight, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Heart size={18} color={C.roseDark} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h2 style={{ fontFamily: serif, fontSize: 18, fontWeight: 600, color: C.text }}>Ask Aiden</h2>
@@ -407,7 +407,7 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
           />
         )}
         {onNewChat && (
-          <button onClick={onNewChat} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f7f7f7', border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 500, color: C.muted, cursor: 'pointer' }}>
+          <button onClick={onNewChat} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f0ece8', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 500, color: C.muted, cursor: 'pointer' }}>
             <Plus size={13} /> New chat
           </button>
         )}
@@ -421,7 +421,7 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
             {m.role === 'assistant' && (
               <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #c8d5e4, #d8cad4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, alignSelf: 'flex-start', marginTop: 4 }}><Heart size={14} color={C.roseDark} /></div>
             )}
-            <div style={{ maxWidth: '68%', background: m.role === 'user' ? C.roseDark : '#fff', color: m.role === 'user' ? '#fff' : C.text, borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '12px 16px', border: m.role === 'assistant' ? `1px solid ${C.border}` : 'none', boxShadow: '0 2px 8px rgba(80,60,40,0.06)' }}>
+            <div style={{ maxWidth: '68%', background: m.role === 'user' ? C.roseDark : '#fff', color: m.role === 'user' ? '#fff' : C.text, borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '12px 16px', border: 'none', boxShadow: '0 2px 8px rgba(80,60,40,0.06)' }}>
               {m.role === 'assistant' ? renderMarkdown(m.text) : <span style={{ fontSize: 14, lineHeight: 1.75 }}>{m.text}</span>}
               {m.role === 'assistant' && i > 0 && (
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
@@ -473,7 +473,7 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
         {waiting && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
             <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #c8d5e4, #d8cad4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Heart size={14} color={C.roseDark} /></div>
-            <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: '18px 18px 18px 4px', padding: '13px 18px', display: 'flex', gap: 5 }}>
+            <div style={{ background: '#f0ece8', borderRadius: '18px 18px 18px 4px', padding: '13px 18px', display: 'flex', gap: 5 }}>
               {[0, 1, 2].map(j => <div key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: C.mutedLight, animation: 'pulse 1.2s infinite', animationDelay: `${j * 0.2}s` }} />)}
             </div>
           </div>
@@ -498,9 +498,7 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
           <p style={{ fontSize: 13, fontWeight: 500, color: C.muted, marginBottom: 10 }}>Suggested questions</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {SUGGESTIONS.map((s, i) => (
-              <button key={i} onClick={() => send(s)} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: C.text, cursor: 'pointer', fontWeight: 500 }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = C.rose}
-                onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
+              <button key={i} onClick={() => send(s)} style={{ background: '#f0ece8', border: 'none', borderRadius: 20, padding: '8px 16px', fontSize: 13, color: C.text, cursor: 'pointer', fontWeight: 500 }}>
                 {s}
               </button>
             ))}
@@ -510,8 +508,8 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
 
       {/* Attachment chip */}
       {attachment && (
-        <div style={{ padding: '8px 32px 0', background: '#fff', borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px 5px 8px', background: '#f3f4f6', border: `1px solid ${C.border}`, borderRadius: 20, fontSize: 13, color: C.text, maxWidth: '100%' }}>
+        <div style={{ padding: '8px 32px 0', background: '#fff', display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px 5px 8px', background: '#f3f4f6', borderRadius: 20, fontSize: 13, color: C.text, maxWidth: '100%' }}>
             <Paperclip size={12} color={C.muted} style={{ flexShrink: 0 }} />
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{attachment.name}</span>
             <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 0 2px', color: C.muted, display: 'flex', alignItems: 'center', flexShrink: 0 }}><X size={13} /></button>
@@ -520,15 +518,13 @@ export default function Chat({ conversationId: propConvId, onNewChat, services }
       )}
 
       {/* Input */}
-      <div style={{ padding: '12px 32px 24px', background: '#fff', borderTop: attachment ? 'none' : `1px solid ${C.border}`, display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+      <div style={{ padding: '12px 32px 24px', display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
         <input ref={fileInputRef} type="file" accept=".pdf,.csv,.txt,image/png,image/jpeg" onChange={handleFileSelect} style={{ display: 'none' }} />
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={!!pendingAction || uploading}
           title="Attach file (PDF, CSV, TXT, PNG)"
-          style={{ width: 36, height: 36, background: 'none', border: `1px solid ${C.border}`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: pendingAction || uploading ? 'default' : 'pointer', color: attachment ? C.rose : C.muted, flexShrink: 0, opacity: pendingAction ? 0.4 : 1, transition: 'color 0.15s' }}
-          onMouseEnter={e => { if (!pendingAction) e.currentTarget.style.borderColor = C.rose; }}
-          onMouseLeave={e => { if (!pendingAction) e.currentTarget.style.borderColor = C.border; }}>
+          style={{ width: 36, height: 36, background: 'none', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: pendingAction || uploading ? 'default' : 'pointer', color: attachment ? C.rose : C.muted, flexShrink: 0, opacity: pendingAction ? 0.4 : 1, transition: 'color 0.15s' }}>
           <Paperclip size={15} />
         </button>
         <input

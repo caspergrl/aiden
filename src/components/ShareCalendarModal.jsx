@@ -214,7 +214,7 @@ export default function ShareCalendarModal({ appointments, recipients, onClose }
       <div style={{ background: '#fff', borderRadius: 22, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: C.roseLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Share2 size={16} color={C.roseDark} />
@@ -311,7 +311,7 @@ export default function ShareCalendarModal({ appointments, recipients, onClose }
         </div>
 
         {/* Footer */}
-        <div style={{ display: 'flex', gap: 10, padding: '16px 24px', borderTop: `1px solid ${C.border}`, position: 'sticky', bottom: 0, background: '#fff' }}>
+        <div style={{ display: 'flex', gap: 10, padding: '16px 24px', position: 'sticky', bottom: 0, background: '#fff' }}>
           <button onClick={onClose}
             style={{ flex: 1, background: '#f0ece8', color: C.muted, border: 'none', borderRadius: 12, padding: '13px 0', fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: 'pointer' }}>
             Cancel

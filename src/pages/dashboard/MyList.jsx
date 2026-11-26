@@ -312,7 +312,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, background: '#f7f7f7', borderRadius: 10, padding: 4, marginBottom: 28, width: 'fit-content', border: `1px solid ${C.border}` }}>
+      <div style={{ display: 'flex', gap: 4, background: '#f7f7f7', borderRadius: 10, padding: 4, marginBottom: 28, width: 'fit-content' }}>
         {[['logistics', 'Checklist'], ['doctors', 'Doctors'], ['documents', 'Documents']].map(([id, label]) => (
           <button key={id} onClick={() => { setSub(id); setFilterRecipId(null); }}
             style={{ padding: '8px 20px', borderRadius: 7, border: 'none', fontSize: 13, fontWeight: sub === id ? 600 : 400, color: sub === id ? C.text : C.muted, background: sub === id ? '#fff' : 'transparent', cursor: 'pointer', transition: 'all 0.15s', boxShadow: sub === id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
@@ -328,7 +328,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
           <div style={{ background: '#fff', borderRadius: radius.md, padding: '16px 20px', marginBottom: 20, boxShadow: shadowXs, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <p style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>{allComplete.length} of {logistics.length} completed</p>
-              <div style={{ width: 240, height: 8, background: C.bgWarm, borderRadius: 4, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+              <div style={{ width: 240, height: 8, background: C.bgWarm, borderRadius: 4, overflow: 'hidden' }}>
                 <div style={{ width: `${pct}%`, height: '100%', background: pct >= 75 ? C.sage : pct >= 40 ? C.peach : C.rose, borderRadius: 4, transition: 'width 0.4s' }} />
               </div>
             </div>
@@ -353,7 +353,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                 <div key={item.id} data-drag-item draggable={!isEditing}
                   onDragStart={e => !isEditing && onDragStart(e, item.id)} onDragOver={e => onDragOver(e, item.id)}
                   onDrop={e => onDrop(e, item.id)} onDragEnd={onDragEnd}
-                  style={{ background: '#fff', borderRadius: 14, padding: '14px 18px', border: isEditing ? `2px solid ${C.roseDark}` : `1px solid ${C.border}`, borderTop: !isEditing && dragOverId === item.id ? `2px solid ${C.roseDark}` : undefined, display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'default', transition: 'border-color 0.12s' }}>
+                  style={{ background: '#fff', borderRadius: 14, padding: '14px 18px', border: isEditing ? `2px solid ${C.roseDark}` : 'none', borderTop: !isEditing && dragOverId === item.id ? `2px solid ${C.roseDark}` : undefined, display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'default', transition: 'border-color 0.12s' }}>
                   {!isEditing && (
                     <div style={{ flexShrink: 0, marginTop: 2, cursor: 'grab', color: C.border, padding: '0 2px' }}>
                       <GripVertical size={16} />
@@ -385,7 +385,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                       )}
                       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                         <button onClick={() => saveEdit(item.id)} style={{ background: C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '7px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Save</button>
-                        <button onClick={cancelEdit} style={{ background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+                        <button onClick={cancelEdit} style={{ background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 10, padding: '7px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
                       </div>
                     </div>
                   ) : (
@@ -419,7 +419,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                   )}
                   <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
                     <button onClick={addItem} style={{ background: C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: '8px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Add</button>
-                    <button onClick={() => { setAdding(false); setNewItem(''); setNewItemRecipId(null); }} style={{ background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+                    <button onClick={() => { setAdding(false); setNewItem(''); setNewItemRecipId(null); }} style={{ background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 10, padding: '8px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
                   </div>
                 </div>
               </div>
@@ -446,14 +446,14 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                     const isMe = item.recipientId === 'me';
                     const recip = item.recipientId && !isMe ? recipients.find(r => r.id === item.recipientId) : null;
                     return (
-                      <div key={item.id} style={{ background: isRestoring ? '#f9f6f3' : '#fafafa', borderRadius: 14, padding: '12px 18px', border: `1px solid ${C.border}`, opacity: 0.85 }}>
+                      <div key={item.id} style={{ background: isRestoring ? '#f9f6f3' : '#fafafa', borderRadius: 14, padding: '12px 18px', opacity: 0.85 }}>
                         {isRestoring ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                             <RotateCcw size={16} color={C.roseDark} style={{ flexShrink: 0 }} />
                             <span style={{ fontSize: 13, fontWeight: 600, color: C.text, flex: 1 }}>Restore <strong>{item.title}</strong> to your checklist?</span>
                             <div style={{ display: 'flex', gap: 8 }}>
                               <button onClick={() => confirmRestore(item.id)} style={{ background: C.roseDark, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Restore</button>
-                              <button onClick={() => setRestoreId(null)} style={{ background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Keep done</button>
+                              <button onClick={() => setRestoreId(null)} style={{ background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Keep done</button>
                             </div>
                           </div>
                         ) : (
@@ -500,7 +500,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
               const col = rColor(d.recipientId);
               const recip = d.recipientId ? recipients.find(r => r.id === d.recipientId) : null;
               return (
-                <div key={d.id} style={{ background: '#fff', borderRadius: 16, padding: '16px 20px', border: `1px solid ${C.border}`, borderLeft: `4px solid ${col}` }}>
+                <div key={d.id} style={{ background: '#fff', borderRadius: 16, padding: '16px 20px', borderLeft: `4px solid ${col}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
@@ -590,7 +590,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                 )}
 
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={closeDoctorModal} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={closeDoctorModal} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 12, padding: '11px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
                   <button onClick={saveDoctorModal} disabled={!doctorBuf.name.trim()} style={{ flex: 2, background: doctorBuf.name.trim() ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 12, padding: '11px 0', fontWeight: 700, fontSize: 14, cursor: doctorBuf.name.trim() ? 'pointer' : 'default', transition: 'background 0.2s' }}>
                     {doctorModal === 'add' ? 'Add doctor' : 'Save changes'}
                   </button>
@@ -668,7 +668,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                 const isDel = deletingDoc === doc.fullPath;
                 const recip = doc.recipientId ? recipients.find(r => r.id === doc.recipientId) : null;
                 return (
-                  <div key={doc.fullPath} style={{ background: '#fff', borderRadius: 14, padding: '14px 18px', border: `1px solid ${C.border}` }}>
+                  <div key={doc.fullPath} style={{ background: '#fff', borderRadius: 14, padding: '14px 18px' }}>
                     {isDel ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         <Trash2 size={15} color={C.coral} style={{ flexShrink: 0 }} />
@@ -679,7 +679,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                           <button onClick={() => handleDelete(doc)}
                             style={{ background: C.coral, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Delete</button>
                           <button onClick={() => setDeletingDoc(null)}
-                            style={{ background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+                            style={{ background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
                         </div>
                       </div>
                     ) : (
@@ -706,9 +706,9 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
                             <Download size={15} color={C.primaryDark} />
                           </button>
                           <button onClick={() => setDeletingDoc(doc.fullPath)} title="Delete"
-                            style={{ width: 36, height: 36, background: 'none', border: `1px solid ${C.border}`, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.muted }}
-                            onMouseEnter={e => { e.currentTarget.style.background = '#fdf0f0'; e.currentTarget.style.color = C.coral; e.currentTarget.style.borderColor = C.coral + '60'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = C.muted; e.currentTarget.style.borderColor = C.border; }}>
+                            style={{ width: 36, height: 36, background: 'none', border: 'none', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.muted }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#fdf0f0'; e.currentTarget.style.color = C.coral; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = C.muted; }}>
                             <Trash2 size={15} />
                           </button>
                         </div>

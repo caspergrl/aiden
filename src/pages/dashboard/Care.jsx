@@ -89,7 +89,7 @@ function ResourceLinkModal({ initial, onClose, onSave }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onClose} style={{ flex: 1, background: C.bgWarm || '#f7f5f2', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onClose} style={{ flex: 1, background: C.bgWarm || '#f7f5f2', color: C.muted, border: 'none', borderRadius: 12, padding: '11px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
           <button onClick={() => { if (!form.title.trim() || !form.url.trim()) return; onSave({ ...form, url: normalizeUrl(form.url) }); onClose(); }} disabled={!form.title.trim() || !form.url.trim()} style={{ flex: 2, background: form.title.trim() && form.url.trim() ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 12, padding: '11px 0', fontWeight: 700, fontSize: 14, cursor: form.title.trim() && form.url.trim() ? 'pointer' : 'default' }}>
             {initial ? 'Save changes' : 'Add link'}
           </button>
@@ -188,7 +188,7 @@ function SectionLabel({ children }) {
   return <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: 10 }}>{children}</p>;
 }
 function Card({ children, style }) {
-  return <div style={{ background: '#fff', borderRadius: radius.lg, border: `1px solid ${C.border}`, padding: 20, marginBottom: 14, ...style }}>{children}</div>;
+  return <div style={{ background: '#fff', borderRadius: radius.lg, padding: 20, marginBottom: 14, ...style }}>{children}</div>;
 }
 function ModalWrap({ onClose, children, maxWidth = 480, dismissable = true }) {
   return (
@@ -216,7 +216,7 @@ function ModalActions({ onConfirm, confirmLabel, onClose, danger }) {
   return (
     <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
       <button onClick={onConfirm} style={{ flex: 1, background: danger ? C.coral : C.roseDark, color: '#fff', border: 'none', borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{confirmLabel}</button>
-      <button onClick={onClose} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+      <button onClick={onClose} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
     </div>
   );
 }
@@ -271,7 +271,7 @@ function ConditionsPicker({ selected, onChange }) {
           ))}
           {canAdd && (
             <button onMouseDown={e => { e.preventDefault(); addCustom(); }}
-              style={{ width: '100%', background: 'none', border: 'none', borderTop: filtered.length ? `1px solid ${C.border}` : 'none', padding: '10px 14px', textAlign: 'left', fontSize: 14, color: C.roseDark, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              style={{ width: '100%', background: 'none', border: 'none', padding: '10px 14px', textAlign: 'left', fontSize: 14, color: C.roseDark, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               onMouseEnter={e => e.currentTarget.style.background = C.roseLight} onMouseLeave={e => e.currentTarget.style.background = 'none'}>
               <Plus size={14} /> Add "{trimmed}"
             </button>
@@ -307,7 +307,7 @@ function AllergiesPicker({ selected, onChange }) {
         <input value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
           placeholder="e.g. Penicillin, Peanuts, Latex…" style={{ ...inp, flex: 1 }} />
-        <button onClick={add} style={{ background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '0 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        <button onClick={add} style={{ background: C.bgWarm, border: 'none', borderRadius: 10, padding: '0 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
           + Add
         </button>
       </div>
@@ -402,7 +402,7 @@ function MedNameInput({ value, onChange, customMeds, onAddCustomMed }) {
           )}
           {rxResults.length > 0 && (
             <>
-              <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, padding: '8px 14px 4px', borderTop: localHits.length ? `1px solid ${C.border}` : 'none' }}>From RxNorm database</p>
+              <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, padding: '8px 14px 4px' }}>From RxNorm database</p>
               {rxResults.map(m => (
                 <button key={m} onMouseDown={e => { e.preventDefault(); pick(m); }}
                   style={{ width: '100%', background: 'none', border: 'none', padding: '9px 14px', textAlign: 'left', fontSize: 13, color: C.text, cursor: 'pointer' }}
@@ -415,7 +415,7 @@ function MedNameInput({ value, onChange, customMeds, onAddCustomMed }) {
           )}
           {isCustom && (
             <button onMouseDown={e => { e.preventDefault(); addCustom(); }}
-              style={{ width: '100%', background: 'none', border: 'none', borderTop: (localHits.length || rxResults.length) ? `1px solid ${C.border}` : 'none', padding: '9px 14px', textAlign: 'left', fontSize: 13, color: C.roseDark, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              style={{ width: '100%', background: 'none', border: 'none', padding: '9px 14px', textAlign: 'left', fontSize: 13, color: C.roseDark, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               onMouseEnter={e => e.currentTarget.style.background = C.roseLight}
               onMouseLeave={e => e.currentTarget.style.background = 'none'}>
               <Plus size={13} /> Add "{trimmed}" as custom medication
@@ -546,7 +546,7 @@ function MedicationBuilder({ value, onChange }) {
             <button onClick={saveMed} disabled={!draft.name.trim()} style={{ flex: 1, background: draft.name.trim() ? C.roseDark : C.border, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 700, cursor: draft.name.trim() ? 'pointer' : 'default' }}>
               {editingIdx !== null ? 'Save changes' : 'Add medication'}
             </button>
-            <button onClick={cancelForm} style={{ flex: 1, background: '#fff', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={cancelForm} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       ) : (
@@ -860,7 +860,7 @@ function MedicationsDiffModal({ diff, r, onClose, onEdit }) {
             {totalChanges > 0 ? `Apply ${totalChanges} change${totalChanges !== 1 ? 's' : ''}` : 'No changes selected'}
           </button>
         )}
-        <button onClick={onClose} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+        <button onClick={onClose} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
           {noDiff ? 'Close' : 'Cancel'}
         </button>
       </div>
@@ -948,12 +948,12 @@ function ManageInsuranceModal({ recipient, onClose, onSave }) {
       </div>
 
       {/* Custom plans */}
-      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 18 }}>
+      <div style={{ paddingTop: 18 }}>
         <p style={{ fontSize: 13, fontWeight: 500, color: C.muted, marginBottom: 12 }}>Custom plans</p>
         {customPlans.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             {customPlans.map(name => (
-              <span key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: C.text }}>
+              <span key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgWarm, borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: C.text }}>
                 {name}
                 <button onClick={() => removeCustom(name)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: C.muted }}>
                   <X size={13} />
@@ -1093,9 +1093,9 @@ function AddPhoneModal({ onClose, onAdd }) {
 function DelBtn({ onClick }) {
   return (
     <button onClick={onClick}
-      style={{ flexShrink: 0, width: 30, height: 30, borderRadius: '50%', background: 'none', border: `1px solid ${C.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, transition: 'all 0.15s' }}
-      onMouseEnter={e => { e.currentTarget.style.background = '#fdf0f0'; e.currentTarget.style.borderColor = C.coral; e.currentTarget.style.color = C.coral; }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+      style={{ flexShrink: 0, width: 30, height: 30, borderRadius: '50%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, transition: 'all 0.15s' }}
+      onMouseEnter={e => { e.currentTarget.style.background = '#fdf0f0'; e.currentTarget.style.color = C.coral; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = C.muted; }}>
       <Trash2 size={13} />
     </button>
   );
@@ -1141,7 +1141,7 @@ function CareTimelineModal({ changes, recipient, onClose }) {
         <div id="aiden-timeline-sheet" onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 680, maxHeight: 'min(85vh, 820px)', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(44,32,24,0.18)', overflow: 'hidden' }}>
 
           {/* Header */}
-          <div style={{ padding: '24px 32px 20px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <div style={{ padding: '24px 32px 20px', flexShrink: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
               <div>
                 <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: 4 }}>Care timeline</p>
@@ -1181,11 +1181,11 @@ function CareTimelineModal({ changes, recipient, onClose }) {
           </div>
 
           {/* Actions */}
-          <div id="aiden-timeline-actions" style={{ padding: '16px 32px 24px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
-            <button onClick={onClose} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 20px', fontSize: 14, color: C.muted, cursor: 'pointer', fontWeight: 500 }}>
+          <div id="aiden-timeline-actions" style={{ padding: '16px 32px 24px', display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
+            <button onClick={onClose} style={{ background: C.bgWarm, border: 'none', borderRadius: 12, padding: '10px 20px', fontSize: 14, color: C.muted, cursor: 'pointer', fontWeight: 500 }}>
               Close
             </button>
-            <button onClick={() => handlePrint(false)} style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 20px', fontSize: 14, color: C.text, cursor: 'pointer', fontWeight: 600 }}>
+            <button onClick={() => handlePrint(false)} style={{ display: 'flex', alignItems: 'center', gap: 7, background: C.bgWarm, border: 'none', borderRadius: 12, padding: '10px 20px', fontSize: 14, color: C.text, cursor: 'pointer', fontWeight: 600 }}>
               Print
             </button>
             <button onClick={() => handlePrint(true)} style={{ display: 'flex', alignItems: 'center', gap: 7, background: C.roseDark, border: 'none', borderRadius: 12, padding: '10px 20px', fontSize: 14, color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
@@ -1302,12 +1302,12 @@ function AddChangeModal({ recipient, recipientId, onClose, onAdd }) {
           </div>
         ) : guidanceText && (
           <div style={{ animation: 'aidenFade 0.35s ease' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, paddingBottom: 16 }}>
               <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #dde8f6, #f0dde6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Heart size={16} color={C.roseDark} /></div>
               <p style={{ fontFamily: serif, fontSize: 15, color: C.text, lineHeight: 1.4 }}>Guidance for {recipient?.nickname || recipient?.name?.split(' ')[0] || 'your care recipient'}</p>
             </div>
             <div style={{ fontSize: 13, color: C.text, lineHeight: 1.85, whiteSpace: 'pre-wrap', marginBottom: 20 }}>{guidanceText}</div>
-            <button onClick={onClose} style={{ width: '100%', background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>Done</button>
+            <button onClick={onClose} style={{ width: '100%', background: C.bgWarm, border: 'none', borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>Done</button>
           </div>
         )}
       </ModalWrap>
@@ -1564,7 +1564,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
               {r.conditions.length === 0
                 ? <p style={{ fontSize: 13, color: C.mutedLight }}>None recorded</p>
                 : r.conditions.map((c, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: i < r.conditions.length - 1 ? `1px solid ${C.bgWarm}` : 'none' }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: col, flexShrink: 0 }} />
                     <span style={{ fontSize: 14, color: C.text }}>{c}</span>
                   </div>
@@ -1575,7 +1575,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
               {(r.allergies || []).length === 0
                 ? <p style={{ fontSize: 13, color: C.mutedLight }}>None recorded</p>
                 : (r.allergies || []).map((a, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: i < r.allergies.length - 1 ? `1px solid ${C.bgWarm}` : 'none' }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#e0883a', flexShrink: 0 }} />
                     <span style={{ fontSize: 14, color: C.text }}>{a}</span>
                   </div>
@@ -1591,11 +1591,11 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 {pdfError && <span style={{ fontSize: 11, color: C.coral }}>{pdfError}</span>}
                 {shareMsg && <span style={{ fontSize: 11, color: C.primary }}>{shareMsg}</span>}
                 <button onClick={() => { setPdfError(''); pdfInputRef.current?.click(); }} disabled={pdfImporting}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 600, color: C.muted, cursor: pdfImporting ? 'default' : 'pointer' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.bgWarm, border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 600, color: C.muted, cursor: pdfImporting ? 'default' : 'pointer' }}>
                   <Upload size={11} />{pdfImporting ? 'Parsing…' : 'Import medications list'}
                 </button>
                 <button onClick={handleShareMeds}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.bgWarm, border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
                   <Link2 size={11} />Share list
                 </button>
               </div>
@@ -1608,7 +1608,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 const frequency = typeof m === 'string' ? '' : m.frequency;
                 const instructions = typeof m === 'string' ? '' : m.instructions;
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0', borderBottom: i < r.medications.length - 1 ? `1px solid ${C.bgWarm}` : 'none' }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0' }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.peach, flexShrink: 0, marginTop: 6 }} />
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{name}</span>
@@ -1640,7 +1640,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 const info = INSURANCE_INFO[key];
                 const isLast = idx === r.insurancePlans.length - 1;
                 return info ? (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: !isLast ? `1px solid ${C.bgWarm}` : 'none' }}>
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0' }}>
                     <Shield size={18} color={info.color} />
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{info.name}</p>
@@ -1649,7 +1649,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                     <span style={{ background: info.color + '18', color: info.color, borderRadius: 10, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>{info.shortName}</span>
                   </div>
                 ) : (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: !isLast ? `1px solid ${C.bgWarm}` : 'none' }}>
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0' }}>
                     <Shield size={18} color={C.muted} />
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{key}</p>
@@ -1675,7 +1675,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
             {myDoctors.length === 0
               ? <p style={{ fontSize: 13, color: C.mutedLight }}>No care team members yet — click Add member.</p>
               : myDoctors.map((d, i) => (
-                <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < myDoctors.length - 1 ? `1px solid ${C.bgWarm}` : 'none', gap: 10 }}>
+                <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', gap: 10 }}>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{d.name}</p>
                     <p style={{ fontSize: 12, color: col, fontWeight: 600 }}>{d.specialty}</p>
@@ -1709,7 +1709,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
               ? <p style={{ fontSize: 13, color: C.mutedLight }}>No appointments yet — click Add appointment.</p>
               : null}
             {visibleUpcoming.map((a, i) => (
-              <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: i < visibleUpcoming.length - 1 || previousAppts.length > 0 ? `1px solid ${C.border}` : 'none' }}>
+              <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0' }}>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{a.title}</p>
                   <p style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{a.date}{a.time ? ` · ${a.time}` : ''}</p>
@@ -1725,9 +1725,9 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                   <button onClick={() => setEditingAppt(a)}
-                    style={{ width: 30, height: 30, borderRadius: '50%', background: 'none', border: `1px solid ${C.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, transition: 'all 0.15s' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#f0f4ff'; e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.color = C.primary; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                    style={{ width: 30, height: 30, borderRadius: '50%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#f0f4ff'; e.currentTarget.style.color = C.primary; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = C.muted; }}>
                     <Pencil size={13} />
                   </button>
                   <DelBtn onClick={() => onDeleteAppointment(a.id)} />
@@ -1738,7 +1738,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
               <>
                 <p style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginTop: upcomingAppts.length > 0 ? 16 : 0, marginBottom: 4 }}>Previous</p>
                 {visiblePrevious.map((a, i) => (
-                  <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: i < visiblePrevious.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0' }}>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: C.muted }}>{a.title}</p>
                       <p style={{ fontSize: 12, color: C.mutedLight, marginTop: 2 }}>{a.date}{a.time ? ` · ${a.time}` : ''}</p>
@@ -1746,9 +1746,9 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                     </div>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                       <button onClick={() => setEditingAppt(a)}
-                        style={{ width: 30, height: 30, borderRadius: '50%', background: 'none', border: `1px solid ${C.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, transition: 'all 0.15s' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#f0f4ff'; e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.color = C.primary; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                        style={{ width: 30, height: 30, borderRadius: '50%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#f0f4ff'; e.currentTarget.style.color = C.primary; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = C.muted; }}>
                         <Pencil size={13} />
                       </button>
                       <DelBtn onClick={() => onDeleteAppointment(a.id)} />
@@ -1767,7 +1767,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
 
       {/* ── Guidance ─────────────────────────────────────────────────────── */}
       <Tabs.Panel value="guidance">
-          <div style={{ background: 'linear-gradient(135deg, #e8eff8, #f0eaf8)', borderRadius: 16, padding: '16px 20px', marginBottom: 16, border: `1px solid ${C.border}` }}>
+          <div style={{ background: 'linear-gradient(135deg, #e8eff8, #f0eaf8)', borderRadius: 16, padding: '16px 20px', marginBottom: 16 }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: C.text }}>Personalised guidance for {r.name}</p>
             <p style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>Based on {r.nickname}'s conditions and profile</p>
           </div>
@@ -1777,7 +1777,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
               <Card key={cond}>
                 <p style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 12 }}>{cond}</p>
                 {CAREGIVING_RECS[cond].map((rec, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: i < CAREGIVING_RECS[cond].length - 1 ? `1px solid ${C.bgWarm}` : 'none', alignItems: 'flex-start' }}>
+                  <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', alignItems: 'flex-start' }}>
                     <Check size={14} color={C.sage} style={{ marginTop: 2, flexShrink: 0 }} />
                     <p style={{ fontSize: 13, color: '#4a4038', lineHeight: 1.7 }}>{rec}</p>
                   </div>
@@ -1794,7 +1794,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
               {changes.filter(c => c.recipientId === r.id).length > 0 && (
                 <button
                   onClick={() => setShowTimeline(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgWarm, border: 'none', borderRadius: 12, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
                   <ScrollText size={13} /> Timeline
                 </button>
               )}
@@ -1847,7 +1847,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
             {(r.importantNumbers || []).length === 0
               ? <p style={{ fontSize: 13, color: C.mutedLight }}>No numbers saved yet — click Add.</p>
               : (r.importantNumbers || []).map((n, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < r.importantNumbers.length - 1 ? `1px solid ${C.bgWarm}` : 'none', gap: 10 }}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', gap: 10 }}>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{n.label}</p>
                     <p style={{ fontSize: 13, color: C.muted }}>{n.number}</p>
@@ -1888,7 +1888,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {DOC_TYPES.map(t => (
                     <button key={t} onClick={() => { setPendingDocType(t); setShowDocTypePick(false); rdocFileRef.current?.click(); }}
-                      style={{ width: '100%', textAlign: 'left', background: '#faf9f7', border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 16px', fontSize: 14, fontWeight: 500, color: C.text, cursor: 'pointer' }}>
+                      style={{ width: '100%', textAlign: 'left', background: '#faf9f7', border: 'none', borderRadius: 10, padding: '12px 16px', fontSize: 14, fontWeight: 500, color: C.text, cursor: 'pointer' }}>
                       {t}
                     </button>
                   ))}
@@ -1928,7 +1928,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
             const meta = fileTypeMeta(d.name, d.contentType);
             const isDel = rdeletingDoc === d.fullPath;
             return (
-              <div key={d.fullPath} style={{ background: '#fff', borderRadius: 14, padding: '14px 16px', marginBottom: 10, border: `1px solid ${C.border}` }}>
+              <div key={d.fullPath} style={{ background: '#fff', borderRadius: 14, padding: '14px 16px', marginBottom: 10 }}>
                 {isDel ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <Trash2 size={14} color={C.coral || '#e05050'} style={{ flexShrink: 0 }} />
@@ -2000,7 +2000,7 @@ function RecipientDetail({ r, onBack, onEdit, onDelete, doctors, onAddDoctor, on
             {myResources.map(res => {
               const cc = CAT_COLORS[res.category] || C.primary;
               return (
-                <div key={res.id} style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.border}`, borderLeft: `4px solid ${cc}` }}>
+                <div key={res.id} style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', borderLeft: `4px solid ${cc}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {res.category && (
@@ -2105,7 +2105,7 @@ export default function Care({
             <Plus size={14} /> Add recipient
           </button>
         ) : (
-          <Link to="/account" style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.muted, textDecoration: 'none' }} title="3-recipient limit reached — upgrade to Business">
+          <Link to="/account" style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgWarm, border: 'none', borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.muted, textDecoration: 'none' }} title="3-recipient limit reached — upgrade to Business">
             <Plus size={14} /> Add recipient
           </Link>
         )}
@@ -2177,7 +2177,7 @@ export default function Care({
             const col = rColor(r.id, recipients);
             return (
               <button key={r.id} onClick={() => setSelected(r)}
-                style={{ width: '100%', background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '20px 24px', textAlign: 'left', cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 18, transition: 'box-shadow 0.2s' }}
+                style={{ width: '100%', background: '#fff', border: 'none', borderRadius: 20, padding: '20px 24px', textAlign: 'left', cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 18, transition: 'box-shadow 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(80,60,40,0.1)'}
                 onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
                 <RecipientAvatar r={r} col={col} size={60} fontSize={20} />

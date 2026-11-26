@@ -100,9 +100,9 @@ function SendPanel({ transport, apptDetails }) {
   }
 
   return (
-    <div style={{ marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+    <div style={{ marginTop: 12, paddingTop: 12 }}>
       <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Appointment details to send</p>
-      <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 12, color: C.text, lineHeight: 1.75, whiteSpace: 'pre-wrap', maxHeight: 160, overflowY: 'auto' }}>
+      <div style={{ background: '#fff', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 12, color: C.text, lineHeight: 1.75, whiteSpace: 'pre-wrap', maxHeight: 160, overflowY: 'auto' }}>
         {msg}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -124,7 +124,7 @@ function SendPanel({ transport, apptDetails }) {
           </p>
         )}
         <button onClick={handleCopy}
-          style={{ flex: useEmail || usePhone ? '0 0 auto' : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', background: copied ? '#eef6f1' : '#fff', border: `1px solid ${C.border}`, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: copied ? '#3a6e58' : C.muted }}>
+          style={{ flex: useEmail || usePhone ? '0 0 auto' : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', background: copied ? '#eef6f1' : C.bgWarm, border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: copied ? '#3a6e58' : C.muted }}>
           {copied ? <Check size={13} /> : <Copy size={13} />}
           {copied ? 'Copied' : 'Copy'}
         </button>
@@ -146,7 +146,7 @@ export default function TransportSection({ transport, onChange, conditions = [],
   }
 
   return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', background: '#f9f7f5' }}>
+    <div style={{ borderRadius: 12, padding: '14px 16px', background: '#f9f7f5' }}>
       {/* Yes / No toggle */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: transport.needed ? 14 : 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -196,7 +196,7 @@ export default function TransportSection({ transport, onChange, conditions = [],
           <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Transport options</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
             {services.map(s => (
-              <div key={s.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 10, background: '#fff', border: `1px solid ${C.border}` }}>
+              <div key={s.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 10, background: '#fff' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{s.name}</p>
                   <p style={{ fontSize: 12, color: C.muted }}>{s.desc}</p>
@@ -216,7 +216,7 @@ export default function TransportSection({ transport, onChange, conditions = [],
           />
 
           {/* Custom provider */}
-          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+          <div style={{ paddingTop: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: cp ? 12 : 0 }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.8, textTransform: 'uppercase' }}>Your own provider</p>
               {cp ? (
@@ -226,14 +226,14 @@ export default function TransportSection({ transport, onChange, conditions = [],
                 </button>
               ) : (
                 <button type="button" onClick={() => onChange({ ...transport, customProvider: { name: '', contact: '' } })}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.muted }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: C.bgWarm, border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.muted }}>
                   <Plus size={11} /> Add provider
                 </button>
               )}
             </div>
 
             {cp && (
-              <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px' }}>
+              <div style={{ background: '#fff', borderRadius: 10, padding: '12px 14px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div>
                     <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedLight, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 }}>Provider name</p>

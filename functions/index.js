@@ -703,4 +703,38 @@ exports.parseMedicationsPDF = functions
       console.error('parseMedicationsPDF error:', e);
       return { diff: { new: [], changed: [], removed: [], unchanged: [] } };
     }
+
+// ── Send event details by email ────────────────────────────────────────────────
+exports.sendEventEmail = functions
+  .runWith({ secrets: ['RESEND_API_KEY'] })
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Login required');
+    }
+    const { to, subject, bodyText } = data;
+    if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      throw new functions.https.HttpsError('invalid-argument', 'A valid email address is required');
+    }
+    if (!subject || !bodyText) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing subject or body');
+    }
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const htmlBody = bodyText
+      .split('\n')
+      .map(line => `<p style="margin:0 0 6px;font-family:sans-serif;font-size:14px;color:#333;">${line || '&nbsp;'}</p>`)
+      .join('');
+    await resend.emails.send({
+      from: 'Aiden <noreply@aidencare.co>',
+      to,
+      subject,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
+          <h2 style="color:#904848;margin:0 0 20px;font-size:18px;">Event Details</h2>
+          ${htmlBody}
+          <p style="margin:24px 0 0;font-size:12px;color:#999;">Sent via Aiden</p>
+        </div>
+      `,
+    });
+    return { sent: true };
+  });
   });

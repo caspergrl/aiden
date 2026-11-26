@@ -118,7 +118,7 @@ function AddAppointmentModal({ recipients, onSave, onClose, initialDate }) {
       <div style={{ background: '#fff', borderRadius: 22, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, fontFamily: serif, color: C.text, margin: 0 }}>New Appointment</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
             <X size={20} color={C.muted} />
@@ -258,7 +258,7 @@ function AddAppointmentModal({ recipients, onSave, onClose, initialDate }) {
         </div>
 
         {/* Footer */}
-        <div style={{ display: 'flex', gap: 10, padding: '16px 24px', borderTop: `1px solid ${C.border}`, position: 'sticky', bottom: 0, background: '#fff' }}>
+        <div style={{ display: 'flex', gap: 10, padding: '16px 24px', position: 'sticky', bottom: 0, background: '#fff' }}>
           <button onClick={onClose} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 12, padding: '13px 0', fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: 'pointer' }}>
             Cancel
           </button>
@@ -273,14 +273,237 @@ function AddAppointmentModal({ recipients, onSave, onClose, initialDate }) {
   );
 }
 
+function EventListItem({ a, recipients, faded, onSelectAppt, onClose }) {
+  const [hovered, setHovered] = useState(false);
+  const r = recipients.find(rec => rec.id === a.recipientId);
+  const col = rColor(r?.id);
+  return (
+    <button
+      onClick={() => { onSelectAppt(a); onClose(); }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ width: 'calc(100% - 32px)', margin: '4px 16px', padding: '12px 16px', display: 'block', background: hovered ? col + '22' : col + '12', borderRadius: 12, border: 'none', cursor: 'pointer', textAlign: 'left', opacity: faded ? 0.6 : 1, transition: 'background 0.12s' }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+        <p style={{ fontSize: 14, fontWeight: 700, color: C.text, flex: 1, margin: 0 }}>{a.title}</p>
+        {r && <span style={{ background: col+'18', color: col, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>{r.nickname}</span>}
+      </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}><Clock size={11} color={C.mutedLight} /><span style={{ fontSize: 12, color: C.muted }}>{a.time}</span></div>
+        {a.location && <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}><MapPin size={11} color={C.mutedLight} /><span style={{ fontSize: 12, color: C.muted }}>{a.location}</span></div>}
+      </div>
+    </button>
+  );
+}
+
+// ── Date Click Modal ───────────────────────────────────────────────────────────
+function DateClickModal({ selectedDate, appointments, recipients, onAdd, onSelectAppt, onClose }) {
+  const dateAppts = appointments.filter(a => a.date === selectedDate);
+  const hasEvents = dateAppts.length > 0;
+  const [view, setView] = useState(hasEvents ? 'list' : 'create');
+
+  const [yy, mm, dd] = selectedDate.split('-').map(Number);
+  const dateLabel = new Date(yy, mm - 1, dd).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // Form state
+  const [recipientId, setRecipientId] = useState(recipients[0]?.id || 'myself');
+  const [type, setType]               = useState('');
+  const [title, setTitle]             = useState('');
+  const [autoTitle, setAutoTitle]     = useState(true);
+  const [formDate, setFormDate]       = useState(selectedDate);
+  const [time24, setTime24]           = useState('10:00');
+  const [locMode, setLocMode]         = useState('inperson');
+  const [location, setLocation]       = useState('');
+  const [reminders, setReminders]     = useState(true);
+  const [notes, setNotes]             = useState('');
+  const [transport, setTransport]     = useState(EMPTY_TRANSPORT);
+  const selectedRecipient = recipients.find(r => r.id === recipientId) || null;
+
+  function pickType(t) { setType(t); if (autoTitle) setTitle(t); }
+
+  function handleSave() {
+    if (!formDate) return;
+    onAdd({
+      title: title.trim() || type || 'Appointment',
+      date: formDate, time: from24h(time24),
+      location: location.trim() || null, type: type || null,
+      notes: notes.trim() || null,
+      recipientId: recipientId === 'myself' ? null : recipientId,
+      reminders, doctor: null, transport,
+    });
+    onClose();
+  }
+
+  const nowMs = Date.now();
+  const upcoming = dateAppts.filter(a => apptMs(a) >= nowMs).sort((a, b) => apptMs(a) - apptMs(b));
+  const past     = dateAppts.filter(a => apptMs(a) < nowMs).sort((a, b) => apptMs(b) - apptMs(a));
+
+  return (
+    <Dialog.Root open onOpenChange={open => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={{ position: 'fixed', inset: 0, background: 'rgba(38,32,26,0.5)', zIndex: 500 }} />
+        <Dialog.Popup style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 501 }}>
+          <div style={{ background: '#fff', borderRadius: 22, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {view === 'create' && hasEvents && (
+                  <button onClick={() => setView('list')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 3, color: C.muted, fontSize: 12, fontWeight: 600, fontFamily: sans, marginBottom: 4 }}>
+                    <ChevronLeft size={13} /> Other events
+                  </button>
+                )}
+                <h2 style={{ fontSize: 18, fontWeight: 700, fontFamily: serif, color: C.text, margin: 0 }}>
+                  {view === 'create' ? 'New Appointment' : dateLabel}
+                </h2>
+              </div>
+              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                <X size={20} color={C.muted} />
+              </button>
+            </div>
+
+            {view === 'list' ? (
+              <>
+                <div>
+                  {upcoming.length > 0 && (
+                    <>
+                      <div style={{ padding: '7px 24px', background: C.bgWarm }}>
+                        <span style={{ fontSize: 11, fontWeight: 500, color: C.muted, fontFamily: sans }}>Upcoming</span>
+                      </div>
+                      {upcoming.map((a) => (
+                        <EventListItem key={a.id} a={a} recipients={recipients} faded={false} onSelectAppt={onSelectAppt} onClose={onClose} />
+                      ))}
+                    </>
+                  )}
+                  {past.length > 0 && (
+                    <>
+                      <div style={{ padding: '7px 24px', background: C.bgWarm, marginTop: upcoming.length > 0 ? 8 : 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 500, color: C.mutedLight, fontFamily: sans }}>Past</span>
+                      </div>
+                      {past.map((a) => (
+                        <EventListItem key={a.id} a={a} recipients={recipients} faded={true} onSelectAppt={onSelectAppt} onClose={onClose} />
+                      ))}
+                    </>
+                  )}
+                </div>
+                <div style={{ padding: '16px 24px', position: 'sticky', bottom: 0, background: '#fff' }}>
+                  <button onClick={() => setView('create')} style={{ width: '100%', background: `linear-gradient(135deg, ${C.rose}, ${C.roseDark})`, color: 'white', border: 'none', borderRadius: 12, padding: '13px 0', fontSize: 14, fontWeight: 700, fontFamily: sans, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Plus size={15} /> Create new event
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div>
+                    <p style={labelStyle}>For</p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {recipients.map(r => {
+                        const active = recipientId === r.id;
+                        const col = rColor(r.id);
+                        return (
+                          <button key={r.id} onClick={() => setRecipientId(r.id)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 20, border: `1.5px solid ${active ? col : C.border}`, background: active ? col+'14' : 'white', color: active ? col : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                            <div style={{ width: 20, height: 20, borderRadius: '50%', background: col+'33', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: col }}>{initials(r.name)}</div>
+                            {r.nickname || r.name.split(' ')[0]}
+                          </button>
+                        );
+                      })}
+                      <button onClick={() => setRecipientId('myself')} style={{ padding: '7px 14px', borderRadius: 20, border: `1.5px solid ${recipientId === 'myself' ? C.rose : C.border}`, background: recipientId === 'myself' ? C.roseLight : 'white', color: recipientId === 'myself' ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Myself</button>
+                    </div>
+                  </div>
+                  <div>
+                    <p style={labelStyle}>Type of Event</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {EVENT_TYPES.map(t => {
+                        const active = type === t.label;
+                        return (
+                          <button key={t.label} onClick={() => pickType(t.label)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, border: `2px solid ${active ? C.rose : C.border}`, background: active ? C.roseLight : 'white', cursor: 'pointer', textAlign: 'left' }}>
+                            {t.icon ? <img src={t.icon} alt="" style={{ width: 20, height: 20, opacity: active ? 0.9 : 0.5, flexShrink: 0 }} /> : <div style={{ width: 20, height: 20, borderRadius: '50%', background: active ? C.rose : C.border, flexShrink: 0 }} />}
+                            <span style={{ fontSize: 14, fontWeight: active ? 700 : 400, color: active ? C.roseDark : C.text, fontFamily: sans }}>{t.label}</span>
+                            {active && <Check size={14} color={C.rose} style={{ marginLeft: 'auto' }} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <p style={labelStyle}>Event Name</p>
+                    <input value={title} onChange={e => { setTitle(e.target.value); setAutoTitle(false); }} placeholder={type || 'e.g. Cardiology Follow-up'} style={inputStyle} />
+                  </div>
+                  <div>
+                    <p style={labelStyle}>Date & Time</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} style={{ ...inputStyle, fontSize: 13 }} />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <select value={t24ToH(time24)} onChange={e => setTime24(hmpTo24(e.target.value, t24ToM(time24), t24ToP(time24)))} style={{ flex: 1, background: '#f7f5f2', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 6px', fontSize: 13, fontFamily: sans, color: C.text, outline: 'none' }}>
+                          {['1','2','3','4','5','6','7','8','9','10','11','12'].map(h => <option key={h} value={h}>{h}</option>)}
+                        </select>
+                        <select value={t24ToM(time24)} onChange={e => setTime24(hmpTo24(t24ToH(time24), e.target.value, t24ToP(time24)))} style={{ flex: 1, background: '#f7f5f2', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 6px', fontSize: 13, fontFamily: sans, color: C.text, outline: 'none' }}>
+                          {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                        <select value={t24ToP(time24)} onChange={e => setTime24(hmpTo24(t24ToH(time24), t24ToM(time24), e.target.value))} style={{ flex: '0 0 72px', background: '#f7f5f2', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 4px', fontSize: 13, fontFamily: sans, color: C.text, outline: 'none' }}>
+                          <option value="AM">AM</option><option value="PM">PM</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p style={labelStyle}>Location</p>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                      {[{ id: 'inperson', label: 'In person' }, { id: 'video', label: 'Video call' }].map(m => (
+                        <button key={m.id} onClick={() => { setLocMode(m.id); setLocation(''); }} style={{ flex: 1, padding: '9px 0', borderRadius: 10, border: `2px solid ${locMode === m.id ? C.rose : C.border}`, background: locMode === m.id ? C.roseLight : 'white', color: locMode === m.id ? C.roseDark : C.muted, fontFamily: sans, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{m.label}</button>
+                      ))}
+                    </div>
+                    {locMode === 'inperson' ? (
+                      <PlacesInput value={location} onChange={setLocation} placeholder="Clinic name or address" style={inputStyle} />
+                    ) : (
+                      <input value={location} onChange={e => setLocation(e.target.value)} placeholder="https://zoom.us/j/…" style={inputStyle} />
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f7f5f2', borderRadius: 12, padding: '14px 16px' }}>
+                    <div>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: C.text, fontFamily: sans, margin: 0 }}>Receive reminders</p>
+                      <p style={{ fontSize: 11, color: C.muted, fontFamily: sans, marginTop: 2 }}>Email reminder the day before</p>
+                    </div>
+                    <button onClick={() => setReminders(r => !r)} style={{ width: 48, height: 28, borderRadius: 14, background: reminders ? C.rose : C.border, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: 3, left: reminders ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+                    </button>
+                  </div>
+                  <TransportSection
+                    transport={transport}
+                    onChange={setTransport}
+                    conditions={selectedRecipient?.conditions}
+                    apptDetails={{ title, date: formDate, time: from24h(time24), location, recipientName: selectedRecipient?.name }}
+                  />
+                  <div>
+                    <p style={labelStyle}>Notes <span style={{ fontWeight: 400, textTransform: 'none' }}>(optional)</span></p>
+                    <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any additional details…" rows={3} style={{ ...inputStyle, resize: 'none', lineHeight: 1.6 }} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 10, padding: '16px 24px', position: 'sticky', bottom: 0, background: '#fff' }}>
+                  <button onClick={hasEvents ? () => setView('list') : onClose} style={{ flex: 1, background: C.bgWarm, color: C.muted, border: 'none', borderRadius: 12, padding: '13px 0', fontSize: 14, fontWeight: 600, fontFamily: sans, cursor: 'pointer' }}>
+                    {hasEvents ? '← Back' : 'Cancel'}
+                  </button>
+                  <button onClick={handleSave} disabled={!formDate} style={{ flex: 2, background: formDate ? `linear-gradient(135deg, ${C.rose}, ${C.roseDark})` : C.border, color: 'white', border: 'none', borderRadius: 12, padding: '13px 0', fontSize: 14, fontWeight: 700, fontFamily: sans, cursor: formDate ? 'pointer' : 'default' }}>
+                    Save appointment
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 // ── Calendar View ──────────────────────────────────────────────────────────────
 export default function CalendarView({ appointments, recipients, onAddAppointment, onUpdateAppointment, onDeleteAppointment }) {
   const today = new Date();
   const [month, setMonth]       = useState(today.getMonth());
   const [year, setYear]         = useState(today.getFullYear());
   const [selected, setSelected] = useState(null);
-  const [showAdd, setShowAdd]   = useState(false);
-  const [addDate, setAddDate]   = useState(null);
+  const [clickedDate, setClickedDate] = useState(null);
   const [activeAppt, setActiveAppt] = useState(null);
   const [showShare, setShowShare] = useState(false);
 
@@ -310,10 +533,10 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
           <h1 style={{ fontFamily: serif, fontSize: 32, fontWeight: 600, color: C.text, letterSpacing: -0.5 }}>Calendar</h1>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setShowShare(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f0ece8', border: `1px solid ${C.border}`, borderRadius: 12, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
+          <button onClick={() => setShowShare(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f0ece8', border: 'none', borderRadius: 12, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>
             <Share2 size={14} /> Share
           </button>
-          <button onClick={() => { setAddDate(null); setShowAdd(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseLight, border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.roseDark, cursor: 'pointer' }}>
+          <button onClick={() => setClickedDate(todayISO())} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.roseLight, border: `1px solid ${C.rose}30`, borderRadius: 12, padding: '9px 18px', fontSize: 13, fontWeight: 700, color: C.roseDark, cursor: 'pointer' }}>
             <Plus size={14} /> Add appointment
           </button>
         </div>
@@ -322,13 +545,13 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* Calendar grid */}
-        <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${C.border}`, padding: 24, maxWidth: 620 }}>
+        <div style={{ background: '#fff', borderRadius: 20, padding: 24, maxWidth: 620 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <button onClick={prev} style={{ background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 12px', cursor: 'pointer' }}>
+            <button onClick={prev} style={{ background: C.bgWarm, border: 'none', borderRadius: 10, padding: '8px 12px', cursor: 'pointer' }}>
               <ChevronLeft size={18} color={C.muted} />
             </button>
             <h2 style={{ fontFamily: serif, fontSize: 20, color: C.text }}>{FULL_MONTHS[month]} {year}</h2>
-            <button onClick={next} style={{ background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 12px', cursor: 'pointer' }}>
+            <button onClick={next} style={{ background: C.bgWarm, border: 'none', borderRadius: 10, padding: '8px 12px', cursor: 'pointer' }}>
               <ChevronRight size={18} color={C.muted} />
             </button>
           </div>
@@ -349,13 +572,8 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
               const isPast = ds < todayISO();
               return (
                 <button key={day} onClick={() => {
-                  if (isPast) {
-                    setSelected(isSel ? null : ds);
-                  } else {
-                    setSelected(ds);
-                    setAddDate(ds);
-                    setShowAdd(true);
-                  }
+                  setSelected(ds);
+                  setClickedDate(ds);
                 }}
                   style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: isToday && !isSel ? `2px solid ${C.rose}` : '2px solid transparent', background: isSel ? C.roseDark : 'transparent', cursor: 'pointer', position: 'relative', gap: 2 }}>
                   <span style={{ fontSize: 13, fontWeight: (isToday || isSel) ? 800 : 400, color: isSel ? '#fff' : isToday ? C.roseDark : C.text }}>{day}</span>
@@ -372,7 +590,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
             })}
           </div>
 
-          <div style={{ display: 'flex', gap: 16, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+          <div style={{ display: 'flex', gap: 16, marginTop: 20, paddingTop: 16 }}>
             {recipients.map(r => (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: rColor(r.id) }} />
@@ -383,8 +601,8 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
         </div>
 
         {/* Appointment list */}
-        <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
-          <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ background: '#fff', borderRadius: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{selected || `${FULL_MONTHS[month]} ${year}`}</p>
             {selected && <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Show all</button>}
           </div>
@@ -393,7 +611,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
               <div style={{ padding: 32, textAlign: 'center', color: C.mutedLight }}>
                 <p style={{ fontSize: 14 }}>No appointments {selected ? 'on this day' : 'this month'}</p>
                 {(!selected || selected >= todayISO()) && (
-                  <button onClick={() => { setAddDate(selected || null); setShowAdd(true); }} style={{ marginTop: 12, background: C.roseLight, color: C.roseDark, border: 'none', borderRadius: 10, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  <button onClick={() => setClickedDate(selected || todayISO())} style={{ marginTop: 12, background: C.roseLight, color: C.roseDark, border: 'none', borderRadius: 10, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                     + Add one
                   </button>
                 )}
@@ -402,14 +620,14 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
               <>
                 {upcoming.length > 0 && (
                   <>
-                    <div style={{ padding: '7px 20px', background: C.bgWarm, borderBottom: `1px solid ${C.border}` }}>
+                    <div style={{ padding: '7px 20px', background: C.bgWarm }}>
                       <span style={{ fontSize: 11, fontWeight: 500, color: C.muted, fontFamily: sans }}>Upcoming</span>
                     </div>
                     {upcoming.map((a, i) => {
                       const r = recipients.find(rec => rec.id === a.recipientId);
                       const col = rColor(r?.id);
                       return (
-                        <button key={a.id} onClick={() => setActiveAppt(a)} style={{ width: '100%', padding: '14px 20px', display: 'block', background: 'none', border: 'none', borderLeft: `3px solid ${col}`, borderBottom: i < upcoming.length - 1 ? `1px solid ${C.border}` : 'none', cursor: 'pointer', textAlign: 'left' }}>
+                        <button key={a.id} onClick={() => setActiveAppt(a)} style={{ width: '100%', padding: '14px 20px', display: 'block', background: 'none', border: 'none', borderLeft: `3px solid ${col}`, cursor: 'pointer', textAlign: 'left' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                             <p style={{ fontSize: 14, fontWeight: 700, color: C.text, flex: 1 }}>{a.title}</p>
                             {r && <span style={{ background: col+'18', color: col, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>{r.nickname}</span>}
@@ -432,14 +650,14 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
                 )}
                 {past.length > 0 && (
                   <>
-                    <div style={{ padding: '7px 20px', background: C.bgWarm, borderTop: upcoming.length > 0 ? `1px solid ${C.border}` : 'none', borderBottom: `1px solid ${C.border}` }}>
+                    <div style={{ padding: '7px 20px', background: C.bgWarm, marginTop: upcoming.length > 0 ? 8 : 0 }}>
                       <span style={{ fontSize: 11, fontWeight: 500, color: C.mutedLight, fontFamily: sans }}>Past</span>
                     </div>
                     {past.map((a, i) => {
                       const r = recipients.find(rec => rec.id === a.recipientId);
                       const col = rColor(r?.id);
                       return (
-                        <button key={a.id} onClick={() => setActiveAppt(a)} style={{ width: '100%', padding: '14px 20px', display: 'block', background: 'none', border: 'none', borderLeft: `3px solid ${col}60`, borderBottom: i < past.length - 1 ? `1px solid ${C.border}` : 'none', cursor: 'pointer', textAlign: 'left', opacity: 0.6 }}>
+                        <button key={a.id} onClick={() => setActiveAppt(a)} style={{ width: '100%', padding: '14px 20px', display: 'block', background: 'none', border: 'none', borderLeft: `3px solid ${col}60`, cursor: 'pointer', textAlign: 'left', opacity: 0.6 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                             <p style={{ fontSize: 14, fontWeight: 700, color: C.text, flex: 1 }}>{a.title}</p>
                             {r && <span style={{ background: col+'18', color: col, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>{r.nickname}</span>}
@@ -466,13 +684,15 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
         </div>
       </div>
 
-      {/* Add appointment modal */}
-      {showAdd && (
-        <AddAppointmentModal
+      {/* Date click modal */}
+      {clickedDate && (
+        <DateClickModal
+          selectedDate={clickedDate}
+          appointments={appointments}
           recipients={recipients}
-          onSave={onAddAppointment}
-          onClose={() => { setShowAdd(false); setAddDate(null); }}
-          initialDate={addDate}
+          onAdd={onAddAppointment}
+          onSelectAppt={a => setActiveAppt(a)}
+          onClose={() => setClickedDate(null)}
         />
       )}
 

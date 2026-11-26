@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { collection, doc, getDoc, setDoc, addDoc, deleteDoc, onSnapshot, orderBy, query, limit, serverTimestamp } from 'firebase/firestore';
-import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked, Plus, MoreHorizontal } from 'lucide-react';
+import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked, Plus, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { auth, db } from '../../firebase';
 import { useAuth } from '../../App';
 import { C } from '../../theme';
@@ -26,6 +26,7 @@ export default function DashboardLayout({ active, children }) {
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [chatsCollapsed, setChatsCollapsed] = useState(false);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -112,7 +113,6 @@ export default function DashboardLayout({ active, children }) {
         background: isActive ? '#f5f5f5' : 'transparent',
         color: isActive ? C.text : C.muted,
         fontSize: 14, fontWeight: isActive ? 600 : 400,
-        borderLeft: isActive ? `3px solid ${C.rose}` : '3px solid transparent',
         transition: 'all 0.15s', textAlign: 'left',
       }}>
         <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
@@ -148,12 +148,21 @@ export default function DashboardLayout({ active, children }) {
                 background: isChatActive && isNewOrUnknownChat ? '#f5f5f5' : 'transparent',
                 color: isChatActive ? C.text : C.muted,
                 fontSize: 14, fontWeight: isChatActive ? 600 : 400,
-                borderLeft: isChatActive && isNewOrUnknownChat ? `3px solid ${C.rose}` : '3px solid transparent',
                 transition: 'all 0.15s', textAlign: 'left',
               }}>
               <MessageCircle size={17} strokeWidth={isChatActive ? 2.2 : 1.8} />
               Ask Aiden
             </button>
+            {conversations.length > 0 && (
+              <button
+                onClick={() => setChatsCollapsed(c => !c)}
+                title={chatsCollapsed ? 'Expand chats' : 'Collapse chats'}
+                style={{ padding: '6px 6px', background: 'none', border: 'none', cursor: 'pointer', color: C.mutedLight, borderRadius: 6, flexShrink: 0, transition: 'transform 0.2s', transform: chatsCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+                onMouseEnter={e => e.currentTarget.style.color = C.text}
+                onMouseLeave={e => e.currentTarget.style.color = C.mutedLight}>
+                <ChevronDown size={14} />
+              </button>
+            )}
             <button
               onClick={() => { navigate('/chat?c=new_' + Date.now().toString(36)); setMobileOpen(false); }}
               title="New chat"
@@ -165,7 +174,7 @@ export default function DashboardLayout({ active, children }) {
           </div>
 
           {/* Past conversations */}
-          {conversations.length > 0 && (
+          {conversations.length > 0 && !chatsCollapsed && (
             <div style={{ marginTop: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
               {conversations.map(c => {
                 const isActive = isChatActive && activeConvId === c.id;
@@ -204,7 +213,6 @@ export default function DashboardLayout({ active, children }) {
                         background: isActive ? C.roseLight : 'transparent',
                         color: isActive ? C.roseDark : C.muted,
                         fontSize: 13, fontWeight: isActive ? 600 : 400,
-                        borderLeft: isActive ? `3px solid ${C.rose}` : '3px solid transparent',
                         transition: 'all 0.1s',
                       }}
                       onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = C.text; }}
@@ -227,7 +235,7 @@ export default function DashboardLayout({ active, children }) {
                     {menuOpenId === c.id && (
                       <div data-conv-menu="1" style={{
                         position: 'absolute', left: 44, top: '100%', zIndex: 200,
-                        background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8,
+                        background: '#fff', borderRadius: 8,
                         boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 148,
                         overflow: 'hidden', marginTop: 2,
                       }}>
@@ -257,7 +265,7 @@ export default function DashboardLayout({ active, children }) {
       </div>
 
       {/* Bottom links */}
-      <div style={{ borderTop: '1px solid #ebebeb', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+      <div style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
         {profile?.role === 'admin' && (
           <Link to="/admin" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: 'none' }}>
             <Shield size={18} strokeWidth={1.8} /> Admin panel
@@ -277,12 +285,12 @@ export default function DashboardLayout({ active, children }) {
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f7f7f7' }}>
 
       {/* Desktop sidebar */}
-      <div style={{ width: 220, background: '#fff', borderRight: '1px solid #ebebeb', flexShrink: 0, position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50, overflowY: 'auto' }} className="sidebar-desktop">
+      <div style={{ width: 220, background: '#fff', flexShrink: 0, position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50, overflowY: 'auto' }} className="sidebar-desktop">
         {sidebar}
       </div>
 
       {/* Mobile header */}
-      <div style={{ display: 'none', position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#fff', borderBottom: '1px solid #ebebeb', zIndex: 50, alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }} className="mobile-header">
+      <div style={{ display: 'none', position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: '#fff', zIndex: 50, alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }} className="mobile-header">
         <Logo width={72} />
         <button onClick={() => setMobileOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
           {mobileOpen ? <X size={22} color={C.text} /> : <Menu size={22} color={C.text} />}

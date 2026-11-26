@@ -42,7 +42,7 @@ const FAQ_ITEMS = [
 function FaqItem({ q, a }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ borderBottom: `1px solid ${C.border}` }}>
+    <div>
       <button
         onClick={() => setOpen(o => !o)}
         style={{ width: '100%', background: 'none', border: 'none', padding: '14px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', textAlign: 'left' }}
@@ -141,7 +141,7 @@ function ResourceModal({ initial, onClose, onSave }) {
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '11px 0', border: `1px solid ${C.border}`, borderRadius: 12, background: '#fff', color: C.muted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onClose} style={{ flex: 1, padding: '11px 0', border: 'none', borderRadius: 12, background: C.bgWarm, color: C.muted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
           <button onClick={handleSave} disabled={!form.title.trim() || !form.url.trim()}
             style={{ flex: 2, padding: '11px 0', border: 'none', borderRadius: 12, background: form.title.trim() && form.url.trim() ? `linear-gradient(135deg, ${C.rose}, ${C.roseDark})` : C.border, color: '#fff', fontSize: 14, fontWeight: 700, cursor: form.title.trim() && form.url.trim() ? 'pointer' : 'default', transition: 'background 0.15s' }}>
             {initial ? 'Save changes' : 'Add link'}
@@ -289,7 +289,7 @@ function ShareModal({ resource, recipients, onClose }) {
           {customList.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
               {customList.map(({ contact, method: m }) => (
-                <span key={contact} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgWarm, border: `1px solid ${C.border}`, borderRadius: 20, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: C.text }}>
+                <span key={contact} style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bgWarm, borderRadius: 20, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: C.text }}>
                   {m === 'email' ? <Mail size={11} color={C.muted} /> : <MessageSquare size={11} color={C.muted} />}
                   {contact}
                   <button onClick={() => removeCustom(contact)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: C.muted }}>
@@ -429,7 +429,7 @@ export default function Resources({ resources, onAdd, onUpdate, onDelete, recipi
           const catStyle = res.category ? (CATEGORY_COLORS[res.category] || CATEGORY_COLORS.Other) : null;
           const isConfirming = confirmDel === res.id;
           return (
-            <div key={res.id} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 18, padding: '18px 20px', boxShadow: shadowSm, transition: 'box-shadow 0.2s' }}
+            <div key={res.id} style={{ background: '#fff', borderRadius: 18, padding: '18px 20px', boxShadow: shadowSm, transition: 'box-shadow 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(80,60,40,0.1)'}
               onMouseLeave={e => e.currentTarget.style.boxShadow = shadowSm}>
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
@@ -467,7 +467,7 @@ export default function Resources({ resources, onAdd, onUpdate, onDelete, recipi
                         Remove
                       </button>
                       <button onClick={() => setConfirmDel(null)}
-                        style={{ padding: '6px 12px', borderRadius: 10, background: '#fafafa', border: `1px solid ${C.border}`, color: C.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                        style={{ padding: '6px 12px', borderRadius: 10, background: C.bgWarm, border: 'none', color: C.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                         Cancel
                       </button>
                     </>
@@ -493,7 +493,7 @@ export default function Resources({ resources, onAdd, onUpdate, onDelete, recipi
         </div>
         <h2 style={{ fontFamily: serif, fontSize: 20, color: C.text, marginBottom: 6 }}>Insurance &amp; Care Guides</h2>
         <p style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Common questions about Medicare, Medicaid, and care options</p>
-        <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 18, padding: '0 20px' }}>
+        <div style={{ background: '#fff', borderRadius: 18, padding: '0 20px' }}>
           {FAQ_ITEMS.map((item, i) => <FaqItem key={i} q={item.q} a={item.a} />)}
         </div>
       </div>
@@ -504,9 +504,9 @@ export default function Resources({ resources, onAdd, onUpdate, onDelete, recipi
 function ActionBtn({ Icon, label, onClick, color }) {
   return (
     <button onClick={onClick} title={label}
-      style={{ width: 34, height: 34, borderRadius: 10, border: `1px solid ${C.border}`, background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color, transition: 'all 0.15s' }}
-      onMouseEnter={e => { e.currentTarget.style.background = color + '12'; e.currentTarget.style.borderColor = color + '40'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = '#fafafa'; e.currentTarget.style.borderColor = C.border; }}>
+      style={{ width: 34, height: 34, borderRadius: 10, border: 'none', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color, transition: 'all 0.15s' }}
+      onMouseEnter={e => { e.currentTarget.style.background = color + '12'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = '#fafafa'; }}>
       <Icon size={14} />
     </button>
   );
