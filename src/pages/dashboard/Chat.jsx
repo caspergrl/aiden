@@ -6,6 +6,9 @@ import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { C, serif } from '../../theme';
 import { SUGGESTIONS } from '../../data';
 import { useAuth } from '../../App';
+import { checkEmergency } from '../../lib/emergencyCheck';
+import EmergencyBanner from '../../components/chat/EmergencyBanner';
+import ConfirmActionCard from '../../components/chat/ConfirmActionCard';
 
 // Lightweight markdown → React renderer
 function renderMarkdown(text) {
@@ -65,15 +68,28 @@ function makeConvId() {
   return 'chat_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-export default function Chat({ conversationId: propConvId, onNewChat }) {
+export default function Chat({ conversationId: propConvId, onNewChat, services }) {
   const { user, profile } = useAuth();
   const [convId]          = useState(() => propConvId || makeConvId());
   const [messages, setMessages] = useState(null);
   const [input, setInput]       = useState('');
   const [waiting, setWaiting]   = useState(false);
   const [error, setError]       = useState(null);
-  const titledRef = useRef(false); // whether title has been saved for this conversation
+  const [emergencyState, setEmergencyState]   = useState(null); // { isEmergency, isCrisis, isPoisoning }
+  const [pendingAction, setPendingAction]     = useState(null); // { toolUseBlock, tool, args, summary, preText, sentMessages }
+  const [confirmingAction, setConfirmingAction] = useState(false);
+  const titledRef = useRef(false);
   const bottomRef = useRef(null);
+
+  // Maps tool names to service functions
+  const serviceMap = services ? {
+    create_appointment:     (args) => services.addAppointment(args),
+    update_appointment:     ({ appointmentId, ...rest }) => services.updateAppointment(appointmentId, rest),
+    create_logistic_item:   (args) => services.addLogistic({ ...args, completed: false }),
+    complete_logistic_item: ({ logisticId }) => services.updateLogistic(logisticId, { completed: true }),
+    create_care_change:     (args) => services.addChange(args),
+    add_doctor:             (args) => services.addDoctor(args),
+  } : {};
 
   const firstName = profile?.name?.split(' ')[0] || '';
 
@@ -98,8 +114,14 @@ export default function Chat({ conversationId: propConvId, onNewChat }) {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, waiting]);
 
   async function send(text) {
-    if (!text.trim() || waiting || !messages) return;
+    if (!text.trim() || waiting || !messages || pendingAction) return;
     setError(null);
+    setEmergencyState(null);
+
+    // Client-side emergency check — show banner immediately
+    const emergency = checkEmergency(text);
+    if (emergency.isEmergency) setEmergencyState(emergency);
+
     const userMsg = { role: 'user', text, ts: Date.now() };
     const updated = [...messages, userMsg];
     setMessages(updated);
@@ -117,7 +139,18 @@ export default function Chat({ conversationId: propConvId, onNewChat }) {
     try {
       const fn = httpsCallable(getFunctions(), 'askAiden');
       const result = await fn({ messages: updated, conversationId: convId });
-      setMessages(prev => [...prev, { role: 'assistant', text: result.data.text, ts: Date.now() }]);
+
+      if (result.data.pendingAction) {
+        // Claude wants to call a tool — show confirm card
+        const pa = result.data.pendingAction;
+        // Show Claude's pre-tool text if any
+        if (pa.preText) {
+          setMessages(prev => [...prev, { role: 'assistant', text: pa.preText, ts: Date.now() }]);
+        }
+        setPendingAction({ ...pa, sentMessages: updated });
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', text: result.data.text, ts: Date.now() }]);
+      }
     } catch (e) {
       console.error('askAiden error:', e);
       setError('Something went wrong. Please try again.');
@@ -125,6 +158,71 @@ export default function Chat({ conversationId: propConvId, onNewChat }) {
       setInput(text);
     } finally {
       setWaiting(false);
+    }
+  }
+
+  async function handleConfirmAction() {
+    if (!pendingAction || confirmingAction) return;
+    setConfirmingAction(true);
+    try {
+      // Execute service function locally (optimistic UI)
+      const serviceFn = serviceMap[pendingAction.tool];
+      if (serviceFn) await serviceFn(pendingAction.args);
+
+      // Tell Claude the action was completed
+      const fn = httpsCallable(getFunctions(), 'askAiden');
+      const result = await fn({
+        messages: pendingAction.sentMessages,
+        conversationId: convId,
+        toolConfirmation: {
+          toolUseBlock: pendingAction.toolUseBlock,
+          summary: pendingAction.summary,
+          success: true,
+          cancelled: false,
+        },
+      });
+
+      // Build readable conversation: original messages + summary + ack
+      setMessages([
+        ...pendingAction.sentMessages,
+        ...(pendingAction.preText ? [{ role: 'assistant', text: pendingAction.preText }] : []),
+        { role: 'assistant', text: `✓ ${pendingAction.summary}`, ts: Date.now() },
+        { role: 'assistant', text: result.data.text, ts: Date.now() },
+      ]);
+      setPendingAction(null);
+    } catch (e) {
+      console.error('confirm action error:', e);
+      setError('Something went wrong saving. Please try again.');
+    } finally {
+      setConfirmingAction(false);
+    }
+  }
+
+  async function handleCancelAction() {
+    if (!pendingAction || confirmingAction) return;
+    setConfirmingAction(true);
+    try {
+      const fn = httpsCallable(getFunctions(), 'askAiden');
+      const result = await fn({
+        messages: pendingAction.sentMessages,
+        conversationId: convId,
+        toolConfirmation: {
+          toolUseBlock: pendingAction.toolUseBlock,
+          summary: pendingAction.summary,
+          success: false,
+          cancelled: true,
+        },
+      });
+      setMessages([
+        ...pendingAction.sentMessages,
+        ...(pendingAction.preText ? [{ role: 'assistant', text: pendingAction.preText }] : []),
+        { role: 'assistant', text: result.data.text, ts: Date.now() },
+      ]);
+      setPendingAction(null);
+    } catch (e) {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setConfirmingAction(false);
     }
   }
 
@@ -172,6 +270,24 @@ export default function Chat({ conversationId: propConvId, onNewChat }) {
           </div>
         ))}
 
+        {/* Emergency banner — shown after the user's message, before Claude's response */}
+        {emergencyState?.isEmergency && (
+          <EmergencyBanner isCrisis={emergencyState.isCrisis} isPoisoning={emergencyState.isPoisoning} />
+        )}
+
+        {/* Confirm-before-write card */}
+        {pendingAction && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #c8d5e4, #d8cad4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Heart size={14} color={C.roseDark} /></div>
+            <ConfirmActionCard
+              action={pendingAction}
+              onConfirm={handleConfirmAction}
+              onCancel={handleCancelAction}
+              confirming={confirmingAction}
+            />
+          </div>
+        )}
+
         {waiting && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
             <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #c8d5e4, #d8cad4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Heart size={14} color={C.roseDark} /></div>
@@ -216,11 +332,12 @@ export default function Chat({ conversationId: propConvId, onNewChat }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send(input)}
-          placeholder="Ask anything about caregiving…"
-          style={{ flex: 1, background: '#f7f7f7', border: `1px solid ${C.border}`, borderRadius: 24, padding: '11px 20px', fontSize: 14, outline: 'none', color: C.text }}
+          placeholder={pendingAction ? 'Confirm or cancel the action above first…' : 'Ask anything about caregiving…'}
+          disabled={!!pendingAction}
+          style={{ flex: 1, background: pendingAction ? '#f3f4f6' : '#f7f7f7', border: `1px solid ${C.border}`, borderRadius: 24, padding: '11px 20px', fontSize: 14, outline: 'none', color: C.text, opacity: pendingAction ? 0.6 : 1 }}
         />
-        <button onClick={() => send(input)} disabled={!input.trim() || waiting}
-          style={{ width: 44, height: 44, background: input.trim() && !waiting ? C.roseDark : C.border, border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: input.trim() && !waiting ? 'pointer' : 'default', flexShrink: 0, transition: 'background 0.2s' }}>
+        <button onClick={() => send(input)} disabled={!input.trim() || waiting || !!pendingAction}
+          style={{ width: 44, height: 44, background: input.trim() && !waiting && !pendingAction ? C.roseDark : C.border, border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: input.trim() && !waiting && !pendingAction ? 'pointer' : 'default', flexShrink: 0, transition: 'background 0.2s' }}>
           <Send size={17} color="#fff" />
         </button>
       </div>

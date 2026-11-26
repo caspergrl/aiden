@@ -23,6 +23,16 @@ export default function DashboardLayout({ active, children }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  async function saveRename(id) {
+    const trimmed = renameValue.trim();
+    if (trimmed) {
+      setDoc(doc(db, 'users', user.uid, 'conversations', id), { title: trimmed }, { merge: true }).catch(() => {});
+    }
+    setRenamingId(null);
+  }
 
   const activeConvId = new URLSearchParams(location.search).get('c');
 
@@ -120,10 +130,31 @@ export default function DashboardLayout({ active, children }) {
             <div style={{ marginTop: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
               {conversations.map(c => {
                 const isActive = isChatActive && activeConvId === c.id;
-                return (
+                const displayTitle = c.title.length > 18 ? c.title.slice(0, 18) + '…' : c.title;
+                return renamingId === c.id ? (
+                  <input
+                    key={c.id}
+                    autoFocus
+                    value={renameValue}
+                    onChange={e => setRenameValue(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') saveRename(c.id);
+                      if (e.key === 'Escape') setRenamingId(null);
+                    }}
+                    onBlur={() => saveRename(c.id)}
+                    style={{
+                      width: '100%', padding: '6px 8px 6px 44px', borderRadius: 6,
+                      border: `1px solid ${C.rose}`, outline: 'none',
+                      fontSize: 13, color: C.text, background: '#fff',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                ) : (
                   <button
                     key={c.id}
                     onClick={() => { navigate(`/chat?c=${c.id}`); setMobileOpen(false); }}
+                    onDoubleClick={() => { setRenamingId(c.id); setRenameValue(c.title); }}
+                    title={c.title.length > 18 ? c.title : undefined}
                     style={{
                       width: '100%', display: 'flex', alignItems: 'center',
                       padding: '7px 16px 7px 44px', borderRadius: 6, border: 'none',
@@ -132,12 +163,11 @@ export default function DashboardLayout({ active, children }) {
                       color: isActive ? C.roseDark : C.muted,
                       fontSize: 13, fontWeight: isActive ? 600 : 400,
                       borderLeft: isActive ? `3px solid ${C.rose}` : '3px solid transparent',
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       transition: 'all 0.1s',
                     }}
                     onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = C.text; }}
                     onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = C.muted; }}>
-                    {c.title}
+                    {displayTitle}
                   </button>
                 );
               })}

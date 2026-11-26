@@ -174,6 +174,121 @@ function buildReminderSms({ apptTitle, apptDate, apptTime, apptLoc, recipName, l
   return parts.join('\n');
 }
 
+// ── Chat tools ────────────────────────────────────────────────────────────────
+const CHAT_TOOLS = [
+  {
+    name: 'create_appointment',
+    description: 'Create a new appointment or medical visit for a care recipient. Use when the user asks to schedule, book, or add an appointment.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        recipientId: { type: 'string', description: 'ID of the care recipient' },
+        title: { type: 'string', description: 'Title or description of the appointment, e.g. "Cardiology follow-up"' },
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format. Resolve relative dates like "next Tuesday" before calling.' },
+        time: { type: 'string', description: 'Time in HH:MM 24-hour format (optional)' },
+        doctor: { type: 'string', description: 'Doctor or provider name (optional)' },
+        location: { type: 'string', description: 'Location or address (optional)' },
+      },
+      required: ['recipientId', 'title', 'date'],
+    },
+  },
+  {
+    name: 'create_logistic_item',
+    description: 'Create a new to-do item or task for the caregiver. Use when the user asks to add a task, reminder, or action item.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Title of the task, e.g. "Call Medicare about claim"' },
+        note: { type: 'string', description: 'Additional notes or details (optional)' },
+        recipientId: { type: 'string', description: 'ID of the related care recipient, if applicable (optional)' },
+      },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'create_care_change',
+    description: 'Log a care change or health update for a care recipient. Use when the user describes a change in health status, medication, or living situation that should be recorded.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        recipientId: { type: 'string', description: 'ID of the care recipient' },
+        type: { type: 'string', enum: ['health', 'medication', 'location', 'other'], description: 'Type of change' },
+        title: { type: 'string', description: 'Short title describing the change' },
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format' },
+        details: { type: 'string', description: 'Additional details about the change (optional)' },
+      },
+      required: ['recipientId', 'type', 'title', 'date'],
+    },
+  },
+  {
+    name: 'add_doctor',
+    description: 'Add a new doctor or healthcare provider to a care recipient\'s care team.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        recipientId: { type: 'string', description: 'ID of the care recipient' },
+        name: { type: 'string', description: 'Full name of the doctor or provider' },
+        specialty: { type: 'string', description: 'Medical specialty (optional)' },
+        phone: { type: 'string', description: 'Phone number (optional)' },
+        address: { type: 'string', description: 'Office address (optional)' },
+        notes: { type: 'string', description: 'Any additional notes (optional)' },
+      },
+      required: ['recipientId', 'name'],
+    },
+  },
+];
+
+const EMERGENCY_PATTERNS = [
+  /chest\s*pain/i, /can'?t\s+breath/i, /not\s+breath/i, /trouble\s+breath/i,
+  /stroke/i, /facial\s+droop/i, /arm\s+weakness/i, /slurred\s+speech/i,
+  /collapsed/i, /unconscious/i, /unresponsive/i, /severe\s+bleed/i,
+  /won'?t\s+wake/i, /not\s+waking/i, /can'?t\s+wake/i,
+  /seizure/i, /overdos/i, /poisoning/i,
+  /suicid/i, /kill\s+(my|him|her)self/i, /want\s+to\s+die/i, /end\s+(my|his|her)\s+life/i,
+];
+
+const CRISIS_PATTERNS = [
+  /suicid/i, /kill\s+(my|him|her)self/i, /want\s+to\s+die/i, /end\s+(my|his|her)\s+life/i,
+];
+
+function serverCheckEmergency(text) {
+  const isEmergency = EMERGENCY_PATTERNS.some(p => p.test(text));
+  const isCrisis = CRISIS_PATTERNS.some(p => p.test(text));
+  return { isEmergency, isCrisis };
+}
+
+function fmtDateShort(ds) {
+  const [y, m, d] = ds.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function fmtTime(ts) {
+  const [h, min] = ts.split(':').map(Number);
+  return `${h % 12 || 12}:${String(min).padStart(2, '0')}${h >= 12 ? 'pm' : 'am'}`;
+}
+
+function buildToolSummary(toolName, args, recipients) {
+  const r = recipients.find(r => r.id === args.recipientId);
+  const name = r?.nickname || r?.name?.split(' ')[0] || 'your care recipient';
+  switch (toolName) {
+    case 'create_appointment': {
+      let s = `Schedule "${args.title}" for ${name} on ${fmtDateShort(args.date)}`;
+      if (args.time) s += ` at ${fmtTime(args.time)}`;
+      if (args.doctor) s += ` with ${args.doctor}`;
+      if (args.location) s += ` at ${args.location}`;
+      return s;
+    }
+    case 'create_logistic_item':
+      return `Add "${args.title}" to your to-do list${args.note ? ` — ${args.note}` : ''}`;
+    case 'create_care_change':
+      return `Log a ${args.type} change for ${name}: "${args.title}"${args.details ? ` — ${args.details}` : ''}`;
+    case 'add_doctor':
+      return `Add ${args.name}${args.specialty ? ` (${args.specialty})` : ''} to ${name}'s care team`;
+    default:
+      return toolName.replace(/_/g, ' ');
+  }
+}
+
 // ── Ask Aiden (Claude-powered chat) ───────────────────────────────────────────
 exports.askAiden = functions
   .runWith({ secrets: ['ANTHROPIC_API_KEY'] })
@@ -183,7 +298,7 @@ exports.askAiden = functions
     }
 
     const uid = context.auth.uid;
-    const { messages = [], conversationId = 'askaiden', skipSave = false } = data;
+    const { messages = [], conversationId = 'askaiden', skipSave = false, toolConfirmation = null } = data;
 
     // Load user context from Firestore
     const [userDoc, recSnap, apptSnap, docSnap, chgSnap, logSnap] = await Promise.all([
@@ -374,13 +489,71 @@ For aging adults, this means being familiar with:
 - Never overstate your certainty; use phrases like "this could suggest," "worth asking about," "typically in situations like this"
 - Always name the right professional for the user to follow up with — be specific about the type and why that type fits their situation`;
 
-    // Order by newest-first; bump the secret key check
     if (!process.env.ANTHROPIC_API_KEY) {
       throw new functions.https.HttpsError('internal', 'API key not configured.');
     }
 
-    // Convert to Claude API message format; strip any leading assistant messages
-    // since Claude requires the first message to be from user
+    const anthropic = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    // ── Tool confirmation round-trip ──────────────────────────────────────────
+    if (toolConfirmation) {
+      const { toolUseBlock, success, cancelled } = toolConfirmation;
+      let claudeMessages = messages.map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.text,
+      }));
+      while (claudeMessages.length && claudeMessages[0].role === 'assistant') {
+        claudeMessages = claudeMessages.slice(1);
+      }
+      // Append the tool_use + tool_result to complete the cycle
+      claudeMessages.push({
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: toolUseBlock.id, name: toolUseBlock.name, input: toolUseBlock.input }],
+      });
+      claudeMessages.push({
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: toolUseBlock.id,
+          content: cancelled ? 'The user cancelled this action.' : 'Action completed successfully.',
+        }],
+      });
+
+      const ackResponse = await anthropic.messages.create({
+        model: 'claude-opus-5-5',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: claudeMessages,
+      });
+      const ackText = ackResponse.content.find(b => b.type === 'text')?.text || (cancelled ? 'Got it, cancelled.' : 'Done!');
+
+      if (!skipSave) {
+        const convRef = admin.firestore().doc(`users/${uid}/conversations/${conversationId}`);
+        const summary = toolConfirmation.summary || toolUseBlock.name.replace(/_/g, ' ');
+        const confirmMsg = cancelled
+          ? `↩ Cancelled: ${summary}`
+          : `✓ ${summary}`;
+        await convRef.set({
+          messages: [...messages, { role: 'assistant', text: confirmMsg, ts: Date.now() }, { role: 'assistant', text: ackText, ts: Date.now() }],
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+
+      return { text: ackText };
+    }
+
+    // ── Standard conversation ─────────────────────────────────────────────────
+
+    // Emergency guard: inject directive into system prompt if triggered
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.text || '';
+    const { isEmergency, isCrisis } = serverCheckEmergency(lastUserMsg);
+    let activeSystemPrompt = systemPrompt;
+    if (isEmergency) {
+      const directive = isCrisis
+        ? 'IMPORTANT: Begin your response immediately with: "🚨 Call 911 now." On the next line, also add: "If you or someone you know is in crisis, call or text 988 (Suicide & Crisis Lifeline) — available 24/7." Then continue with helpful information.'
+        : 'IMPORTANT: Begin your response immediately with: "🚨 Call 911 now." Then continue with helpful information.';
+      activeSystemPrompt = directive + '\n\n' + systemPrompt;
+    }
+
+    // Convert to Claude API format; strip leading assistant messages
     let claudeMessages = messages.map(m => ({
       role: m.role === 'assistant' ? 'assistant' : 'user',
       content: m.text,
@@ -390,15 +563,41 @@ For aging adults, this means being familiar with:
     }
     if (!claudeMessages.length) return { text: 'Send me a message to get started!' };
 
-    const anthropic = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
-
     const response = await anthropic.messages.create({
       model: 'claude-opus-5-5',
-      max_tokens: 1024,
-      system: systemPrompt,
+      max_tokens: 2048,
+      system: activeSystemPrompt,
       messages: claudeMessages,
+      tools: CHAT_TOOLS,
     });
 
+    // ── Tool call requested ───────────────────────────────────────────────────
+    const toolUseBlock = response.content.find(b => b.type === 'tool_use');
+    if (toolUseBlock) {
+      const summary = buildToolSummary(toolUseBlock.name, toolUseBlock.input, recipients);
+      const preText = response.content.find(b => b.type === 'text')?.text || '';
+
+      // Save conversation up to the user message (tool call completes on confirm)
+      if (!skipSave) {
+        const convRef = admin.firestore().doc(`users/${uid}/conversations/${conversationId}`);
+        await convRef.set({
+          messages,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+
+      return {
+        pendingAction: {
+          toolUseBlock: { id: toolUseBlock.id, name: toolUseBlock.name, input: toolUseBlock.input },
+          tool: toolUseBlock.name,
+          args: toolUseBlock.input,
+          summary,
+          preText,
+        },
+      };
+    }
+
+    // ── Normal text response ──────────────────────────────────────────────────
     const assistantText = response.content.find(b => b.type === 'text')?.text || 'Sorry, I had trouble generating a response.';
 
     // Save conversation to Firestore unless caller opts out (e.g. one-off guidance calls)
