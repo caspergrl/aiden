@@ -1208,6 +1208,53 @@ const CHANGE_TYPES = [
 
 function AddChangeModal({ recipient, recipientId, onClose, onAdd }) {
   const today = new Date().toISOString().split('T')[0];
+
+  function renderMarkdown(text) {
+    if (!text) return null;
+    return text.split('\n').map((line, i) => {
+      // Strip leading/trailing whitespace
+      const trimmed = line.trim();
+
+      // ## Heading → bold section header
+      if (trimmed.startsWith('## ')) {
+        const content = trimmed.slice(3);
+        return (
+          <p key={i} style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 18, marginBottom: 4, fontFamily: sans }}>
+            {content}
+          </p>
+        );
+      }
+
+      // Empty line → spacer
+      if (!trimmed) return <div key={i} style={{ height: 6 }} />;
+
+      // Inline bold (**text**) parser
+      function parseBold(str) {
+        const parts = str.split(/\*\*(.+?)\*\*/);
+        return parts.map((part, j) =>
+          j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+        );
+      }
+
+      // Bullet line (starts with - or *)
+      if (trimmed.match(/^[-*] /)) {
+        return (
+          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 3 }}>
+            <span style={{ color: C.muted, flexShrink: 0, marginTop: 2 }}>·</span>
+            <p style={{ fontSize: 13, color: C.text, lineHeight: 1.75, margin: 0 }}>{parseBold(trimmed.slice(2))}</p>
+          </div>
+        );
+      }
+
+      // Regular paragraph
+      return (
+        <p key={i} style={{ fontSize: 13, color: C.text, lineHeight: 1.75, margin: '0 0 4px' }}>
+          {parseBold(trimmed)}
+        </p>
+      );
+    });
+  }
+
   const [type, setType]               = useState('health');
   const [title, setTitle]             = useState('');
   const [details, setDetails]         = useState('');
@@ -1306,7 +1353,7 @@ function AddChangeModal({ recipient, recipientId, onClose, onAdd }) {
               <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #dde8f6, #f0dde6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Heart size={16} color={C.roseDark} /></div>
               <p style={{ fontFamily: serif, fontSize: 15, color: C.text, lineHeight: 1.4 }}>Guidance for {recipient?.nickname || recipient?.name?.split(' ')[0] || 'your care recipient'}</p>
             </div>
-            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.85, whiteSpace: 'pre-wrap', marginBottom: 20 }}>{guidanceText}</div>
+            <div style={{ marginBottom: 20 }}>{renderMarkdown(guidanceText)}</div>
             <button onClick={onClose} style={{ width: '100%', background: C.bgWarm, border: 'none', borderRadius: 12, padding: '12px 0', fontSize: 14, fontWeight: 600, color: C.muted, cursor: 'pointer' }}>Done</button>
           </div>
         )}

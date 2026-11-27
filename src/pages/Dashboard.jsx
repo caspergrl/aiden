@@ -13,6 +13,7 @@ import MyList      from './dashboard/MyList';
 import Insurance   from './dashboard/Insurance';
 import Resources   from './dashboard/Resources';
 import Chat        from './dashboard/Chat';
+import SettingsPage from './dashboard/Settings';
 import { useAuth } from '../App';
 
 import {
@@ -357,6 +358,8 @@ export default function Dashboard() {
           />
         );
       }
+      case 'settings':
+        return <SettingsPage />;
       default:
         return null;
     }

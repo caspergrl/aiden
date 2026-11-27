@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AccessibilityProvider } from './contexts/AccessibilityContext';
 import { onAuthStateChanged, signOut, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
@@ -205,31 +206,34 @@ function Spinner() {
 // ─── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/"             element={<Landing />} />
-          <Route path="/individuals"  element={<ForIndividuals />} />
-          <Route path="/businesses"   element={<ForBusinesses />} />
-          <Route path="/faq"          element={<FAQ />} />
-          <Route path="/contact"      element={<Contact />} />
-          <Route path="/login"   element={<Login />} />
-          <Route path="/home"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/care"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/calendar"  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/todo"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/resources" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/chat"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/dashboard" element={<Navigate to="/home" replace />} />
-          <Route path="/account"   element={<ProtectedRoute><Account /></ProtectedRoute>} />
-          <Route path="/org"       element={<ProtectedRoute><Org /></ProtectedRoute>} />
-          <Route path="/admin"     element={<AdminRoute><Admin /></AdminRoute>} />
-          <Route path="/privacy"   element={<PrivacyPolicy />} />
-          <Route path="/terms"     element={<Terms />} />
-          <Route path="/meds/:token" element={<PublicMeds />} />
-          <Route path="*"          element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <AccessibilityProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/"             element={<Landing />} />
+            <Route path="/individuals"  element={<ForIndividuals />} />
+            <Route path="/businesses"   element={<ForBusinesses />} />
+            <Route path="/faq"          element={<FAQ />} />
+            <Route path="/contact"      element={<Contact />} />
+            <Route path="/login"   element={<Login />} />
+            <Route path="/home"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/care"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/calendar"  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/todo"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/resources" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/chat"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/settings"  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<Navigate to="/home" replace />} />
+            <Route path="/account"   element={<ProtectedRoute><Account /></ProtectedRoute>} />
+            <Route path="/org"       element={<ProtectedRoute><Org /></ProtectedRoute>} />
+            <Route path="/admin"     element={<AdminRoute><Admin /></AdminRoute>} />
+            <Route path="/privacy"   element={<PrivacyPolicy />} />
+            <Route path="/terms"     element={<Terms />} />
+            <Route path="/meds/:token" element={<PublicMeds />} />
+            <Route path="*"          element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </AccessibilityProvider>
   );
 }

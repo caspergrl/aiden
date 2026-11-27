@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { collection, doc, getDoc, setDoc, addDoc, deleteDoc, onSnapshot, orderBy, query, limit, serverTimestamp } from 'firebase/firestore';
-import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked, Plus, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { Home, CalendarDays, ClipboardList, Shield, MessageCircle, Users, Settings, LogOut, Menu, X, BookMarked, Plus, MoreHorizontal, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { auth, db } from '../../firebase';
 import { useAuth } from '../../App';
 import { C } from '../../theme';
@@ -271,6 +271,9 @@ export default function DashboardLayout({ active, children }) {
             <Shield size={18} strokeWidth={1.8} /> Admin panel
           </Link>
         )}
+        <button onClick={() => { navigate('/settings'); setMobileOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: active === 'settings' ? 600 : 500, color: active === 'settings' ? C.text : C.muted, background: active === 'settings' ? '#f5f5f5' : 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
+          <SlidersHorizontal size={18} strokeWidth={1.8} /> Accessibility
+        </button>
         <Link to="/account" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: 'none' }}>
           <Settings size={18} strokeWidth={1.8} /> Account
         </Link>
