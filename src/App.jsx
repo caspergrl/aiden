@@ -483,9 +483,98 @@ async function fetchGCalEvents(accessToken, email) {
   }));
 }
 
+// ─── EPIC SMART on FHIR ───────────────────────────────────────────────────────
+
+const EPIC_BASE      = 'https://fhir.epic.com/interconnect-fhir-oauth';
+const EPIC_AUTH_URL  = `${EPIC_BASE}/oauth2/authorize`;
+const EPIC_TOKEN_URL = `${EPIC_BASE}/oauth2/token`;
+const EPIC_FHIR_R4   = `${EPIC_BASE}/api/FHIR/R4`;
+
+const EPIC_SCOPES = [
+  'openid', 'fhirUser', 'launch/patient',
+  'patient/Patient.read', 'patient/Appointment.read',
+  'patient/MedicationRequest.read', 'patient/Condition.read',
+  'patient/AllergyIntolerance.read', 'patient/Observation.read',
+].join(' ');
+
+function epicClientId() { return import.meta.env.VITE_EPIC_CLIENT_ID || ''; }
+
+function epicRedirectUri() {
+  return sessionStorage.getItem('epic_redirect_uri') || window.location.origin;
+}
+
+async function startEpicOAuth() {
+  const verifier  = pkceGenerateVerifier();
+  const challenge = await pkceChallenge(verifier);
+  sessionStorage.setItem('epic_verifier', verifier);
+  const native      = await isNativePlatform();
+  const redirectUri = native ? GCAL_NATIVE_SCHEME : window.location.origin;
+  sessionStorage.setItem('epic_redirect_uri', redirectUri);
+  const params = new URLSearchParams({
+    client_id:             epicClientId(),
+    redirect_uri:          redirectUri,
+    response_type:         'code',
+    code_challenge:        challenge,
+    code_challenge_method: 'S256',
+    state:                 'epic_connect',
+  });
+  const scopeParam = EPIC_SCOPES.split(' ').join('+');
+  const authUrl = `${EPIC_AUTH_URL}?${params}&scope=${scopeParam}`;
+  if (native) {
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.open({ url: authUrl });
+  } else {
+    window.location.href = authUrl;
+  }
+}
+
+async function exchangeEpicCode(code) {
+  const verifier    = sessionStorage.getItem('epic_verifier') || '';
+  sessionStorage.removeItem('epic_verifier');
+  const redirectUri = epicRedirectUri();
+  sessionStorage.removeItem('epic_redirect_uri');
+  const resp = await fetch(EPIC_TOKEN_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ code, client_id: epicClientId(), redirect_uri: redirectUri, grant_type: 'authorization_code', code_verifier: verifier }),
+  });
+  return resp.json();
+}
+
+async function refreshEpicToken(refreshToken) {
+  const resp = await fetch(EPIC_TOKEN_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: epicClientId() }),
+  });
+  return resp.json();
+}
+
+async function fetchEpicAppointments(accessToken, patientId) {
+  const today = new Date().toISOString().slice(0, 10);
+  const url   = `${EPIC_FHIR_R4}/Appointment?patient=${patientId}&date=ge${today}&_count=100`;
+  const resp  = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/fhir+json' } });
+  if (!resp.ok) throw new Error(`Epic FHIR error ${resp.status}`);
+  const bundle = await resp.json();
+  return (bundle.entry || []).map(e => e.resource).filter(r => r?.resourceType === 'Appointment');
+}
+
+function epicAppointmentToAiden(resource) {
+  const start        = resource.start ? new Date(resource.start) : null;
+  const practitioner = (resource.participant || []).find(p => p.actor?.reference?.startsWith('Practitioner'));
+  const title = resource.description
+    || (practitioner?.actor?.display ? `With ${practitioner.actor.display}` : 'Epic Appointment');
+  return {
+    title,
+    date:    start ? start.toISOString().slice(0, 10) : '',
+    time:    start ? start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+    notes: '', recipientId: '', source: 'epic_fhir', epicId: resource.id || '',
+  };
+}
+
 // ─── PROFILE SHEET ────────────────────────────────────────────────────────────
 
-function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, onRefresh, onGCalConnected }) {
+function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, onRefresh, onGCalConnected, onEpicSynced }) {
   const [subTab, setSubTab] = useState('profile');
 
   // Profile state
@@ -505,6 +594,7 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
   const [healthStatus, setHealthStatus]   = useState('idle'); // idle | requesting | connected | unavailable
   const [healthData, setHealthData]       = useState(null);
   const [gcalSyncing, setGcalSyncing]     = useState({}); // { [tokenKey]: bool }
+  const [epicSyncing, setEpicSyncing]     = useState(false);
 
   // Load connection metadata from Firestore; tokens live in device secure storage
   useEffect(() => {
@@ -615,6 +705,51 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
     setConnStatus(p => ({ ...p, health: null }));
     setHealthData(null);
     setHealthStatus('idle');
+  }
+
+  async function handleConnectEpic() {
+    if (!epicClientId()) {
+      setConnError('Epic client ID not configured — add VITE_EPIC_CLIENT_ID to .env');
+      return;
+    }
+    setConnError('');
+    await startEpicOAuth();
+  }
+
+  async function handleDisconnectEpic() {
+    try {
+      clearTokens('epic');
+      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epic: null }, { merge: true });
+      setConnStatus(p => { const n = { ...p }; delete n.epic; return n; });
+    } catch { setConnError('Could not disconnect — try again.'); }
+  }
+
+  async function handleSyncEpic() {
+    setEpicSyncing(true); setConnError('');
+    try {
+      let stored = await loadTokens('epic');
+      if (!stored?.accessToken) throw new Error('Not connected — please reconnect Epic.');
+      let { accessToken, refreshToken, patientId } = stored;
+      if (stored.expiresAt && stored.expiresAt < Date.now() + 60000) {
+        const refreshed = await refreshEpicToken(refreshToken);
+        if (!refreshed.access_token) throw new Error('Session expired — please reconnect Epic.');
+        accessToken = refreshed.access_token;
+        await saveTokens('epic', { ...stored, accessToken, expiresAt: Date.now() + (refreshed.expires_in || 3600) * 1000 });
+      }
+      const resources = await fetchEpicAppointments(accessToken, patientId || '');
+      const apts      = resources.map(epicAppointmentToAiden);
+      const batch     = writeBatch(db);
+      const colRef    = collection(db, 'users', user.uid, 'appointments');
+      const existing  = await getDocs(query(colRef, where('source', '==', 'epic_fhir')));
+      existing.forEach(d => batch.delete(d.ref));
+      apts.forEach(a => batch.set(doc(colRef), a));
+      await batch.commit();
+      const meta = { connectedAt: connStatus.epic?.connectedAt || Date.now(), lastSync: Date.now(), patientId: patientId || '', eventCount: apts.length };
+      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epic: meta }, { merge: true });
+      setConnStatus(p => ({ ...p, epic: meta }));
+      onEpicSynced?.(apts);
+    } catch (e) { setConnError(e.message || 'Sync failed — try reconnecting.'); }
+    setEpicSyncing(false);
   }
 
   // Notifications state
@@ -988,6 +1123,52 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
                 <span style={{ fontSize:16 }}>G</span>
                 {gcalAccounts.length ? 'Add another account' : 'Connect with Google'}
               </button>
+            </div>
+          </div>
+
+          {/* ── Epic Health Records card ── */}
+          <div style={{ borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', marginBottom:16, background:'white' }}>
+            <div style={{ padding:'14px 16px', borderBottom:`1px solid ${C.bg}`, display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:40, height:40, borderRadius:12, background:'linear-gradient(135deg,#2a6496,#1a4a7a)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:20 }}>
+                🏥
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <p style={{ fontSize:15, fontWeight:700, color:C.text, fontFamily:sans, margin:0 }}>Epic Health Records</p>
+                <p style={{ fontSize:12, color:C.muted, fontFamily:sans, margin:0, marginTop:2 }}>MyChart appointments</p>
+              </div>
+              {connStatus.epic?.connectedAt && (
+                <span style={{ fontSize:11, fontWeight:700, color:'#3a6e58', background:'#f0f7f4', borderRadius:8, padding:'4px 8px', flexShrink:0 }}>Connected</span>
+              )}
+            </div>
+            <div style={{ padding:'12px 16px' }}>
+              <p style={{ fontSize:12, color:C.muted, fontFamily:sans, lineHeight:1.6, marginBottom:12 }}>
+                Pull upcoming appointments from your Epic MyChart account into Aiden. Nothing is written back.
+              </p>
+              {connStatus.epic?.lastSync && (
+                <div style={{ background:C.bg, borderRadius:10, padding:'10px 12px', marginBottom:10 }}>
+                  <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, margin:0 }}>
+                    Synced {new Date(connStatus.epic.lastSync).toLocaleDateString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                    {connStatus.epic.eventCount != null && ` · ${connStatus.epic.eventCount} appointments`}
+                  </p>
+                </div>
+              )}
+              {connStatus.epic?.connectedAt ? (
+                <div style={{ display:'flex', gap:8 }}>
+                  <button onClick={handleSyncEpic} disabled={epicSyncing}
+                    style={{ flex:1, background:C.bg, border:`1px solid ${C.border}`, borderRadius:10, padding:'9px 0', fontSize:13, fontWeight:600, fontFamily:sans, color:C.text, cursor:'pointer', opacity:epicSyncing?0.7:1 }}>
+                    {epicSyncing ? 'Syncing…' : 'Sync now'}
+                  </button>
+                  <button onClick={handleDisconnectEpic}
+                    style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:10, padding:'9px 12px', fontSize:13, color:C.muted, fontFamily:sans, cursor:'pointer' }}>
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <button onClick={handleConnectEpic}
+                  style={{ width:'100%', background:'linear-gradient(135deg,#2a6496,#1a4a7a)', color:'white', border:'none', borderRadius:10, padding:'10px 0', fontSize:13, fontWeight:700, fontFamily:sans, cursor:'pointer' }}>
+                  Connect with Epic MyChart
+                </button>
+              )}
             </div>
           </div>
 
@@ -5408,6 +5589,70 @@ export default function AidenApp() {
     });
   }
 
+  // ── Epic OAuth callback ───────────────────────────────────────────────────────
+  const [pendingEpicCode, setPendingEpicCode] = useState(null);
+
+  // Web: detect redirect back with ?code=...&state=epic_connect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code   = params.get('code');
+    const state  = params.get('state');
+    if (code && state === 'epic_connect') {
+      setPendingEpicCode(code);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Native: listen for deep-link back from the in-app browser
+  useEffect(() => {
+    let remove;
+    (async () => {
+      try {
+        const { App: CapApp } = await import('@capacitor/app');
+        const { Browser }     = await import('@capacitor/browser');
+        const handler = await CapApp.addListener('appUrlOpen', async ({ url }) => {
+          try {
+            const parsed = new URL(url);
+            const code   = parsed.searchParams.get('code');
+            const state  = parsed.searchParams.get('state');
+            if (code && state === 'epic_connect') {
+              await Browser.close();
+              setPendingEpicCode(code);
+            }
+          } catch {}
+        });
+        remove = () => handler.remove();
+      } catch {}
+    })();
+    return () => remove?.();
+  }, []);
+
+  useEffect(() => {
+    if (!pendingEpicCode || !user) return;
+    (async () => {
+      try {
+        const tokens = await exchangeEpicCode(pendingEpicCode);
+        if (tokens.access_token) {
+          const patientId = tokens.patient || '';
+          await saveTokens('epic', {
+            accessToken:  tokens.access_token,
+            refreshToken: tokens.refresh_token || null,
+            expiresAt:    Date.now() + (tokens.expires_in || 3600) * 1000,
+            patientId,
+          });
+          const meta = { connectedAt: Date.now(), patientId };
+          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epic: meta }, { merge: true });
+          setShowProfile(true);
+        }
+      } catch (e) { console.error('Epic token exchange error:', e); }
+      setPendingEpicCode(null);
+    })();
+  }, [pendingEpicCode, user]);
+
+  function handleEpicSynced(apts) {
+    setAppointments(prev => [...prev.filter(a => a.source !== 'epic_fhir'), ...apts]);
+  }
+
   useEffect(() => {
     // Safety timeout: if Firebase doesn't respond in 8s, stop showing the loading screen
     const timeout = setTimeout(() => setAuthLoading(false), 8000);
@@ -5988,6 +6233,7 @@ export default function AidenApp() {
           onSignOut={() => { signOut(auth); setShowProfile(false); }}
           onRefresh={() => setUser({ ...auth.currentUser })}
           onGCalConnected={handleGCalConnected}
+          onEpicSynced={handleEpicSynced}
         />
       )}
 
