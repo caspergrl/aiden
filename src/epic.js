@@ -28,6 +28,12 @@ export function epicRedirectUri() {
   return window.location.origin + '/account';
 }
 
+export function epicAccountKey(patientId) {
+  return patientId
+    ? 'epic_' + patientId.replace(/[^a-zA-Z0-9]/g, '_')
+    : 'epic_anon_' + Date.now();
+}
+
 function pkceGenerateVerifier() {
   const arr = new Uint8Array(32);
   crypto.getRandomValues(arr);

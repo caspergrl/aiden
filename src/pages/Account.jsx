@@ -12,7 +12,7 @@ import Footer from '../components/Footer';
 import { C, serif, shadow } from '../theme';
 import { saveTokens, loadTokens, clearTokens } from '../secureTokens';
 import { gcalClientId, gcalTokenKey, startGoogleCalendarOAuth, exchangeGCalCode, fetchGCalUserEmail, refreshGCalToken, fetchGCalEvents } from '../gcal';
-import { epicClientId, startEpicOAuth, exchangeEpicCode, refreshEpicToken, fetchEpicAppointments, epicAppointmentToAiden } from '../epic';
+import { epicClientId, epicAccountKey, startEpicOAuth, exchangeEpicCode, refreshEpicToken, fetchEpicAppointments, epicAppointmentToAiden } from '../epic';
 import { UpgradeModal, RoleBadge, ORG_TYPES } from './Org';
 import { isBusinessAllowed } from '../businessBeta';
 
@@ -100,7 +100,7 @@ export default function Account() {
 
   // ── Epic FHIR connection ──────────────────────────────────────────────────────
   const [epicExchanging, setEpicExchanging] = useState(false);
-  const [epicSyncing,    setEpicSyncing]    = useState(false);
+  const [epicSyncing,    setEpicSyncing]    = useState({});
 
   // Load connection metadata from Firestore
   useEffect(() => {
@@ -153,15 +153,18 @@ export default function Account() {
         const tokens = await exchangeEpicCode(code);
         if (tokens.access_token) {
           const patientId = tokens.patient || '';
-          await saveTokens('epic', {
+          const key       = epicAccountKey(patientId);
+          await saveTokens(key, {
             accessToken:  tokens.access_token,
             refreshToken: tokens.refresh_token || null,
             expiresAt:    Date.now() + (tokens.expires_in || 3600) * 1000,
             patientId,
           });
-          const meta = { connectedAt: Date.now(), patientId };
-          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epic: meta }, { merge: true });
-          setConnStatus(p => ({ ...p, epic: meta }));
+          const accountMeta = { connectedAt: Date.now(), patientId };
+          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), {
+            epicAccounts: { [key]: accountMeta },
+          }, { merge: true });
+          setConnStatus(p => ({ ...p, epicAccounts: { ...(p.epicAccounts || {}), [key]: accountMeta } }));
         } else {
           setConnError('Epic connection failed — please try again.');
         }
@@ -169,6 +172,10 @@ export default function Account() {
       setEpicExchanging(false);
     })();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const epicAccounts = Object.entries(connStatus.epicAccounts || {})
+    .map(([key, meta]) => ({ key, ...meta }))
+    .sort((a, b) => (a.connectedAt || 0) - (b.connectedAt || 0));
 
   const gcalAccounts = Object.entries(connStatus.googleCalendars || {})
     .map(([key, meta]) => ({ key, ...meta }))
@@ -230,51 +237,53 @@ export default function Account() {
     await startEpicOAuth();
   }
 
-  async function handleDisconnectEpic() {
+  async function handleDisconnectEpic(key) {
     setConnLoading(true);
     try {
-      await clearTokens('epic');
-      // Remove Epic appointments from Firestore
-      const snap  = await getDocs(query(collection(db, 'users', user.uid, 'appointments'), where('source', '==', 'epic_fhir')));
+      await clearTokens(key);
+      const snap  = await getDocs(query(collection(db, 'users', user.uid, 'appointments'), where('epicKey', '==', key)));
       const batch = writeBatch(db);
       snap.docs.forEach(d => batch.delete(d.ref));
       await batch.commit();
-      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epic: null }, { merge: true });
-      setConnStatus(p => { const s = { ...p }; delete s.epic; return s; });
+      const updated = { ...(connStatus.epicAccounts || {}) };
+      delete updated[key];
+      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epicAccounts: updated }, { merge: true });
+      setConnStatus(p => {
+        const accs = { ...(p.epicAccounts || {}) };
+        delete accs[key];
+        return { ...p, epicAccounts: accs };
+      });
     } catch { setConnError('Could not disconnect Epic — try again.'); }
     setConnLoading(false);
   }
 
-  async function handleSyncEpic() {
-    setEpicSyncing(true); setConnError('');
+  async function handleSyncEpic(key, patientId) {
+    setEpicSyncing(p => ({ ...p, [key]: true })); setConnError('');
     try {
-      const stored = await loadTokens('epic');
+      const stored = await loadTokens(key);
       if (!stored?.accessToken) throw new Error('Not connected — please reconnect Epic.');
-      let { accessToken, refreshToken, expiresAt, patientId } = stored;
+      let { accessToken, refreshToken, expiresAt } = stored;
       if (Date.now() > (expiresAt || 0) - 60_000) {
         const refreshed = await refreshEpicToken(refreshToken);
         if (!refreshed.access_token) throw new Error('Session expired — please reconnect Epic.');
         accessToken = refreshed.access_token;
         expiresAt   = Date.now() + (refreshed.expires_in || 3600) * 1000;
-        await saveTokens('epic', { accessToken, refreshToken, expiresAt, patientId });
+        await saveTokens(key, { accessToken, refreshToken, expiresAt, patientId });
       }
       const resources = await fetchEpicAppointments(accessToken, patientId);
       const aidenAppts = resources
         .filter(r => ['booked', 'arrived', 'fulfilled'].includes(r.status))
-        .map(epicAppointmentToAiden);
-      // Replace all existing epic_fhir appointments
-      const existingSnap = await getDocs(query(collection(db, 'users', user.uid, 'appointments'), where('source', '==', 'epic_fhir')));
+        .map(r => ({ ...epicAppointmentToAiden(r), epicKey: key }));
+      const existingSnap = await getDocs(query(collection(db, 'users', user.uid, 'appointments'), where('epicKey', '==', key)));
       const batch = writeBatch(db);
       existingSnap.docs.forEach(d => batch.delete(d.ref));
-      aidenAppts.forEach(appt => {
-        batch.set(doc(collection(db, 'users', user.uid, 'appointments')), appt);
-      });
+      aidenAppts.forEach(appt => batch.set(doc(collection(db, 'users', user.uid, 'appointments')), appt));
       await batch.commit();
-      const meta = { connectedAt: connStatus.epic?.connectedAt || Date.now(), lastSync: Date.now(), appointmentCount: aidenAppts.length, patientId };
-      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epic: meta }, { merge: true });
-      setConnStatus(p => ({ ...p, epic: meta }));
+      const meta = { connectedAt: connStatus.epicAccounts?.[key]?.connectedAt || Date.now(), lastSync: Date.now(), appointmentCount: aidenAppts.length, patientId };
+      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epicAccounts: { [key]: meta } }, { merge: true });
+      setConnStatus(p => ({ ...p, epicAccounts: { ...(p.epicAccounts || {}), [key]: meta } }));
     } catch (e) { setConnError(e.message || 'Epic sync failed — try reconnecting.'); }
-    setEpicSyncing(false);
+    setEpicSyncing(p => ({ ...p, [key]: false }));
   }
 
   async function resizeImage(file, maxSize = 200) {
@@ -544,14 +553,14 @@ export default function Account() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
             <Activity size={17} color={C.primary} />
             <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Epic Health Records</h2>
-            {connStatus.epic && (
+            {epicAccounts.length > 0 && (
               <span style={{ marginLeft: 'auto', background: '#f0f7f4', color: '#3a6e58', border: '1px solid #8ab5a040', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 800 }}>
-                Connected
+                {epicAccounts.length === 1 ? 'Connected' : `${epicAccounts.length} accounts`}
               </span>
             )}
           </div>
           <p style={{ fontSize: 14, color: C.muted, marginBottom: 16, lineHeight: 1.65 }}>
-            Pull upcoming appointments from your Epic MyChart account into Aiden. Nothing is written back.
+            Pull upcoming appointments from your Epic MyChart accounts into Aiden. Nothing is written back.
           </p>
 
           {epicExchanging && (
@@ -564,39 +573,33 @@ export default function Account() {
             <p style={{ fontSize: 13, color: C.coral, marginBottom: 12 }}>{connError}</p>
           )}
 
-          {connStatus.epic && (
-            <div style={{ background: C.bgWarm, borderRadius: 12, padding: '12px 14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
+          {epicAccounts.map(({ key, patientId, lastSync, appointmentCount }) => (
+            <div key={key} style={{ background: C.bgWarm, borderRadius: 12, padding: '12px 14px', marginBottom: 10, border: `1px solid ${C.border}` }}>
               <div style={{ marginBottom: 10 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Epic MyChart</p>
-                {connStatus.epic.lastSync && (
-                  <p style={{ fontSize: 12, color: C.mutedLight, margin: '3px 0 0' }}>
-                    Synced {new Date(connStatus.epic.lastSync).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    {connStatus.epic.appointmentCount != null && ` · ${connStatus.epic.appointmentCount} appointments`}
-                  </p>
-                )}
-                {!connStatus.epic.lastSync && (
-                  <p style={{ fontSize: 12, color: C.mutedLight, margin: '3px 0 0' }}>Connected — tap Sync to import appointments</p>
-                )}
+                <p style={{ fontSize: 12, color: C.mutedLight, margin: '2px 0 0' }}>
+                  {lastSync
+                    ? <>Synced {new Date(lastSync).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}{appointmentCount != null && ` · ${appointmentCount} appointments`}</>
+                    : 'Connected — click Sync to import appointments'}
+                </p>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={handleSyncEpic} disabled={epicSyncing}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 0', fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer', opacity: epicSyncing ? 0.6 : 1 }}>
-                  <RefreshCw size={13} /> {epicSyncing ? 'Syncing…' : 'Sync now'}
+                <button onClick={() => handleSyncEpic(key, patientId)} disabled={!!epicSyncing[key]}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 0', fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer', opacity: epicSyncing[key] ? 0.6 : 1 }}>
+                  <RefreshCw size={13} /> {epicSyncing[key] ? 'Syncing…' : 'Sync now'}
                 </button>
-                <button onClick={handleDisconnectEpic} disabled={connLoading}
+                <button onClick={() => handleDisconnectEpic(key)} disabled={connLoading}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 14px', fontSize: 13, color: C.muted, cursor: 'pointer' }}>
                   <Unlink size={13} /> Disconnect
                 </button>
               </div>
             </div>
-          )}
+          ))}
 
-          {!connStatus.epic && (
-            <button onClick={handleConnectEpic}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fff', color: '#444', border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-              <Activity size={15} color="#c06060" /> Connect with Epic MyChart
-            </button>
-          )}
+          <button onClick={handleConnectEpic}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fff', color: '#444', border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: epicAccounts.length ? 4 : 0 }}>
+            <Activity size={15} color="#c06060" /> {epicAccounts.length ? 'Add another Epic account' : 'Connect with Epic MyChart'}
+          </button>
         </Card>
 
         {/* Reminders */}
