@@ -11,7 +11,7 @@ export const EPIC_FHIR_R4 = `${EPIC_BASE}/api/FHIR/R4`;
 const EPIC_SCOPES = [
   'openid',
   'fhirUser',
-  'launch/patient',
+  'offline_access',
   'patient/Patient.read',
   'patient/Appointment.read',
   'patient/MedicationRequest.read',
