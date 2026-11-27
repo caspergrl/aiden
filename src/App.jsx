@@ -499,6 +499,12 @@ const EPIC_SCOPES = [
 
 function epicClientId() { return import.meta.env.VITE_EPIC_CLIENT_ID || ''; }
 
+function epicAccountKey(patientId) {
+  return patientId
+    ? 'epic_' + patientId.replace(/[^a-zA-Z0-9]/g, '_')
+    : 'epic_anon_' + Date.now();
+}
+
 function epicRedirectUri() {
   return sessionStorage.getItem('epic_redirect_uri') || window.location.origin;
 }
@@ -594,7 +600,7 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
   const [healthStatus, setHealthStatus]   = useState('idle'); // idle | requesting | connected | unavailable
   const [healthData, setHealthData]       = useState(null);
   const [gcalSyncing, setGcalSyncing]     = useState({}); // { [tokenKey]: bool }
-  const [epicSyncing, setEpicSyncing]     = useState(false);
+  const [epicSyncing, setEpicSyncing]     = useState({});
 
   // Load connection metadata from Firestore; tokens live in device secure storage
   useEffect(() => {
@@ -707,6 +713,10 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
     setHealthStatus('idle');
   }
 
+  const epicAccounts = Object.entries(connStatus.epicAccounts || {})
+    .map(([key, meta]) => ({ key, ...meta }))
+    .sort((a, b) => (a.connectedAt || 0) - (b.connectedAt || 0));
+
   async function handleConnectEpic() {
     if (!epicClientId()) {
       setConnError('Epic client ID not configured — add VITE_EPIC_CLIENT_ID to .env');
@@ -716,40 +726,50 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
     await startEpicOAuth();
   }
 
-  async function handleDisconnectEpic() {
+  async function handleDisconnectEpic(key) {
     try {
-      clearTokens('epic');
-      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epic: null }, { merge: true });
-      setConnStatus(p => { const n = { ...p }; delete n.epic; return n; });
+      clearTokens(key);
+      const snap  = await getDocs(query(collection(db, 'users', user.uid, 'appointments'), where('epicKey', '==', key)));
+      const batch = writeBatch(db);
+      snap.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      const updated = { ...(connStatus.epicAccounts || {}) };
+      delete updated[key];
+      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epicAccounts: updated }, { merge: true });
+      setConnStatus(p => {
+        const accs = { ...(p.epicAccounts || {}) };
+        delete accs[key];
+        return { ...p, epicAccounts: accs };
+      });
     } catch { setConnError('Could not disconnect — try again.'); }
   }
 
-  async function handleSyncEpic() {
-    setEpicSyncing(true); setConnError('');
+  async function handleSyncEpic(key, patientId) {
+    setEpicSyncing(p => ({ ...p, [key]: true })); setConnError('');
     try {
-      let stored = await loadTokens('epic');
+      let stored = await loadTokens(key);
       if (!stored?.accessToken) throw new Error('Not connected — please reconnect Epic.');
-      let { accessToken, refreshToken, patientId } = stored;
+      let { accessToken, refreshToken } = stored;
       if (stored.expiresAt && stored.expiresAt < Date.now() + 60000) {
         const refreshed = await refreshEpicToken(refreshToken);
         if (!refreshed.access_token) throw new Error('Session expired — please reconnect Epic.');
         accessToken = refreshed.access_token;
-        await saveTokens('epic', { ...stored, accessToken, expiresAt: Date.now() + (refreshed.expires_in || 3600) * 1000 });
+        await saveTokens(key, { ...stored, accessToken, expiresAt: Date.now() + (refreshed.expires_in || 3600) * 1000 });
       }
       const resources = await fetchEpicAppointments(accessToken, patientId || '');
-      const apts      = resources.map(epicAppointmentToAiden);
+      const apts      = resources.map(r => ({ ...epicAppointmentToAiden(r), epicKey: key }));
       const batch     = writeBatch(db);
       const colRef    = collection(db, 'users', user.uid, 'appointments');
-      const existing  = await getDocs(query(colRef, where('source', '==', 'epic_fhir')));
+      const existing  = await getDocs(query(colRef, where('epicKey', '==', key)));
       existing.forEach(d => batch.delete(d.ref));
       apts.forEach(a => batch.set(doc(colRef), a));
       await batch.commit();
-      const meta = { connectedAt: connStatus.epic?.connectedAt || Date.now(), lastSync: Date.now(), patientId: patientId || '', eventCount: apts.length };
-      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epic: meta }, { merge: true });
-      setConnStatus(p => ({ ...p, epic: meta }));
+      const meta = { connectedAt: connStatus.epicAccounts?.[key]?.connectedAt || Date.now(), lastSync: Date.now(), patientId: patientId || '', eventCount: apts.length };
+      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epicAccounts: { [key]: meta } }, { merge: true });
+      setConnStatus(p => ({ ...p, epicAccounts: { ...(p.epicAccounts || {}), [key]: meta } }));
       onEpicSynced?.(apts);
     } catch (e) { setConnError(e.message || 'Sync failed — try reconnecting.'); }
-    setEpicSyncing(false);
+    setEpicSyncing(p => ({ ...p, [key]: false }));
   }
 
   // Notifications state
@@ -1136,39 +1156,42 @@ function AccountPage({ user, notifPrefs, onSaveNotifPrefs, onClose, onSignOut, o
                 <p style={{ fontSize:15, fontWeight:700, color:C.text, fontFamily:sans, margin:0 }}>Epic Health Records</p>
                 <p style={{ fontSize:12, color:C.muted, fontFamily:sans, margin:0, marginTop:2 }}>MyChart appointments</p>
               </div>
-              {connStatus.epic?.connectedAt && (
-                <span style={{ fontSize:11, fontWeight:700, color:'#3a6e58', background:'#f0f7f4', borderRadius:8, padding:'4px 8px', flexShrink:0 }}>Connected</span>
+              {epicAccounts.length > 0 && (
+                <span style={{ fontSize:11, fontWeight:700, color:'#3a6e58', background:'#f0f7f4', borderRadius:8, padding:'4px 8px', flexShrink:0 }}>
+                  {epicAccounts.length === 1 ? 'Connected' : `${epicAccounts.length} accounts`}
+                </span>
               )}
             </div>
             <div style={{ padding:'12px 16px' }}>
               <p style={{ fontSize:12, color:C.muted, fontFamily:sans, lineHeight:1.6, marginBottom:12 }}>
-                Pull upcoming appointments from your Epic MyChart account into Aiden. Nothing is written back.
+                Pull upcoming appointments from your Epic MyChart accounts into Aiden. Nothing is written back.
               </p>
-              {connStatus.epic?.lastSync && (
-                <div style={{ background:C.bg, borderRadius:10, padding:'10px 12px', marginBottom:10 }}>
-                  <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, margin:0 }}>
-                    Synced {new Date(connStatus.epic.lastSync).toLocaleDateString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
-                    {connStatus.epic.eventCount != null && ` · ${connStatus.epic.eventCount} appointments`}
-                  </p>
+              {epicAccounts.map(({ key, patientId, lastSync, eventCount }) => (
+                <div key={key} style={{ background:C.bg, borderRadius:10, padding:'10px 12px', marginBottom:8 }}>
+                  <div style={{ marginBottom:6 }}>
+                    <p style={{ fontSize:13, fontWeight:600, color:C.text, fontFamily:sans, margin:0 }}>Epic MyChart</p>
+                    <p style={{ fontSize:11, color:C.mutedLight, fontFamily:sans, margin:0, marginTop:2 }}>
+                      {lastSync
+                        ? `Synced ${new Date(lastSync).toLocaleDateString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}${eventCount != null ? ` · ${eventCount} appointments` : ''}`
+                        : 'Connected — tap Sync to import'}
+                    </p>
+                  </div>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <button onClick={() => handleSyncEpic(key, patientId)} disabled={!!epicSyncing[key]}
+                      style={{ flex:1, background:'white', border:`1px solid ${C.border}`, borderRadius:8, padding:'7px 0', fontSize:12, fontWeight:600, fontFamily:sans, color:C.text, cursor:'pointer', opacity:epicSyncing[key]?0.7:1 }}>
+                      {epicSyncing[key] ? 'Syncing…' : 'Sync now'}
+                    </button>
+                    <button onClick={() => handleDisconnectEpic(key)}
+                      style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:8, padding:'7px 12px', fontSize:12, color:C.muted, fontFamily:sans, cursor:'pointer' }}>
+                      Disconnect
+                    </button>
+                  </div>
                 </div>
-              )}
-              {connStatus.epic?.connectedAt ? (
-                <div style={{ display:'flex', gap:8 }}>
-                  <button onClick={handleSyncEpic} disabled={epicSyncing}
-                    style={{ flex:1, background:C.bg, border:`1px solid ${C.border}`, borderRadius:10, padding:'9px 0', fontSize:13, fontWeight:600, fontFamily:sans, color:C.text, cursor:'pointer', opacity:epicSyncing?0.7:1 }}>
-                    {epicSyncing ? 'Syncing…' : 'Sync now'}
-                  </button>
-                  <button onClick={handleDisconnectEpic}
-                    style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:10, padding:'9px 12px', fontSize:13, color:C.muted, fontFamily:sans, cursor:'pointer' }}>
-                    Disconnect
-                  </button>
-                </div>
-              ) : (
-                <button onClick={handleConnectEpic}
-                  style={{ width:'100%', background:'linear-gradient(135deg,#2a6496,#1a4a7a)', color:'white', border:'none', borderRadius:10, padding:'10px 0', fontSize:13, fontWeight:700, fontFamily:sans, cursor:'pointer' }}>
-                  Connect with Epic MyChart
-                </button>
-              )}
+              ))}
+              <button onClick={handleConnectEpic}
+                style={{ width:'100%', background: epicAccounts.length ? 'white' : 'linear-gradient(135deg,#2a6496,#1a4a7a)', color: epicAccounts.length ? '#444' : 'white', border: epicAccounts.length ? `1px solid ${C.border}` : 'none', borderRadius:10, padding:'10px 0', fontSize:13, fontWeight:700, fontFamily:sans, cursor:'pointer', marginTop: epicAccounts.length ? 4 : 0 }}>
+                {epicAccounts.length ? 'Add another Epic account' : 'Connect with Epic MyChart'}
+              </button>
             </div>
           </div>
 
@@ -5634,14 +5657,17 @@ export default function AidenApp() {
         const tokens = await exchangeEpicCode(pendingEpicCode);
         if (tokens.access_token) {
           const patientId = tokens.patient || '';
-          await saveTokens('epic', {
+          const key       = epicAccountKey(patientId);
+          await saveTokens(key, {
             accessToken:  tokens.access_token,
             refreshToken: tokens.refresh_token || null,
             expiresAt:    Date.now() + (tokens.expires_in || 3600) * 1000,
             patientId,
           });
-          const meta = { connectedAt: Date.now(), patientId };
-          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epic: meta }, { merge: true });
+          const accountMeta = { connectedAt: Date.now(), patientId };
+          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), {
+            epicAccounts: { [key]: accountMeta },
+          }, { merge: true });
           setShowProfile(true);
         }
       } catch (e) { console.error('Epic token exchange error:', e); }
@@ -5650,7 +5676,11 @@ export default function AidenApp() {
   }, [pendingEpicCode, user]);
 
   function handleEpicSynced(apts) {
-    setAppointments(prev => [...prev.filter(a => a.source !== 'epic_fhir'), ...apts]);
+    const key = apts[0]?.epicKey;
+    setAppointments(prev => [
+      ...prev.filter(a => a.source !== 'epic_fhir' || (key && a.epicKey !== key)),
+      ...apts,
+    ]);
   }
 
   useEffect(() => {
