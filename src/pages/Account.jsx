@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updatePassword, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch, getDoc, setDoc, addDoc, query, where } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { User, Shield, Trash2, Save, ArrowRight, Heart, Check, Calendar, RefreshCw, Unlink, Building2, Users, ChevronRight, Camera, Bell, Activity } from 'lucide-react';
+import { User, Shield, Trash2, Save, ArrowRight, Heart, Check, Building2, Users, ChevronRight, Camera, Bell, RefreshCw } from 'lucide-react';
 import { Switch } from '@base-ui-components/react/switch';
 import { auth, db, storage } from '../firebase';
 import { useAuth } from '../App';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import DashboardLayout from './dashboard/DashboardLayout';
 import { C, serif, shadow } from '../theme';
-import { saveTokens, loadTokens, clearTokens } from '../secureTokens';
-import { gcalClientId, gcalTokenKey, startGoogleCalendarOAuth, exchangeGCalCode, fetchGCalUserEmail, refreshGCalToken, fetchGCalEvents } from '../gcal';
-import { epicClientId, epicAccountKey, startEpicOAuth, exchangeEpicCode, refreshEpicToken, fetchEpicAppointments, epicAppointmentToAiden } from '../epic';
+import { saveTokens } from '../secureTokens';
+import { gcalTokenKey, exchangeGCalCode, fetchGCalUserEmail } from '../gcal';
+import { epicAccountKey, exchangeEpicCode } from '../epic';
 import { UpgradeModal, RoleBadge, ORG_TYPES } from './Org';
 import { isBusinessAllowed } from '../businessBeta';
 
@@ -91,200 +90,46 @@ export default function Account() {
     }
   }
 
-  // ── Google Calendar connections ──────────────────────────────────────────────
-  const [connStatus, setConnStatus]   = useState({});
-  const [connLoading, setConnLoading] = useState(false);
-  const [connError, setConnError]     = useState('');
-  const [gcalSyncing, setGcalSyncing] = useState({});
-  const [gcalExchanging, setGcalExchanging] = useState(false);
-
-  // ── Epic FHIR connection ──────────────────────────────────────────────────────
-  const [epicExchanging, setEpicExchanging] = useState(false);
-  const [epicSyncing,    setEpicSyncing]    = useState({});
-
-  // Load connection metadata from Firestore
-  useEffect(() => {
-    if (!user) return;
-    getDoc(doc(db, 'users', user.uid, 'connections', 'status')).then(snap => {
-      if (snap.exists()) setConnStatus(snap.data());
-    });
-  }, [user]);
-
-  // Handle OAuth callback — Google redirects back to /account with ?code=...&state=gcal_connect
+  // ── OAuth callbacks — exchange code, write tokens, redirect to /settings ──────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code   = params.get('code');
     const state  = params.get('state');
     if (!code || state !== 'gcal_connect' || !user) return;
     window.history.replaceState({}, '', window.location.pathname);
-    setGcalExchanging(true);
     (async () => {
       try {
         const tokens = await exchangeGCalCode(code);
         if (tokens.access_token) {
           const email = await fetchGCalUserEmail(tokens.access_token);
           const key   = email ? gcalTokenKey(email) : 'gcal_unknown';
-          await saveTokens(key, {
-            accessToken:  tokens.access_token,
-            refreshToken: tokens.refresh_token || null,
-            expiresAt:    Date.now() + (tokens.expires_in || 3600) * 1000,
-          });
-          const accountMeta = { email: email || '', connectedAt: Date.now() };
-          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), {
-            googleCalendars: { [key]: accountMeta },
-          }, { merge: true });
-          setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: accountMeta } }));
+          await saveTokens(key, { accessToken: tokens.access_token, refreshToken: tokens.refresh_token || null, expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000 });
+          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { googleCalendars: { [key]: { email: email || '', connectedAt: Date.now() } } }, { merge: true });
         }
-      } catch (e) { setConnError('Could not connect Google Calendar — please try again.'); }
-      setGcalExchanging(false);
+      } catch (e) { console.error('GCal exchange error:', e); }
+      navigate('/settings?connected=gcal');
     })();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle OAuth callback — Epic redirects back to /account with ?code=...&state=epic_connect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code   = params.get('code');
     const state  = params.get('state');
     if (!code || state !== 'epic_connect' || !user) return;
     window.history.replaceState({}, '', window.location.pathname);
-    setEpicExchanging(true);
     (async () => {
       try {
         const tokens = await exchangeEpicCode(code);
         if (tokens.access_token) {
           const patientId = tokens.patient || '';
           const key       = epicAccountKey(patientId);
-          await saveTokens(key, {
-            accessToken:  tokens.access_token,
-            refreshToken: tokens.refresh_token || null,
-            expiresAt:    Date.now() + (tokens.expires_in || 3600) * 1000,
-            patientId,
-          });
-          const accountMeta = { connectedAt: Date.now(), patientId };
-          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), {
-            epicAccounts: { [key]: accountMeta },
-          }, { merge: true });
-          setConnStatus(p => ({ ...p, epicAccounts: { ...(p.epicAccounts || {}), [key]: accountMeta } }));
-        } else {
-          setConnError('Epic connection failed — please try again.');
+          await saveTokens(key, { accessToken: tokens.access_token, refreshToken: tokens.refresh_token || null, expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000, patientId });
+          await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epicAccounts: { [key]: { connectedAt: Date.now(), patientId } } }, { merge: true });
         }
-      } catch (e) { setConnError('Could not connect Epic — please try again.'); }
-      setEpicExchanging(false);
+      } catch (e) { console.error('Epic exchange error:', e); }
+      navigate('/settings?connected=epic');
     })();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const epicAccounts = Object.entries(connStatus.epicAccounts || {})
-    .map(([key, meta]) => ({ key, ...meta }))
-    .sort((a, b) => (a.connectedAt || 0) - (b.connectedAt || 0));
-
-  const gcalAccounts = Object.entries(connStatus.googleCalendars || {})
-    .map(([key, meta]) => ({ key, ...meta }))
-    .sort((a, b) => (a.connectedAt || 0) - (b.connectedAt || 0));
-
-  async function handleConnectGoogleCalendar() {
-    if (!gcalClientId()) {
-      setConnError('Google Calendar client ID not configured — add VITE_GOOGLE_CALENDAR_CLIENT_ID to .env');
-      return;
-    }
-    setConnError('');
-    await startGoogleCalendarOAuth();
-  }
-
-  async function handleDisconnectGoogleCalendar(key, email) {
-    setConnLoading(true);
-    try {
-      await clearTokens(key);
-      const updated = { ...(connStatus.googleCalendars || {}) };
-      delete updated[key];
-      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { googleCalendars: updated }, { merge: true });
-      setConnStatus(p => {
-        const cals = { ...(p.googleCalendars || {}) };
-        delete cals[key];
-        return { ...p, googleCalendars: cals };
-      });
-    } catch { setConnError('Could not disconnect — try again.'); }
-    setConnLoading(false);
-  }
-
-  async function handleSyncGoogleCalendar(key, email) {
-    setGcalSyncing(p => ({ ...p, [key]: true })); setConnError('');
-    try {
-      const stored = await loadTokens(key);
-      if (!stored?.accessToken) throw new Error('Not connected — please reconnect Google Calendar.');
-      let { accessToken, refreshToken, expiresAt } = stored;
-      if (Date.now() > (expiresAt || 0) - 60_000) {
-        const refreshed = await refreshGCalToken(refreshToken);
-        if (!refreshed.access_token) throw new Error('Session expired — please reconnect Google Calendar.');
-        accessToken = refreshed.access_token;
-        expiresAt   = Date.now() + (refreshed.expires_in || 3600) * 1000;
-        await saveTokens(key, { accessToken, refreshToken, expiresAt });
-      }
-      const events = await fetchGCalEvents(accessToken, email);
-      const meta = { email, connectedAt: connStatus.googleCalendars?.[key]?.connectedAt || Date.now(), lastSync: Date.now(), eventCount: events.length };
-      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { googleCalendars: { [key]: meta } }, { merge: true });
-      setConnStatus(p => ({ ...p, googleCalendars: { ...(p.googleCalendars || {}), [key]: meta } }));
-    } catch (e) { setConnError(e.message || 'Sync failed — try reconnecting.'); }
-    setGcalSyncing(p => ({ ...p, [key]: false }));
-  }
-
-  // ── Epic FHIR handlers ───────────────────────────────────────────────────────
-  async function handleConnectEpic() {
-    if (!epicClientId()) {
-      setConnError('Epic client ID not configured — add VITE_EPIC_CLIENT_ID to .env');
-      return;
-    }
-    setConnError('');
-    await startEpicOAuth();
-  }
-
-  async function handleDisconnectEpic(key) {
-    setConnLoading(true);
-    try {
-      await clearTokens(key);
-      const snap  = await getDocs(query(collection(db, 'users', user.uid, 'appointments'), where('epicKey', '==', key)));
-      const batch = writeBatch(db);
-      snap.docs.forEach(d => batch.delete(d.ref));
-      await batch.commit();
-      const updated = { ...(connStatus.epicAccounts || {}) };
-      delete updated[key];
-      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epicAccounts: updated }, { merge: true });
-      setConnStatus(p => {
-        const accs = { ...(p.epicAccounts || {}) };
-        delete accs[key];
-        return { ...p, epicAccounts: accs };
-      });
-    } catch { setConnError('Could not disconnect Epic — try again.'); }
-    setConnLoading(false);
-  }
-
-  async function handleSyncEpic(key, patientId) {
-    setEpicSyncing(p => ({ ...p, [key]: true })); setConnError('');
-    try {
-      const stored = await loadTokens(key);
-      if (!stored?.accessToken) throw new Error('Not connected — please reconnect Epic.');
-      let { accessToken, refreshToken, expiresAt } = stored;
-      if (Date.now() > (expiresAt || 0) - 60_000) {
-        const refreshed = await refreshEpicToken(refreshToken);
-        if (!refreshed.access_token) throw new Error('Session expired — please reconnect Epic.');
-        accessToken = refreshed.access_token;
-        expiresAt   = Date.now() + (refreshed.expires_in || 3600) * 1000;
-        await saveTokens(key, { accessToken, refreshToken, expiresAt, patientId });
-      }
-      const resources = await fetchEpicAppointments(accessToken, patientId);
-      const aidenAppts = resources
-        .filter(r => ['booked', 'arrived', 'fulfilled'].includes(r.status))
-        .map(r => ({ ...epicAppointmentToAiden(r), epicKey: key }));
-      const existingSnap = await getDocs(query(collection(db, 'users', user.uid, 'appointments'), where('epicKey', '==', key)));
-      const batch = writeBatch(db);
-      existingSnap.docs.forEach(d => batch.delete(d.ref));
-      aidenAppts.forEach(appt => batch.set(doc(collection(db, 'users', user.uid, 'appointments')), appt));
-      await batch.commit();
-      const meta = { connectedAt: connStatus.epicAccounts?.[key]?.connectedAt || Date.now(), lastSync: Date.now(), appointmentCount: aidenAppts.length, patientId };
-      await setDoc(doc(db, 'users', user.uid, 'connections', 'status'), { epicAccounts: { [key]: meta } }, { merge: true });
-      setConnStatus(p => ({ ...p, epicAccounts: { ...(p.epicAccounts || {}), [key]: meta } }));
-    } catch (e) { setConnError(e.message || 'Epic sync failed — try reconnecting.'); }
-    setEpicSyncing(p => ({ ...p, [key]: false }));
-  }
 
   async function resizeImage(file, maxSize = 200) {
     return new Promise(resolve => {
@@ -391,15 +236,14 @@ export default function Account() {
     : 'N/A';
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bgWarm }}>
+    <DashboardLayout active="account">
       {showUpgrade && (
         <UpgradeModal
           onClose={() => setShowUpgrade(false)}
           onUpgraded={() => { setShowUpgrade(false); navigate('/org'); }}
         />
       )}
-      <Navbar />
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '100px 24px 60px' }}>
+      <div className="page-body" style={{ maxWidth: 680, margin: '0 auto', paddingBottom: 60 }}>
 
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
@@ -485,121 +329,6 @@ export default function Account() {
               </button>
             </>
           )}
-        </Card>
-
-        {/* Google Calendar connections */}
-        <Card style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-            <Calendar size={17} color={C.primary} />
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Google Calendar</h2>
-            {gcalAccounts.length > 0 && (
-              <span style={{ marginLeft: 'auto', background: '#f0f7f4', color: '#3a6e58', border: '1px solid #8ab5a040', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 800 }}>
-                {gcalAccounts.length === 1 ? 'Connected' : `${gcalAccounts.length} accounts`}
-              </span>
-            )}
-          </div>
-          <p style={{ fontSize: 14, color: C.muted, marginBottom: 16, lineHeight: 1.65 }}>
-            Pull upcoming events from your Google Calendar into Aiden. You stay in control — nothing is written back.
-          </p>
-
-          {gcalExchanging && (
-            <div style={{ background: '#f0f7f4', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#3a6e58' }}>
-              Connecting your Google account…
-            </div>
-          )}
-
-          {connError && (
-            <p style={{ fontSize: 13, color: C.coral, marginBottom: 12 }}>{connError}</p>
-          )}
-
-          {/* Connected accounts */}
-          {gcalAccounts.map(({ key, email, lastSync, eventCount }) => (
-            <div key={key} style={{ background: C.bgWarm, borderRadius: 12, padding: '12px 14px', marginBottom: 10, border: `1px solid ${C.border}` }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {email || 'Google Account'}
-                  </p>
-                  {lastSync && (
-                    <p style={{ fontSize: 12, color: C.mutedLight, margin: '3px 0 0' }}>
-                      Synced {new Date(lastSync).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      {eventCount != null && ` · ${eventCount} events`}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => handleSyncGoogleCalendar(key, email)} disabled={!!gcalSyncing[key]}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 0', fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer', opacity: gcalSyncing[key] ? 0.6 : 1 }}>
-                  <RefreshCw size={13} /> {gcalSyncing[key] ? 'Syncing…' : 'Sync now'}
-                </button>
-                <button onClick={() => handleDisconnectGoogleCalendar(key, email)} disabled={connLoading}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 14px', fontSize: 13, color: C.muted, cursor: 'pointer' }}>
-                  <Unlink size={13} /> Disconnect
-                </button>
-              </div>
-            </div>
-          ))}
-
-          <button onClick={handleConnectGoogleCalendar}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fff', color: '#444', border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: gcalAccounts.length ? 4 : 0 }}>
-            <span style={{ fontWeight: 800, fontSize: 15 }}>G</span>
-            {gcalAccounts.length ? 'Add another account' : 'Connect with Google'}
-          </button>
-        </Card>
-
-        {/* Epic FHIR connection */}
-        <Card style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-            <Activity size={17} color={C.primary} />
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Epic Health Records</h2>
-            {epicAccounts.length > 0 && (
-              <span style={{ marginLeft: 'auto', background: '#f0f7f4', color: '#3a6e58', border: '1px solid #8ab5a040', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 800 }}>
-                {epicAccounts.length === 1 ? 'Connected' : `${epicAccounts.length} accounts`}
-              </span>
-            )}
-          </div>
-          <p style={{ fontSize: 14, color: C.muted, marginBottom: 16, lineHeight: 1.65 }}>
-            Pull upcoming appointments from your Epic MyChart accounts into Aiden. Nothing is written back.
-          </p>
-
-          {epicExchanging && (
-            <div style={{ background: '#f0f7f4', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#3a6e58' }}>
-              Connecting your Epic account…
-            </div>
-          )}
-
-          {connError && (
-            <p style={{ fontSize: 13, color: C.coral, marginBottom: 12 }}>{connError}</p>
-          )}
-
-          {epicAccounts.map(({ key, patientId, lastSync, appointmentCount }) => (
-            <div key={key} style={{ background: C.bgWarm, borderRadius: 12, padding: '12px 14px', marginBottom: 10, border: `1px solid ${C.border}` }}>
-              <div style={{ marginBottom: 10 }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Epic MyChart</p>
-                <p style={{ fontSize: 12, color: C.mutedLight, margin: '2px 0 0' }}>
-                  {lastSync
-                    ? <>Synced {new Date(lastSync).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}{appointmentCount != null && ` · ${appointmentCount} appointments`}</>
-                    : 'Connected — click Sync to import appointments'}
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => handleSyncEpic(key, patientId)} disabled={!!epicSyncing[key]}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 0', fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer', opacity: epicSyncing[key] ? 0.6 : 1 }}>
-                  <RefreshCw size={13} /> {epicSyncing[key] ? 'Syncing…' : 'Sync now'}
-                </button>
-                <button onClick={() => handleDisconnectEpic(key)} disabled={connLoading}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 14px', fontSize: 13, color: C.muted, cursor: 'pointer' }}>
-                  <Unlink size={13} /> Disconnect
-                </button>
-              </div>
-            </div>
-          ))}
-
-          <button onClick={handleConnectEpic}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fff', color: '#444', border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: epicAccounts.length ? 4 : 0 }}>
-            <Activity size={15} color="#c06060" /> {epicAccounts.length ? 'Add another Epic account' : 'Connect with Epic MyChart'}
-          </button>
         </Card>
 
         {/* Reminders */}
@@ -757,7 +486,6 @@ export default function Account() {
           </button>
         </Card>
       </div>
-      <Footer />
-    </div>
+    </DashboardLayout>
   );
 }

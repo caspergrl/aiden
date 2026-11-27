@@ -51,7 +51,7 @@ export default function Home({ recipients, appointments, logistics, onNavigate, 
   const now = Date.now();
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 900 }}>
+    <div className="page-body">
       {showAddRecipient && (
         <AddRecipientModal
           onClose={() => setShowAddRecipient(false)}

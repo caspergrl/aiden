@@ -366,7 +366,7 @@ export default function Dashboard() {
   }
 
   return (
-    <DashboardLayout active={active}>
+    <DashboardLayout active={active} fullWidth={active === 'chat'}>
       {renderContent()}
       {saveError && (
         <div style={{

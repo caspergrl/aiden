@@ -525,7 +525,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
   const past     = allVisible.filter(a => apptMs(a) <  nowMs).sort((a, b) => apptMs(b) - apptMs(a));
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 900 }}>
+    <div className="page-body">
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
@@ -542,10 +542,10 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className="cal-layout">
 
         {/* Calendar grid */}
-        <div style={{ background: '#fff', borderRadius: 20, padding: 24, maxWidth: 620 }}>
+        <div style={{ background: '#fff', borderRadius: 20, padding: 24, flex: '0 0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <button onClick={prev} style={{ background: C.bgWarm, border: 'none', borderRadius: 10, padding: '8px 12px', cursor: 'pointer' }}>
               <ChevronLeft size={18} color={C.muted} />
@@ -601,7 +601,7 @@ export default function CalendarView({ appointments, recipients, onAddAppointmen
         </div>
 
         {/* Appointment list */}
-        <div style={{ background: '#fff', borderRadius: 20, overflow: 'hidden' }}>
+        <div style={{ background: '#fff', borderRadius: 20, overflow: 'hidden', flex: 1, minWidth: 0 }}>
           <div style={{ padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{selected || `${FULL_MONTHS[month]} ${year}`}</p>
             {selected && <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Show all</button>}

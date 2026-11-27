@@ -17,7 +17,7 @@ export default function Insurance({ recipients }) {
     // ── Custom plan detail ──────────────────────────────────────────────────────
     if (!info) {
       return (
-        <div style={{ padding: 32, maxWidth: 760 }}>
+        <div className="page-body">
           <button onClick={() => setSel(null)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer', marginBottom: 24 }}>
             <ChevronLeft size={15} /> All insurance
           </button>
@@ -43,7 +43,7 @@ export default function Insurance({ recipients }) {
 
     // ── Predefined plan detail ──────────────────────────────────────────────────
     return (
-      <div style={{ padding: 32, maxWidth: 760 }}>
+      <div className="page-body">
         <button onClick={() => setSel(null)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 16px', fontSize: 13, fontWeight: 600, color: C.muted, cursor: 'pointer', marginBottom: 24 }}>
           <ChevronLeft size={15} /> All insurance
         </button>
@@ -88,7 +88,7 @@ export default function Insurance({ recipients }) {
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: 760 }}>
+    <div className="page-body">
       <div style={{ marginBottom: 28 }}>
         <p style={{ fontSize: 12, fontWeight: 700, color: C.roseDark, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>Coverage</p>
         <h1 style={{ fontFamily: serif, fontSize: 30, color: C.text, letterSpacing: -0.5 }}>Insurance</h1>

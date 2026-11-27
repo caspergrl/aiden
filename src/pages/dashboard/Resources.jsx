@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Link2, Plus, Trash2, Share2, ExternalLink, X,
-  Search, Mail, MessageSquare, Pencil, Check, BookMarked, ChevronDown, HelpCircle,
+  Search, Mail, MessageSquare, Pencil, Check, ChevronDown, HelpCircle,
 } from 'lucide-react';
 import { Dialog } from '@base-ui-components/react/dialog';
 import { C, serif, shadowSm, radius } from '../../theme';
@@ -347,7 +347,7 @@ export default function Resources({ resources, onAdd, onUpdate, onDelete, recipi
   const usedCats = [...new Set(resources.map(r => r.category).filter(Boolean))];
 
   return (
-    <div style={{ padding: 32, maxWidth: 800 }}>
+    <div className="page-body">
       {showAdd && (
         <ResourceModal
           onClose={() => setShowAdd(false)}
@@ -409,7 +409,6 @@ export default function Resources({ resources, onAdd, onUpdate, onDelete, recipi
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <BookMarked size={36} color={C.border} style={{ marginBottom: 14 }} />
             <p style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 8 }}>
               {resources.length === 0 ? 'No links saved yet' : 'No results found'}
             </p>

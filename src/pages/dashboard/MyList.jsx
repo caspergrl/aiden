@@ -306,7 +306,7 @@ export default function MyList({ logistics, setLogistics, onUpdateLogistic, onAd
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 820 }}>
+    <div className="page-body">
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontFamily: serif, fontSize: 32, fontWeight: 600, color: C.text, letterSpacing: -0.5 }}>To Dos</h1>
       </div>

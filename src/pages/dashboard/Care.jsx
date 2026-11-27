@@ -2140,7 +2140,7 @@ export default function Care({
   }
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 760 }}>
+    <div className="page-body">
       {showModal && <AddRecipientModal onClose={() => setShowModal(false)} onAdd={onAddRecipient} />}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
